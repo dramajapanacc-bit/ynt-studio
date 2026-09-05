@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YNT Studio - Ultimate AI Video Translator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Pyidaungsu:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Outfit', 'Pyidaungsu', sans-serif; }
+        .cyber-glow { box-shadow: 0 0 35px rgba(236, 72, 153, 0.5), inset 0 0 15px rgba(139, 92, 246, 0.3); }
+        .neon-border { border: 2px solid transparent; background: linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4) border-box; -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0); -webkit-mask-composite: destination-out; mask-composite: exclude; }
+        .gradient-bg { background: linear-gradient(135deg, #ff007f 0%, #7928ca 50%, #00dfd8 100%); }
+        .gradient-text { background: linear-gradient(90deg, #ff007f, #b829ff, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .glass-panel { background: rgba(10, 10, 25, 0.85); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.12); }
+        @keyframes pulse-slow { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+        .animate-pulse-slow { animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    </style>
+</head>
+<body class="bg-[#030014] text-white min-h-screen flex flex-col justify-between relative overflow-x-hidden">
+
+    <div class="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/30 rounded-full blur-[120px] pointer-events-none animate-pulse-slow"></div>
+    <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-pink-600/30 rounded-full blur-[120px] pointer-events-none animate-pulse-slow"></div>
+
+    <header class="flex justify-between items-center px-8 py-5 border-b border-white/10 glass-panel sticky top-0 z-50">
+        <div class="flex items-center space-x-3">
+            <div class="w-11 h-11 rounded-2xl gradient-bg flex items-center justify-center font-black text-xl shadow-lg shadow-pink-500/40 transform hover:rotate-12 transition">Y</div>
+            <div>
+                <span class="font-black text-xl tracking-wider gradient-text">YNT STUDIO</span>
+                <span class="block text-[10px] text-cyan-400 tracking-widest uppercase font-semibold">AI Intelligence Engine</span>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <span class="hidden md:inline-block px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-bold border border-cyan-500/30 animate-pulse">⚡ Live AI 3.0</span>
+            <button class="px-3.5 py-1.5 bg-white/5 hover:bg-white/15 rounded-xl text-xs font-bold border border-white/10 transition">EN</button>
+            <button class="px-4 py-1.5 gradient-bg rounded-xl text-xs font-bold shadow-lg shadow-purple-600/40 hover:scale-105 transition">မြန်မာ</button>
+        </div>
+    </header>
+
+    <main class="max-w-xl mx-auto p-6 w-full flex-grow flex flex-col justify-center relative z-10">
+        <div class="text-center mb-8">
+            <div class="inline-block mb-3 px-4 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold tracking-wide">
+                🚀 Next-Gen Video Translation & Subtitle Maker
+            </div>
+            <h1 class="text-3xl md:text-5xl font-black mb-3 gradient-text tracking-tight">Multi-Language Shorts Translator</h1>
+            <p class="text-slate-400 text-sm max-w-md mx-auto">ဗီဒီယိုများကို နိုင်ငံခြားဘာသာစကားမှ မြန်မာစာတန်းထိုး (SRT) နှင့် အမိုက်စား AI Thumbnail များအဖြစ် စက္ကန့်ပိုင်းအတွင်း ပြောင်းလဲပေးမည်</p>
+        </div>
+
+        <div class="glass-panel rounded-3xl p-7 shadow-2xl relative overflow-hidden cyber-glow">
+            <div class="mb-5">
+                <label class="block text-xs font-extrabold uppercase tracking-widest text-pink-400 mb-2.5 flex items-center justify-between">
+                    <span>ဘာသာစကား ရွေးချယ်ရန်</span>
+                    <span class="text-[10px] text-slate-400">Target Language</span>
+                </label>
+                <div class="relative">
+                    <select class="w-full bg-[#0a061d] border border-purple-500/40 rounded-2xl p-4 text-white font-medium focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 transition appearance-none cursor-pointer">
+                        <option>🇨🇳 Chinese (တရုတ်)</option>
+                        <option>🇬🇧 English (အင်္ဂလိပ်)</option>
+                        <option>🇯🇵 Japanese (ဂျပန်)</option>
+                        <option>🇰🇷 Korean (ကိုရီးယား)</option>
+                    </select>
+                    <div class="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none text-purple-400">▼</div>
+                </div>
+            </div>
+
+            <div class="border-2 border-dashed border-purple-500/40 rounded-2xl p-8 text-center bg-gradient-to-b from-purple-950/20 to-transparent hover:border-cyan-400 hover:bg-cyan-950/20 transition-all duration-300 cursor-pointer mb-6 group">
+                <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-3xl group-hover:scale-110 group-hover:rotate-6 transition duration-300 shadow-inner">
+                    📁
+                </div>
+                <p class="text-sm font-bold text-slate-200 group-hover:text-cyan-300 transition">Video သို့မဟုတ် Audio ဖိုင် ဆွဲထည့်ပါ</p>
+                <p class="text-xs text-slate-400 mt-1.5">MP4, MKV, MP3 (Maximum Size: 500MB)</p>
+                <input type="file" class="hidden" id="videoFile">
+            </div>
+
+            <button class="w-full py-4 rounded-2xl font-black text-base gradient-bg hover:opacity-95 transition-all transform hover:-translate-y-0.5 shadow-xl shadow-pink-600/40 tracking-wider text-white flex items-center justify-center space-x-2">
+                <span>✨ ဘာသာပြန်စတင်မည် (Translate Now)</span>
+            </button>
+        </div>
+    </main>
+
+    <footer class="text-center py-6 text-xs text-slate-500 border-t border-white/5 glass-panel">
+        <p>&copy; 2026 YNT Studio. All rights reserved. Powered by Advanced AI Processing.</p>
+    </footer>
+
+</body>
+</html>
