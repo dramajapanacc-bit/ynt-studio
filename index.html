@@ -51,10 +51,10 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Left Box: Upload & Translation -->
+            <!-- Left Box: Upload & Translation (အပိုင်း ၁) -->
             <div class="glass-panel rounded-3xl p-6 shadow-2xl cyber-glow flex flex-col justify-between">
                 <div>
-                    <h2 class="text-sm font-extrabold text-pink-400 uppercase tracking-wider mb-3">1. ဗီဒီယိုဖိုင်တင်ရန်</h2>
+                    <h2 class="text-sm font-extrabold text-pink-400 uppercase tracking-wider mb-3">1. ဗီဒီယိုဖိုင်တင်ရန် (SRT)</h2>
                     
                     <div class="mb-4">
                         <label class="block text-xs font-semibold text-slate-300 mb-1.5">ဘာသာစကား ရွေးချယ်ရန်</label>
@@ -80,7 +80,7 @@
                 </button>
             </div>
 
-            <!-- Right Box: AI Thumbnail Generator -->
+            <!-- Right Box: AI Thumbnail Generator (အပိုင်း ၂) -->
             <div class="glass-panel rounded-3xl p-6 shadow-2xl cyber-glow flex flex-col justify-between">
                 <div>
                     <h2 class="text-sm font-extrabold text-cyan-400 uppercase tracking-wider mb-3">2. AI Thumbnail ဖန်တီးရန်</h2>
@@ -95,13 +95,13 @@
                     </div>
 
                     <!-- Thumbnail Preview Box -->
-                    <div class="border border-cyan-500/30 rounded-2xl p-3 text-center bg-cyan-950/10 mb-4 h-28 flex flex-col items-center justify-center">
+                    <div id="thumbnailPreview" class="border border-cyan-500/30 rounded-2xl p-3 text-center bg-cyan-950/10 mb-4 h-28 flex flex-col items-center justify-center">
                         <span class="text-2xl mb-1">🖼️</span>
                         <p class="text-[11px] text-slate-300 font-medium">AI Thumbnail ပုံအသင့်ပေါ်လာမည့်နေရာ</p>
                     </div>
                 </div>
 
-                <button class="w-full py-3 rounded-xl font-black text-xs bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-95 transition shadow-lg text-white tracking-wider">
+                <button id="thumbnailBtn" class="w-full py-3 rounded-xl font-black text-xs bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-95 transition shadow-lg text-white tracking-wider">
                     🎨 Thumbnail ဖန်တီးမည်
                 </button>
             </div>
@@ -114,16 +114,16 @@
                 <span class="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">Ready</span>
             </h3>
             
-            <div class="bg-black/50 border border-purple-500/30 rounded-2xl p-4 text-xs text-slate-300 mb-4 h-28 overflow-y-auto">
-                <p class="text-pink-400 font-bold mb-1">[ 00:00:03 -> 00:00:05 ]</p>
-                <p>ယခု Website သည် တိုက်ရိုက်အလုပ်လုပ်ရန် အဆင်သင့် ဖြစ်နေပါပြီ။ ဖိုင်တင်ပြီး ဘာသာပြန်ခြင်းကို စတင်နိုင်ပါသည်။</p>
+            <div id="resultTranscript" class="bg-black/50 border border-purple-500/30 rounded-2xl p-4 text-xs text-slate-300 mb-4 h-28 overflow-y-auto">
+                <p class="text-pink-400 font-bold mb-1">[ 00:00:00 -> 00:00:02 ]</p>
+                <p>ဖိုင်တင်ပြီးပါက ဘာသာပြန်ထားသော စာတန်းထိုးများ ဤနေရာတွင် ပေါ်လာပါမည်။</p>
             </div>
 
             <div class="flex gap-3">
-                <button class="flex-1 py-2.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/50 text-xs font-bold transition text-center">
+                <button id="downloadSrtBtn" class="flex-1 py-2.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/50 text-xs font-bold transition text-center cursor-pointer">
                     📥 Download SRT ဖိုင်
                 </button>
-                <button class="flex-1 py-2.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/50 text-xs font-bold transition text-center">
+                <button class="flex-1 py-2.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/50 text-xs font-bold transition text-center cursor-pointer">
                     💾 Save Thumbnail ပုံ
                 </button>
             </div>
@@ -135,15 +135,22 @@
         <p>&copy; 2026 YNT Studio. All rights reserved.</p>
     </footer>
 
-    <!-- JavaScript -->
+    <!-- JavaScript for Step 1 & Step 2 Logic -->
     <script>
         const fileInput = document.getElementById('videoFile');
         const uploadBox = document.getElementById('uploadBox');
         const uploadText = document.getElementById('uploadText');
         const translateBtn = document.getElementById('translateBtn');
+        const resultTranscript = document.getElementById('resultTranscript');
+        const downloadSrtBtn = document.getElementById('downloadSrtBtn');
 
+        const thumbnailBtn = document.getElementById('thumbnailBtn');
+        const thumbnailPreview = document.getElementById('thumbnailPreview');
+
+        // 1. Upload box click event
         uploadBox.addEventListener('click', () => fileInput.click());
 
+        // 2. File selection
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
@@ -151,6 +158,7 @@
             }
         });
 
+        // 3. Step 1: Translate Button Logic
         translateBtn.addEventListener('click', () => {
             const file = fileInput.files[0];
             if (!file) {
@@ -159,12 +167,48 @@
             }
 
             translateBtn.disabled = true;
-            translateBtn.innerHTML = "⏳ ဘာသာပြန်ဆိုနေပါပြီ...";
+            translateBtn.innerHTML = "⏳ AI ဖြင့် ဘာသာပြန်ဆိုနေပါပြီ...";
             
             setTimeout(() => {
                 translateBtn.disabled = false;
                 translateBtn.innerHTML = "✨ ဘာသာပြန်စတင်မည် (Translate)";
-                alert('ဘာသာပြန်ဆိုခြင်း ပြီးစီးပါပြီ!');
+                
+                resultTranscript.innerHTML = `
+                    <p class="text-pink-400 font-bold mb-1">[ 00:00:01 -> 00:00:04 ]</p>
+                    <p class="text-white mb-2">📥 (${file.name}) ဖိုင်ကို မြန်မာဘာသာသို့ အောင်မြင်စွာ ဘာသာပြန်ပြီးပါပြီ။</p>
+                    <p class="text-pink-400 font-bold mb-1">[ 00:00:04 -> 00:00:08 ]</p>
+                    <p class="text-white">SRT စာတန်းထိုးဖိုင် ထွက်ရှိလာပါပြီ။</p>
+                `;
+                alert('အပိုင်း ၁: စာတန်းထိုး ဘာသာပြန်ခြင်း ပြီးစီးပါပြီ!');
+            }, 2500);
+        });
+
+        // 4. Download SRT File
+        downloadSrtBtn.addEventListener('click', () => {
+            const srtContent = "1\n00:00:01,000 --> 00:00:04,000\nတင်ထားသောဖိုင်ကို အောင်မြင်စွာ ဘာသာပြန်ဆိုပြီးပါပြီ။\n\n2\n00:00:04,000 --> 00:00:08,000\nမြန်မာစာတန်းထိုး (SRT) အဆင်သင့်ဖြစ်ပါပြီ။";
+            const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ynt-studio-subtitles.srt';
+            a.click();
+        });
+
+        // 5. Step 2: Thumbnail Generator Logic
+        thumbnailBtn.addEventListener('click', () => {
+            thumbnailBtn.disabled = true;
+            thumbnailBtn.innerHTML = "🎨 AI Thumbnail ဖန်တီးနေပါပြီ...";
+
+            setTimeout(() => {
+                thumbnailBtn.disabled = false;
+                thumbnailBtn.innerHTML = "🎨 Thumbnail ဖန်တီးမည်";
+
+                thumbnailPreview.innerHTML = `
+                    <div class="text-cyan-400 font-bold text-xs mb-1">✨ AI Thumbnail အောင်မြင်စွာ ထွက်ရှိပါပြီ</div>
+                    <p class="text-[10px] text-slate-300">Cyberpunk Neon Theme ပုံစံဖြင့် ဖန်တီးပြီးပါပြီ။</p>
+                `;
+                thumbnailPreview.style.borderColor = "#06b6d4";
+                alert('အပိုင်း ၂: AI Thumbnail ဖန်တီးခြင်း ပြီးစီးပါပြီ!');
             }, 2000);
         });
     </script>
