@@ -3,214 +3,1421 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YNT Studio - Ultimate AI Video Translator</title>
-    <!-- Google Fonts: Outfit & Pyidaungsu -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Pyidaungsu:wght@400;700&display=swap" rel="stylesheet">
-    <!-- Tailwind CSS -->
+
+    <title>YNT Studio - AI Video Translator</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Pyidaungsu:wght@400;700&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
-        body { font-family: 'Outfit', 'Pyidaungsu', sans-serif; }
-        .cyber-glow { box-shadow: 0 0 35px rgba(236, 72, 153, 0.4), inset 0 0 15px rgba(139, 92, 246, 0.2); }
-        .gradient-bg { background: linear-gradient(135deg, #ff007f 0%, #7928ca 50%, #00dfd8 100%); }
-        .gradient-text { background: linear-gradient(90deg, #ff007f, #b829ff, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .glass-panel { background: rgba(10, 10, 25, 0.85); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.12); }
-        @keyframes pulse-slow { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
-        .animate-pulse-slow { animation: pulse-slow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', 'Pyidaungsu', sans-serif;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(
+                135deg,
+                #ff007f 0%,
+                #7928ca 50%,
+                #00dfd8 100%
+            );
+        }
+
+        .gradient-text {
+            background: linear-gradient(
+                90deg,
+                #ff007f,
+                #b829ff,
+                #00f2fe
+            );
+
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .glass-panel {
+            background: rgba(10, 10, 25, 0.88);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(255,255,255,0.12);
+        }
+
+        .cyber-glow {
+            box-shadow:
+                0 0 35px rgba(236,72,153,0.20),
+                inset 0 0 15px rgba(139,92,246,0.10);
+        }
+
+        .upload-active {
+            border-color: #00f2fe !important;
+            background: rgba(6,182,212,0.08) !important;
+        }
+
+        .loading {
+            pointer-events: none;
+            opacity: .65;
+        }
+
+        @keyframes pulseGlow {
+            0%,100% {
+                opacity:.35;
+            }
+
+            50% {
+                opacity:.75;
+            }
+        }
+
+        .pulse-glow {
+            animation: pulseGlow 4s infinite;
+        }
     </style>
 </head>
-<body class="bg-[#030014] text-white min-h-screen flex flex-col justify-between relative overflow-x-hidden">
 
-    <!-- Background Cyber Gradients -->
-    <div class="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/30 rounded-full blur-[120px] pointer-events-none animate-pulse-slow"></div>
-    <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-pink-600/30 rounded-full blur-[120px] pointer-events-none animate-pulse-slow"></div>
+<body class="bg-[#030014] text-white min-h-screen overflow-x-hidden">
 
-    <!-- Header -->
-    <header class="flex justify-between items-center px-8 py-5 border-b border-white/10 glass-panel sticky top-0 z-50">
-        <div class="flex items-center space-x-3">
-            <div class="w-11 h-11 rounded-2xl gradient-bg flex items-center justify-center font-black text-xl shadow-lg shadow-pink-500/40">Y</div>
-            <div>
-                <span class="font-black text-xl tracking-wider gradient-text">YNT STUDIO</span>
-                <span class="block text-[10px] text-cyan-400 tracking-widest uppercase font-semibold">AI Intelligence Engine</span>
+    <!-- BACKGROUND -->
+    <div class="fixed top-0 left-1/4 w-96 h-96
+                bg-purple-600/20 rounded-full blur-[120px]
+                pointer-events-none pulse-glow"></div>
+
+    <div class="fixed bottom-0 right-1/4 w-96 h-96
+                bg-pink-600/20 rounded-full blur-[120px]
+                pointer-events-none pulse-glow"></div>
+
+
+    <!-- HEADER -->
+    <header class="sticky top-0 z-50
+                   glass-panel border-b border-white/10">
+
+        <div class="max-w-6xl mx-auto
+                    px-4 md:px-8 py-4
+                    flex items-center justify-between">
+
+            <div class="flex items-center gap-3">
+
+                <div class="w-11 h-11 rounded-2xl
+                            gradient-bg
+                            flex items-center justify-center
+                            font-black text-xl
+                            shadow-lg shadow-pink-500/30">
+                    Y
+                </div>
+
+                <div>
+                    <div class="font-black text-xl tracking-wider gradient-text">
+                        YNT STUDIO
+                    </div>
+
+                    <div class="text-[9px]
+                                text-cyan-400
+                                tracking-[3px]
+                                uppercase
+                                font-bold">
+                        AI Intelligence Engine
+                    </div>
+                </div>
+
             </div>
+
+
+            <div class="flex items-center gap-2">
+
+                <span class="hidden md:block
+                             px-3 py-1.5
+                             rounded-full
+                             bg-cyan-500/10
+                             border border-cyan-500/30
+                             text-cyan-400
+                             text-[10px]
+                             font-bold">
+                    ⚡ LIVE AI
+                </span>
+
+                <button
+                    type="button"
+                    class="px-3 py-1.5
+                           rounded-xl
+                           bg-white/5
+                           border border-white/10
+                           text-xs">
+                    EN
+                </button>
+
+                <button
+                    type="button"
+                    class="px-4 py-1.5
+                           rounded-xl
+                           gradient-bg
+                           text-xs font-bold">
+                    မြန်မာ
+                </button>
+
+            </div>
+
         </div>
-        <div class="flex items-center space-x-3">
-            <span class="hidden md:inline-block px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-bold border border-cyan-500/30 animate-pulse">⚡ Live AI 3.0</span>
-            <button class="px-3.5 py-1.5 bg-white/5 hover:bg-white/15 rounded-xl text-xs font-bold border border-white/10 transition">EN</button>
-            <button class="px-4 py-1.5 gradient-bg rounded-xl text-xs font-bold shadow-lg shadow-purple-600/40">မြန်မာ</button>
-        </div>
+
     </header>
 
-    <!-- Main Container -->
-    <main class="max-w-2xl mx-auto p-6 w-full flex-grow space-y-6 relative z-10">
-        <div class="text-center mb-6">
-            <div class="inline-block mb-3 px-4 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold tracking-wide">
-                🚀 Next-Gen Video Translation & Thumbnail Studio
+
+    <!-- MAIN -->
+    <main class="relative z-10
+                 max-w-6xl mx-auto
+                 px-4 md:px-6
+                 py-8">
+
+
+        <!-- TITLE -->
+        <section class="text-center mb-8">
+
+            <div class="inline-block
+                        px-4 py-1.5
+                        mb-3
+                        rounded-full
+                        bg-purple-500/10
+                        border border-purple-500/30
+                        text-purple-300
+                        text-[10px]
+                        font-bold">
+                🚀 NEXT-GEN AI VIDEO STUDIO
             </div>
-            <h1 class="text-3xl md:text-4xl font-black mb-2 gradient-text tracking-tight">YNT Studio Dashboard</h1>
-            <p class="text-slate-400 text-xs md:text-sm">ဗီဒီယိုဘာသာပြန်ခြင်းနှင့် AI Thumbnail ဖန်တီးခြင်းများကို တစ်နေရာတည်းတွင် ကြည့်ရှုအသုံးပြုနိုင်ပါသည်</p>
-        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Left Box: Upload & Translation (အပိုင်း ၁) -->
-            <div class="glass-panel rounded-3xl p-6 shadow-2xl cyber-glow flex flex-col justify-between">
-                <div>
-                    <h2 class="text-sm font-extrabold text-pink-400 uppercase tracking-wider mb-3">1. ဗီဒီယိုဖိုင်တင်ရန် (SRT)</h2>
-                    
-                    <div class="mb-4">
-                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">ဘာသာစကား ရွေးချယ်ရန်</label>
-                        <select class="w-full bg-[#0a061d] border border-purple-500/40 rounded-xl p-3 text-xs text-white font-medium focus:outline-none focus:border-cyan-400">
-                            <option>🇨🇳 Chinese (တရုတ်)</option>
-                            <option>🇬🇧 English (အင်္ဂလိပ်)</option>
-                            <option>🇯🇵 Japanese (ဂျပန်)</option>
-                            <option>🇰🇷 Korean (ကိုရီးယား)</option>
-                        </select>
-                    </div>
+            <h1 class="text-3xl md:text-5xl
+                       font-black
+                       gradient-text
+                       mb-3">
+                YNT Studio Dashboard
+            </h1>
 
-                    <!-- Upload Box -->
-                    <div id="uploadBox" class="border-2 border-dashed border-purple-500/40 rounded-2xl p-5 text-center bg-purple-950/20 hover:border-cyan-400 transition cursor-pointer mb-4 group">
-                        <div class="text-2xl mb-1">📁</div>
-                        <p id="uploadText" class="text-xs font-bold text-slate-200">Video / Audio ဖိုင် ဆွဲထည့်ပါ</p>
-                        <p class="text-[10px] text-slate-400 mt-1">MP4, MKV, MP3 (Max: 500MB)</p>
-                        <input type="file" class="hidden" id="videoFile" accept="video/*,audio/*">
-                    </div>
+            <p class="text-slate-400
+                      text-xs md:text-sm">
+                ဗီဒီယိုဘာသာပြန်ခြင်းနှင့် AI Thumbnail
+                ဖန်တီးခြင်းများကို တစ်နေရာတည်းတွင် အသုံးပြုနိုင်ပါသည်။
+            </p>
+
+        </section>
+
+
+
+        <!-- TWO CARDS -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+
+            <!-- ================================= -->
+            <!-- 1. VIDEO TRANSLATOR -->
+            <!-- ================================= -->
+
+            <section class="glass-panel
+                            rounded-3xl
+                            p-5 md:p-6
+                            cyber-glow">
+
+                <div class="flex items-center justify-between mb-5">
+
+                    <h2 class="text-sm
+                               font-black
+                               text-pink-400">
+                        1. ဗီဒီယို → မြန်မာ SRT
+                    </h2>
+
+                    <span id="translateStatus"
+                          class="text-[9px]
+                                 px-2 py-1
+                                 rounded-full
+                                 bg-cyan-500/10
+                                 border border-cyan-500/30
+                                 text-cyan-400">
+                        READY
+                    </span>
+
                 </div>
 
-                <button id="translateBtn" class="w-full py-3 rounded-xl font-black text-xs gradient-bg hover:opacity-95 transition shadow-lg text-white tracking-wider">
-                    ✨ ဘာသာပြန်စတင်မည် (Translate)
+
+                <!-- LANGUAGE -->
+                <label class="block
+                              text-xs
+                              font-bold
+                              text-slate-300
+                              mb-2">
+                    မူရင်းဘာသာစကား
+                </label>
+
+                <select
+                    id="sourceLanguage"
+                    class="w-full
+                           bg-[#0a061d]
+                           border border-purple-500/40
+                           rounded-xl
+                           p-3
+                           text-xs
+                           text-white
+                           mb-4
+                           outline-none">
+
+                    <option value="zh">🇨🇳 Chinese (တရုတ်)</option>
+                    <option value="en">🇬🇧 English (အင်္ဂလိပ်)</option>
+                    <option value="ja">🇯🇵 Japanese (ဂျပန်)</option>
+                    <option value="ko">🇰🇷 Korean (ကိုရီးယား)</option>
+
+                </select>
+
+
+
+                <!-- UPLOAD -->
+                <div
+                    id="uploadBox"
+                    class="border-2
+                           border-dashed
+                           border-purple-500/40
+                           rounded-2xl
+                           p-6
+                           text-center
+                           bg-purple-950/20
+                           cursor-pointer
+                           transition
+                           mb-4">
+
+                    <div class="text-3xl mb-2">
+                        📁
+                    </div>
+
+                    <p id="uploadText"
+                       class="text-xs
+                              font-bold
+                              text-slate-200">
+                        Video / Audio ဖိုင်ရွေးပါ
+                    </p>
+
+                    <p id="fileInfo"
+                       class="text-[10px]
+                              text-slate-500
+                              mt-2">
+                        MP4, MKV, MP3 • Max 500MB
+                    </p>
+
+                    <input
+                        id="videoFile"
+                        type="file"
+                        class="hidden"
+                        accept="video/*,audio/*">
+
+                </div>
+
+
+
+                <!-- PROGRESS -->
+                <div id="progressArea"
+                     class="hidden mb-4">
+
+                    <div class="flex justify-between
+                                text-[10px]
+                                mb-1">
+
+                        <span id="progressText">
+                            Processing...
+                        </span>
+
+                        <span id="progressPercent">
+                            0%
+                        </span>
+
+                    </div>
+
+                    <div class="w-full
+                                h-2
+                                rounded-full
+                                bg-white/5
+                                overflow-hidden">
+
+                        <div
+                            id="progressBar"
+                            class="h-full
+                                   w-0
+                                   gradient-bg
+                                   transition-all">
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- TRANSLATE -->
+                <button
+                    id="translateBtn"
+                    type="button"
+                    class="w-full
+                           py-3
+                           rounded-xl
+                           gradient-bg
+                           font-black
+                           text-xs
+                           shadow-lg
+                           shadow-purple-600/20
+                           transition">
+
+                    ✨ ဘာသာပြန်စတင်မည်
                 </button>
-            </div>
 
-            <!-- Right Box: AI Thumbnail Generator (အပိုင်း ၂) -->
-            <div class="glass-panel rounded-3xl p-6 shadow-2xl cyber-glow flex flex-col justify-between">
-                <div>
-                    <h2 class="text-sm font-extrabold text-cyan-400 uppercase tracking-wider mb-3">2. AI Thumbnail ဖန်တီးရန်</h2>
-                    
-                    <div class="mb-4">
-                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">ပုံစံအမျိုးအစား (Theme)</label>
-                        <select class="w-full bg-[#0a061d] border border-cyan-500/40 rounded-xl p-3 text-xs text-white font-medium focus:outline-none focus:border-pink-400">
-                            <option>🔥 Cyberpunk Neon (ဆန်းသစ်ထင်ရှား)</option>
-                            <option>⚡ Modern Minimalist (ရှင်းလင်းသပ်ရပ်)</option>
-                            <option>💥 Cinematic 3D (ရုပ်ရှင်ဆန်ဆန်)</option>
-                        </select>
-                    </div>
+            </section>
 
-                    <!-- Thumbnail Preview Box -->
-                    <div id="thumbnailPreview" class="border border-cyan-500/30 rounded-2xl p-3 text-center bg-cyan-950/10 mb-4 h-28 flex flex-col items-center justify-center">
-                        <span class="text-2xl mb-1">🖼️</span>
-                        <p class="text-[11px] text-slate-300 font-medium">AI Thumbnail ပုံအသင့်ပေါ်လာမည့်နေရာ</p>
-                    </div>
+
+
+            <!-- ================================= -->
+            <!-- 2. THUMBNAIL -->
+            <!-- ================================= -->
+
+            <section class="glass-panel
+                            rounded-3xl
+                            p-5 md:p-6
+                            cyber-glow">
+
+                <div class="flex items-center justify-between mb-5">
+
+                    <h2 class="text-sm
+                               font-black
+                               text-cyan-400">
+                        2. AI Thumbnail
+                    </h2>
+
+                    <span id="thumbnailStatus"
+                          class="text-[9px]
+                                 px-2 py-1
+                                 rounded-full
+                                 bg-cyan-500/10
+                                 border border-cyan-500/30
+                                 text-cyan-400">
+                        READY
+                    </span>
+
                 </div>
 
-                <button id="thumbnailBtn" class="w-full py-3 rounded-xl font-black text-xs bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-95 transition shadow-lg text-white tracking-wider">
+
+
+                <!-- THEME -->
+                <label class="block
+                              text-xs
+                              font-bold
+                              text-slate-300
+                              mb-2">
+                    Thumbnail Theme
+                </label>
+
+                <select
+                    id="thumbnailTheme"
+                    class="w-full
+                           bg-[#0a061d]
+                           border border-cyan-500/40
+                           rounded-xl
+                           p-3
+                           text-xs
+                           text-white
+                           mb-4
+                           outline-none">
+
+                    <option value="cyberpunk">
+                        🔥 Cyberpunk Neon
+                    </option>
+
+                    <option value="minimal">
+                        ⚡ Modern Minimalist
+                    </option>
+
+                    <option value="cinematic">
+                        💥 Cinematic 3D
+                    </option>
+
+                </select>
+
+
+
+                <!-- THUMBNAIL IMAGE UPLOAD -->
+                <div
+                    id="thumbnailUploadBox"
+                    class="border-2
+                           border-dashed
+                           border-cyan-500/30
+                           rounded-2xl
+                           p-4
+                           text-center
+                           bg-cyan-950/10
+                           cursor-pointer
+                           mb-4">
+
+                    <div class="text-3xl mb-2">
+                        🖼️
+                    </div>
+
+                    <p id="thumbnailUploadText"
+                       class="text-xs
+                              font-bold
+                              text-slate-300">
+                        Thumbnail အတွက် ပုံရွေးပါ
+                    </p>
+
+                    <input
+                        id="thumbnailFile"
+                        type="file"
+                        class="hidden"
+                        accept="image/*">
+
+                </div>
+
+
+
+                <!-- PREVIEW -->
+                <div
+                    id="thumbnailPreview"
+                    class="relative
+                           w-full
+                           aspect-video
+                           rounded-2xl
+                           overflow-hidden
+                           border border-cyan-500/20
+                           bg-black/40
+                           flex items-center
+                           justify-center
+                           mb-4">
+
+                    <div class="text-center">
+
+                        <div class="text-3xl mb-2">
+                            🎨
+                        </div>
+
+                        <p class="text-[10px]
+                                  text-slate-400">
+                            AI Thumbnail Preview
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- GENERATE -->
+                <button
+                    id="thumbnailBtn"
+                    type="button"
+                    class="w-full
+                           py-3
+                           rounded-xl
+                           bg-gradient-to-r
+                           from-cyan-500
+                           to-blue-600
+                           font-black
+                           text-xs
+                           shadow-lg
+                           transition">
+
                     🎨 Thumbnail ဖန်တီးမည်
                 </button>
-            </div>
+
+            </section>
+
         </div>
 
-        <!-- Always Visible Results Section -->
-        <div class="glass-panel rounded-3xl p-6 shadow-2xl cyber-glow">
-            <h3 class="text-sm font-bold text-purple-400 uppercase tracking-wider mb-3 flex items-center justify-between">
-                <span>📋 ရလဒ်များနှင့် စာတန်းထိုးများ (Live Results)</span>
-                <span class="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">Ready</span>
-            </h3>
-            
-            <div id="resultTranscript" class="bg-black/50 border border-purple-500/30 rounded-2xl p-4 text-xs text-slate-300 mb-4 h-28 overflow-y-auto">
-                <p class="text-pink-400 font-bold mb-1">[ 00:00:00 -> 00:00:02 ]</p>
-                <p>ဖိုင်တင်ပြီးပါက ဘာသာပြန်ထားသော စာတန်းထိုးများ ဤနေရာတွင် ပေါ်လာပါမည်။</p>
+
+
+        <!-- ================================= -->
+        <!-- RESULTS -->
+        <!-- ================================= -->
+
+        <section class="glass-panel
+                        rounded-3xl
+                        p-5 md:p-6
+                        mt-6
+                        cyber-glow">
+
+            <div class="flex items-center
+                        justify-between
+                        mb-4">
+
+                <h3 class="text-sm
+                           font-black
+                           text-purple-400">
+
+                    📋 ရလဒ်များနှင့် စာတန်းထိုးများ
+
+                </h3>
+
+                <span id="resultStatus"
+                      class="text-[9px]
+                             px-2 py-1
+                             rounded-full
+                             bg-cyan-500/10
+                             border border-cyan-500/30
+                             text-cyan-400">
+
+                    READY
+
+                </span>
+
             </div>
 
-            <div class="flex gap-3">
-                <button id="downloadSrtBtn" class="flex-1 py-2.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/50 text-xs font-bold transition text-center cursor-pointer">
-                    📥 Download SRT ဖိုင်
-                </button>
-                <button class="flex-1 py-2.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/50 text-xs font-bold transition text-center cursor-pointer">
-                    💾 Save Thumbnail ပုံ
-                </button>
+
+
+            <!-- RESULT -->
+            <div
+                id="resultTranscript"
+                class="bg-black/50
+                       border border-purple-500/20
+                       rounded-2xl
+                       p-4
+                       text-xs
+                       text-slate-300
+                       min-h-[140px]
+                       max-h-[320px]
+                       overflow-y-auto">
+
+                <div class="text-center
+                            py-8
+                            text-slate-500">
+
+                    <div class="text-2xl mb-2">
+                        📝
+                    </div>
+
+                    <p>
+                        ဘာသာပြန်ပြီးသော SRT
+                        ရလဒ်များ ဤနေရာတွင် ပေါ်လာပါမည်။
+                    </p>
+
+                </div>
+
             </div>
+
+
+
+            <!-- DOWNLOAD BUTTONS -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+
+                <button
+                    id="downloadSrtBtn"
+                    type="button"
+                    disabled
+                    class="py-3
+                           rounded-xl
+                           bg-purple-600/20
+                           border border-purple-500/30
+                           text-xs
+                           font-bold
+                           disabled:opacity-40">
+
+                    📥 Download SRT
+                </button>
+
+
+                <button
+                    id="downloadThumbnailBtn"
+                    type="button"
+                    disabled
+                    class="py-3
+                           rounded-xl
+                           bg-cyan-600/20
+                           border border-cyan-500/30
+                           text-xs
+                           font-bold
+                           disabled:opacity-40">
+
+                    💾 Save Thumbnail
+                </button>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- ERROR -->
+        <div
+            id="errorBox"
+            class="hidden
+                   mt-5
+                   rounded-2xl
+                   border border-red-500/30
+                   bg-red-500/10
+                   p-4
+                   text-xs
+                   text-red-300">
         </div>
+
     </main>
 
-    <!-- Footer -->
-    <footer class="text-center py-5 text-xs text-slate-500 border-t border-white/5 glass-panel">
-        <p>&copy; 2026 YNT Studio. All rights reserved.</p>
+
+
+    <!-- FOOTER -->
+    <footer class="relative z-10
+                   border-t border-white/5
+                   text-center
+                   py-5
+                   text-[10px]
+                   text-slate-500">
+
+        © 2026 YNT Studio. All rights reserved.
+
     </footer>
 
-    <!-- JavaScript for Step 1 & Step 2 Logic -->
-    <script>
-        const fileInput = document.getElementById('videoFile');
-        const uploadBox = document.getElementById('uploadBox');
-        const uploadText = document.getElementById('uploadText');
-        const translateBtn = document.getElementById('translateBtn');
-        const resultTranscript = document.getElementById('resultTranscript');
-        const downloadSrtBtn = document.getElementById('downloadSrtBtn');
 
-        const thumbnailBtn = document.getElementById('thumbnailBtn');
-        const thumbnailPreview = document.getElementById('thumbnailPreview');
 
-        // 1. Upload box click event
-        uploadBox.addEventListener('click', () => fileInput.click());
+<script>
 
-        // 2. File selection
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                uploadText.textContent = `ရွေးချယ်ထားသော: ${file.name}`;
-            }
-        });
+    /* ==========================================
+       ELEMENTS
+    ========================================== */
 
-        // 3. Step 1: Translate Button Logic
-        translateBtn.addEventListener('click', () => {
-            const file = fileInput.files[0];
-            if (!file) {
-                alert('ကျေးဇူးပြု၍ Video သို့မဟုတ် Audio ဖိုင် အရင်ရွေးချယ်ပါ။');
+    const fileInput =
+        document.getElementById("videoFile");
+
+    const uploadBox =
+        document.getElementById("uploadBox");
+
+    const uploadText =
+        document.getElementById("uploadText");
+
+    const fileInfo =
+        document.getElementById("fileInfo");
+
+    const translateBtn =
+        document.getElementById("translateBtn");
+
+    const resultTranscript =
+        document.getElementById("resultTranscript");
+
+    const downloadSrtBtn =
+        document.getElementById("downloadSrtBtn");
+
+    const resultStatus =
+        document.getElementById("resultStatus");
+
+    const translateStatus =
+        document.getElementById("translateStatus");
+
+    const progressArea =
+        document.getElementById("progressArea");
+
+    const progressBar =
+        document.getElementById("progressBar");
+
+    const progressText =
+        document.getElementById("progressText");
+
+    const progressPercent =
+        document.getElementById("progressPercent");
+
+    const errorBox =
+        document.getElementById("errorBox");
+
+
+    const thumbnailFile =
+        document.getElementById("thumbnailFile");
+
+    const thumbnailUploadBox =
+        document.getElementById("thumbnailUploadBox");
+
+    const thumbnailUploadText =
+        document.getElementById("thumbnailUploadText");
+
+    const thumbnailBtn =
+        document.getElementById("thumbnailBtn");
+
+    const thumbnailPreview =
+        document.getElementById("thumbnailPreview");
+
+    const thumbnailStatus =
+        document.getElementById("thumbnailStatus");
+
+    const downloadThumbnailBtn =
+        document.getElementById(
+            "downloadThumbnailBtn"
+        );
+
+
+    let selectedVideo = null;
+    let selectedThumbnail = null;
+    let generatedThumbnailUrl = null;
+    let generatedSrt = "";
+
+
+
+    /* ==========================================
+       VIDEO UPLOAD
+    ========================================== */
+
+    uploadBox.addEventListener("click", () => {
+        fileInput.click();
+    });
+
+
+    uploadBox.addEventListener("dragover", (event) => {
+
+        event.preventDefault();
+
+        uploadBox.classList.add("upload-active");
+
+    });
+
+
+    uploadBox.addEventListener("dragleave", () => {
+
+        uploadBox.classList.remove("upload-active");
+
+    });
+
+
+    uploadBox.addEventListener("drop", (event) => {
+
+        event.preventDefault();
+
+        uploadBox.classList.remove("upload-active");
+
+        const file = event.dataTransfer.files[0];
+
+        if (file) {
+            handleVideo(file);
+        }
+
+    });
+
+
+    fileInput.addEventListener("change", (event) => {
+
+        const file = event.target.files[0];
+
+        if (file) {
+            handleVideo(file);
+        }
+
+    });
+
+
+    function handleVideo(file) {
+
+        const maxSize =
+            500 * 1024 * 1024;
+
+        if (file.size > maxSize) {
+
+            showError(
+                "ဖိုင်အရွယ်အစား 500MB ထက် မကျော်ရပါ။"
+            );
+
+            return;
+        }
+
+
+        selectedVideo = file;
+
+        uploadText.textContent =
+            "✅ " + file.name;
+
+        fileInfo.textContent =
+            formatFileSize(file.size);
+
+        uploadBox.classList.add(
+            "upload-active"
+        );
+
+        hideError();
+
+    }
+
+
+
+    /* ==========================================
+       THUMBNAIL IMAGE UPLOAD
+    ========================================== */
+
+    thumbnailUploadBox.addEventListener(
+        "click",
+        () => thumbnailFile.click()
+    );
+
+
+    thumbnailFile.addEventListener(
+        "change",
+        (event) => {
+
+            const file =
+                event.target.files[0];
+
+            if (!file) return;
+
+            selectedThumbnail = file;
+
+            thumbnailUploadText.textContent =
+                "✅ " + file.name;
+
+            showImagePreview(file);
+
+        }
+    );
+
+
+    function showImagePreview(file) {
+
+        const reader = new FileReader();
+
+        reader.onload = function(event) {
+
+            thumbnailPreview.innerHTML = `
+                <img
+                    src="${event.target.result}"
+                    class="w-full h-full object-cover"
+                    alt="Thumbnail Preview">
+            `;
+
+        };
+
+        reader.readAsDataURL(file);
+
+    }
+
+
+
+    /* ==========================================
+       TRANSLATE
+    ========================================== */
+
+    translateBtn.addEventListener(
+        "click",
+        async () => {
+
+            if (!selectedVideo) {
+
+                showError(
+                    "ကျေးဇူးပြု၍ Video / Audio ဖိုင် အရင်ရွေးပါ။"
+                );
+
                 return;
             }
 
-            translateBtn.disabled = true;
-            translateBtn.innerHTML = "⏳ AI ဖြင့် ဘာသာပြန်ဆိုနေပါပြီ...";
-            
-            setTimeout(() => {
-                translateBtn.disabled = false;
-                translateBtn.innerHTML = "✨ ဘာသာပြန်စတင်မည် (Translate)";
-                
-                resultTranscript.innerHTML = `
-                    <p class="text-pink-400 font-bold mb-1">[ 00:00:01 -> 00:00:04 ]</p>
-                    <p class="text-white mb-2">📥 (${file.name}) ဖိုင်ကို မြန်မာဘာသာသို့ အောင်မြင်စွာ ဘာသာပြန်ပြီးပါပြီ။</p>
-                    <p class="text-pink-400 font-bold mb-1">[ 00:00:04 -> 00:00:08 ]</p>
-                    <p class="text-white">SRT စာတန်းထိုးဖိုင် ထွက်ရှိလာပါပြီ။</p>
-                `;
-                alert('အပိုင်း ၁: စာတန်းထိုး ဘာသာပြန်ခြင်း ပြီးစီးပါပြီ!');
-            }, 2500);
+
+            hideError();
+
+            setTranslateLoading(true);
+
+            try {
+
+                const formData =
+                    new FormData();
+
+                formData.append(
+                    "file",
+                    selectedVideo
+                );
+
+
+                const language =
+                    document.getElementById(
+                        "sourceLanguage"
+                    ).value;
+
+                formData.append(
+                    "sourceLanguage",
+                    language
+                );
+
+
+                /*
+                    Vercel Backend API
+
+                    နောက်တစ်ဆင့်မှာ
+                    /api/translate
+                    ကို တကယ်တည်ဆောက်မယ်။
+                */
+
+                const response =
+                    await fetch(
+                        "/api/translate",
+                        {
+                            method: "POST",
+                            body: formData
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    const errorText =
+                        await response.text();
+
+                    throw new Error(
+                        errorText ||
+                        "Translation API Error"
+                    );
+
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                if (!data.srt) {
+
+                    throw new Error(
+                        "SRT ရလဒ် မရရှိပါ။"
+                    );
+
+                }
+
+
+                generatedSrt =
+                    data.srt;
+
+
+                displaySrt(
+                    generatedSrt
+                );
+
+
+                downloadSrtBtn.disabled =
+                    false;
+
+                resultStatus.textContent =
+                    "COMPLETED";
+
+                translateStatus.textContent =
+                    "DONE";
+
+
+            } catch (error) {
+
+                console.error(error);
+
+                showError(
+                    "AI ဘာသာပြန်ရာတွင် အမှားတစ်ခု ဖြစ်နေပါသည်။ နောက်တစ်ကြိမ် ပြန်စမ်းကြည့်ပါ။"
+                );
+
+                resultStatus.textContent =
+                    "ERROR";
+
+                translateStatus.textContent =
+                    "ERROR";
+
+            } finally {
+
+                setTranslateLoading(false);
+
+            }
+
+        }
+    );
+
+
+
+    /* ==========================================
+       DISPLAY SRT
+    ========================================== */
+
+    function displaySrt(srt) {
+
+        const blocks =
+            srt.trim().split(/\n\s*\n/);
+
+        resultTranscript.innerHTML = "";
+
+        blocks.forEach(block => {
+
+            const lines =
+                block.split("\n");
+
+            const div =
+                document.createElement("div");
+
+            div.className =
+                "mb-4 pb-3 border-b border-white/5";
+
+            lines.forEach((line, index) => {
+
+                const p =
+                    document.createElement("p");
+
+                p.textContent = line;
+
+                if (index === 1) {
+
+                    p.className =
+                        "text-pink-400 font-bold mb-1";
+
+                } else {
+
+                    p.className =
+                        "text-slate-200";
+
+                }
+
+                div.appendChild(p);
+
+            });
+
+            resultTranscript.appendChild(div);
+
         });
 
-        // 4. Download SRT File
-        downloadSrtBtn.addEventListener('click', () => {
-            const srtContent = "1\n00:00:01,000 --> 00:00:04,000\nတင်ထားသောဖိုင်ကို အောင်မြင်စွာ ဘာသာပြန်ဆိုပြီးပါပြီ။\n\n2\n00:00:04,000 --> 00:00:08,000\nမြန်မာစာတန်းထိုး (SRT) အဆင်သင့်ဖြစ်ပါပြီ။";
-            const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'ynt-studio-subtitles.srt';
-            a.click();
-        });
+    }
 
-        // 5. Step 2: Thumbnail Generator Logic
-        thumbnailBtn.addEventListener('click', () => {
-            thumbnailBtn.disabled = true;
-            thumbnailBtn.innerHTML = "🎨 AI Thumbnail ဖန်တီးနေပါပြီ...";
 
-            setTimeout(() => {
-                thumbnailBtn.disabled = false;
-                thumbnailBtn.innerHTML = "🎨 Thumbnail ဖန်တီးမည်";
+
+    /* ==========================================
+       DOWNLOAD SRT
+    ========================================== */
+
+    downloadSrtBtn.addEventListener(
+        "click",
+        () => {
+
+            if (!generatedSrt) return;
+
+
+            const blob =
+                new Blob(
+                    [generatedSrt],
+                    {
+                        type:
+                            "text/plain;charset=utf-8"
+                    }
+                );
+
+
+            const url =
+                URL.createObjectURL(blob);
+
+
+            const link =
+                document.createElement("a");
+
+            link.href = url;
+
+            link.download =
+                "ynt-studio-myanmar.srt";
+
+            document.body.appendChild(link);
+
+            link.click();
+
+            link.remove();
+
+            URL.revokeObjectURL(url);
+
+        }
+    );
+
+
+
+    /* ==========================================
+       THUMBNAIL GENERATOR
+    ========================================== */
+
+    thumbnailBtn.addEventListener(
+        "click",
+        async () => {
+
+            if (!selectedThumbnail) {
+
+                showError(
+                    "ကျေးဇူးပြု၍ Thumbnail အတွက် ပုံအရင်ရွေးပါ။"
+                );
+
+                return;
+            }
+
+
+            hideError();
+
+            setThumbnailLoading(true);
+
+
+            try {
+
+                const formData =
+                    new FormData();
+
+                formData.append(
+                    "image",
+                    selectedThumbnail
+                );
+
+
+                const theme =
+                    document.getElementById(
+                        "thumbnailTheme"
+                    ).value;
+
+                formData.append(
+                    "theme",
+                    theme
+                );
+
+
+                /*
+                    နောက်တစ်ဆင့်မှာ
+                    Vercel /api/thumbnail
+                    ကို တကယ်ချိတ်မယ်။
+                */
+
+                const response =
+                    await fetch(
+                        "/api/thumbnail",
+                        {
+                            method: "POST",
+                            body: formData
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "Thumbnail API Error"
+                    );
+
+                }
+
+
+                const data =
+                    await response.json();
+
+
+                if (!data.imageUrl) {
+
+                    throw new Error(
+                        "Thumbnail ပုံ မရရှိပါ။"
+                    );
+
+                }
+
+
+                generatedThumbnailUrl =
+                    data.imageUrl;
+
 
                 thumbnailPreview.innerHTML = `
-                    <div class="text-cyan-400 font-bold text-xs mb-1">✨ AI Thumbnail အောင်မြင်စွာ ထွက်ရှိပါပြီ</div>
-                    <p class="text-[10px] text-slate-300">Cyberpunk Neon Theme ပုံစံဖြင့် ဖန်တီးပြီးပါပြီ။</p>
+                    <img
+                        src="${data.imageUrl}"
+                        class="w-full h-full object-cover"
+                        alt="Generated Thumbnail">
                 `;
-                thumbnailPreview.style.borderColor = "#06b6d4";
-                alert('အပိုင်း ၂: AI Thumbnail ဖန်တီးခြင်း ပြီးစီးပါပြီ!');
-            }, 2000);
-        });
-    </script>
+
+
+                downloadThumbnailBtn.disabled =
+                    false;
+
+                thumbnailStatus.textContent =
+                    "DONE";
+
+
+            } catch (error) {
+
+                console.error(error);
+
+                showError(
+                    "AI Thumbnail ဖန်တီးရာတွင် အမှားတစ်ခု ဖြစ်နေပါသည်။"
+                );
+
+                thumbnailStatus.textContent =
+                    "ERROR";
+
+            } finally {
+
+                setThumbnailLoading(false);
+
+            }
+
+        }
+    );
+
+
+
+    /* ==========================================
+       DOWNLOAD THUMBNAIL
+    ========================================== */
+
+    downloadThumbnailBtn.addEventListener(
+        "click",
+        async () => {
+
+            if (!generatedThumbnailUrl)
+                return;
+
+
+            const link =
+                document.createElement("a");
+
+            link.href =
+                generatedThumbnailUrl;
+
+            link.download =
+                "ynt-studio-thumbnail.png";
+
+            link.target = "_blank";
+
+            document.body.appendChild(link);
+
+            link.click();
+
+            link.remove();
+
+        }
+    );
+
+
+
+    /* ==========================================
+       TRANSLATE LOADING
+    ========================================== */
+
+    function setTranslateLoading(
+        loading
+    ) {
+
+        translateBtn.disabled =
+            loading;
+
+        if (loading) {
+
+            translateBtn.textContent =
+                "⏳ AI ဘာသာပြန်နေပါပြီ...";
+
+            progressArea.classList.remove(
+                "hidden"
+            );
+
+            startProgress();
+
+        } else {
+
+            translateBtn.textContent =
+                "✨ ဘာသာပြန်စတင်မည်";
+
+            progressArea.classList.add(
+                "hidden"
+            );
+
+        }
+
+    }
+
+
+
+    function startProgress() {
+
+        let progress = 0;
+
+        const timer =
+            setInterval(() => {
+
+                progress += 5;
+
+                if (progress >= 95) {
+                    progress = 95;
+                    clearInterval(timer);
+                }
+
+                progressBar.style.width =
+                    progress + "%";
+
+                progressPercent.textContent =
+                    progress + "%";
+
+                progressText.textContent =
+                    "AI Processing...";
+
+            }, 700);
+
+    }
+
+
+
+    /* ==========================================
+       THUMBNAIL LOADING
+    ========================================== */
+
+    function setThumbnailLoading(
+        loading
+    ) {
+
+        thumbnailBtn.disabled =
+            loading;
+
+        if (loading) {
+
+            thumbnailBtn.textContent =
+                "🎨 AI Thumbnail ဖန်တီးနေပါပြီ...";
+
+        } else {
+
+            thumbnailBtn.textContent =
+                "🎨 Thumbnail ဖန်တီးမည်";
+
+        }
+
+    }
+
+
+
+    /* ==========================================
+       ERROR
+    ========================================== */
+
+    function showError(message) {
+
+        errorBox.textContent =
+            "⚠️ " + message;
+
+        errorBox.classList.remove(
+            "hidden"
+        );
+
+    }
+
+
+    function hideError() {
+
+        errorBox.classList.add(
+            "hidden"
+        );
+
+    }
+
+
+
+    /* ==========================================
+       FILE SIZE
+    ========================================== */
+
+    function formatFileSize(bytes) {
+
+        if (bytes < 1024)
+            return bytes + " B";
+
+        if (bytes < 1024 * 1024)
+            return (
+                (bytes / 1024).toFixed(1)
+                + " KB"
+            );
+
+        if (bytes < 1024 * 1024 * 1024)
+            return (
+                (bytes / (1024 * 1024)).toFixed(1)
+                + " MB"
+            );
+
+        return (
+            (bytes / (1024 * 1024 * 1024)).toFixed(1)
+            + " GB"
+        );
+
+    }
+
+</script>
+
 </body>
 </html>
