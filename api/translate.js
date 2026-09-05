@@ -1,282 +1,159 @@
-import { GoogleGenAI } from "@google/genai";
-import formidable from "formidable";
-import fs from "fs";
+const { GoogleGenAI } = require("@google/genai");
+const formidable = require("formidable");
+const fs = require("fs");
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-});
-
-function parseForm(req) {
-  return new Promise((resolve, reject) => {
-    const form = formidable({
-      uploadDir: "/tmp",
-      keepExtensions: true,
-      maxFileSize: 4500000,
-      multiples: false,
-    });
-
-    form.parse(req, (err, fields, files) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      resolve({ fields, files });
-    });
-  });
-}
-
-function getValue(value) {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-
-  return value || "";
-}
-
-export default async function handler(req, res) {
-
+module.exports = async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).json({
-      error: "POST method only",
+      error: "POST method only"
     });
   }
 
-  let uploadedFile = null;
-
   try {
+    const form = formidable({
+      multiples: false,
+      keepExtensions: true,
+      maxFileSize: 4500000
+    });
 
-    if (!process.env.GEMINI_API_KEY) {
-      return res.status(500).json({
-        error: "GEMINI_API_KEY မတွေ့ပါ။",
-      });
-    }
+    const [fields, files] = await form.parse(req);
 
-    /* =========================
-       RECEIVE FILE
-    ========================= */
-
-    const { fields, files } = await parseForm(req);
-
-    uploadedFile =
-      files.file?.[0] ||
-      files.file;
+    const uploadedFile = files.file?.[0];
 
     if (!uploadedFile) {
       return res.status(400).json({
-        error: "Video / Audio ဖိုင် မရရှိပါ။",
+        error: "Video file မတွေ့ပါ။"
+      });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        error: "GEMINI_API_KEY မတွေ့ပါ။ Vercel Environment Variables ကိုစစ်ပါ။"
+      });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey
+    });
+
+    console.log("Uploading file to Gemini...");
+
+    const uploaded = await ai.files.upload({
+      file: uploadedFile.filepath,
+      config: {
+        mimeType: uploadedFile.mimetype || "video/mp4"
+      }
+    });
+
+    console.log("Gemini file:", uploaded.name);
+
+    let fileInfo = await ai.files.get({
+      name: uploaded.name
+    });
+
+    let attempts = 0;
+
+    while (fileInfo.state === "PROCESSING" && attempts < 60) {
+      await new Promise(resolve => setTimeout(resolve, 3000));
+
+      fileInfo = await ai.files.get({
+        name: uploaded.name
+      });
+
+      attempts++;
+      console.log("Processing:", attempts, fileInfo.state);
+    }
+
+    if (fileInfo.state !== "ACTIVE") {
+      return res.status(500).json({
+        error: "Video ကို AI က processing ပြီးအောင် မလုပ်နိုင်ပါ။",
+        state: fileInfo.state
       });
     }
 
     const sourceLanguage =
-      getValue(fields.sourceLanguage) || "zh";
-
-    const languageNames = {
-      zh: "Chinese",
-      en: "English",
-      ja: "Japanese",
-      ko: "Korean",
-    };
-
-    const sourceName =
-      languageNames[sourceLanguage] || "Chinese";
-
-
-    /* =========================
-       UPLOAD TO GEMINI FILES API
-    ========================= */
-
-    const geminiFile =
-      await ai.files.upload({
-        file: uploadedFile.filepath,
-        config: {
-          mimeType:
-            uploadedFile.mimetype ||
-            "video/mp4",
-          displayName:
-            uploadedFile.originalFilename ||
-            "YNT Studio Video",
-        },
-      });
-
-
-    /* =========================
-       WAIT FOR VIDEO PROCESSING
-    ========================= */
-
-    let processedFile = geminiFile;
-
-    for (let i = 0; i < 60; i++) {
-
-      if (
-        processedFile.state === "ACTIVE" ||
-        processedFile.state?.name === "ACTIVE"
-      ) {
-        break;
-      }
-
-      if (
-        processedFile.state === "FAILED" ||
-        processedFile.state?.name === "FAILED"
-      ) {
-        throw new Error(
-          "Gemini Video Processing Failed"
-        );
-      }
-
-      await new Promise(resolve =>
-        setTimeout(resolve, 3000)
-      );
-
-      processedFile =
-        await ai.files.get({
-          name: geminiFile.name,
-        });
-    }
-
-
-    if (
-      processedFile.state !== "ACTIVE" &&
-      processedFile.state?.name !== "ACTIVE"
-    ) {
-      throw new Error(
-        "Video processing အချိန်ကြာလွန်းနေပါသည်။"
-      );
-    }
-
-
-    /* =========================
-       AI SRT GENERATION
-    ========================= */
+      fields.sourceLanguage?.[0] || "auto";
 
     const prompt = `
-You are a professional subtitle generator.
+ဒီ Video ထဲက ပြောဆိုထားတဲ့ စကားတွေကို နားထောင်ပြီး
+မြန်မာဘာသာသို့ သဘာဝကျကျ ဘာသာပြန်ပေးပါ။
 
-The uploaded video/audio is primarily in ${sourceName}.
+Source Language: ${sourceLanguage}
 
-Create a complete Myanmar (Burmese) subtitle file from the spoken dialogue.
+Output ကို SRT subtitle format သာ ထုတ်ပါ။
 
-IMPORTANT RULES:
+စည်းမျဉ်းများ:
+1. SRT format အတိုင်းရေးပါ။
+2. Subtitle number ပါရမည်။
+3. Start time --> End time ပါရမည်။
+4. မြန်မာစာသာ အသုံးပြုပါ။
+5. Dialogue အားလုံးကို တတ်နိုင်သမျှ မကျန်အောင် ထည့်ပါ။
+6. Markdown မသုံးပါနှင့်။
+7. Code block မသုံးပါနှင့်။
+8. ရှင်းလင်းချက် မထည့်ပါနှင့်။
 
-1. Listen to the entire video/audio.
-2. Do NOT summarize the video.
-3. Do NOT skip dialogue.
-4. Translate the actual spoken dialogue into natural Myanmar Burmese.
-5. Preserve the meaning and order of every spoken sentence.
-6. Create accurate subtitle timestamps.
-7. Use standard SRT format.
-8. Each subtitle should normally contain 1-2 lines.
-9. Keep subtitle duration natural and synchronized with speech.
-10. Do not add explanations.
-11. Do not use Markdown.
-12. Do not use code fences.
-13. Output ONLY the SRT content.
-
-Example format:
+ဥပမာ:
 
 1
 00:00:01,000 --> 00:00:04,000
-မင်း ဘယ်ကိုသွားနေတာလဲ။
+မင်္ဂလာပါ။ ဒီနေ့ ဘယ်လိုနေလဲ။
 
 2
-00:00:04,200 --> 00:00:07,000
-ငါ အိမ်ကိုပြန်နေတာပါ။
-
-Now process the ENTIRE uploaded media and return the complete Myanmar SRT.
+00:00:04,000 --> 00:00:07,000
+ကျွန်တော် ကောင်းပါတယ်။
 `;
 
+    console.log("Generating Myanmar SRT...");
 
-    const response =
-      await ai.models.generateContent({
-        model: "gemini-3.7-flash",
-        contents: [
-          processedFile,
-          prompt,
-        ],
-      });
+    const result = await ai.models.generateContent({
+      model: "gemini-3.7-flash",
+      contents: [
+        {
+          fileData: {
+            fileUri: fileInfo.uri,
+            mimeType: fileInfo.mimeType
+          }
+        },
+        {
+          text: prompt
+        }
+      ]
+    });
 
-
-    let srt =
-      response.text || "";
-
-
-    /* =========================
-       CLEAN AI OUTPUT
-    ========================= */
+    let srt = result.text || "";
 
     srt = srt
       .replace(/```srt/gi, "")
       .replace(/```/g, "")
       .trim();
 
-
     if (!srt) {
-      throw new Error(
-        "AI က SRT ရလဒ် မပြန်ပေးပါ။"
-      );
+      return res.status(500).json({
+        error: "AI က SRT မထုတ်ပေးနိုင်ပါ။"
+      });
     }
 
-
-    /* =========================
-       RETURN RESULT
-    ========================= */
+    try {
+      fs.unlinkSync(uploadedFile.filepath);
+    } catch (e) {
+      console.log("Temp file cleanup skipped");
+    }
 
     return res.status(200).json({
       success: true,
-      srt: srt,
-      sourceLanguage: sourceName,
-      fileName:
-        uploadedFile.originalFilename ||
-        "video",
+      srt
     });
-
 
   } catch (error) {
-
-    console.error(
-      "YNT TRANSLATE ERROR:",
-      error
-    );
+    console.error("TRANSLATE ERROR:", error);
 
     return res.status(500).json({
-      success: false,
-      error:
-        error?.message ||
-        "AI Translation Error",
+      error: error.message || "AI ဘာသာပြန်ရာတွင် အမှားတစ်ခု ဖြစ်နေပါသည်။",
+      details: process.env.NODE_ENV === "development"
+        ? String(error.stack || error)
+        : undefined
     });
-
-
-  } finally {
-
-    /* =========================
-       DELETE TEMP FILE
-    ========================= */
-
-    try {
-
-      if (
-        uploadedFile?.filepath &&
-        fs.existsSync(uploadedFile.filepath)
-      ) {
-        fs.unlinkSync(
-          uploadedFile.filepath
-        );
-      }
-
-    } catch (cleanupError) {
-
-      console.error(
-        "Cleanup Error:",
-        cleanupError
-      );
-
-    }
-
   }
-}
+};
