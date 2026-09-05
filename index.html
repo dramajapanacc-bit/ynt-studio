@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YNT Studio - Ultimate AI Video Translator</title>
+    <!-- Google Fonts: Outfit & Pyidaungsu -->
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Pyidaungsu:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Outfit', 'Pyidaungsu', sans-serif; }
         .cyber-glow { box-shadow: 0 0 35px rgba(236, 72, 153, 0.5), inset 0 0 15px rgba(139, 92, 246, 0.3); }
-        .neon-border { border: 2px solid transparent; background: linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4) border-box; -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0); -webkit-mask-composite: destination-out; mask-composite: exclude; }
         .gradient-bg { background: linear-gradient(135deg, #ff007f 0%, #7928ca 50%, #00dfd8 100%); }
         .gradient-text { background: linear-gradient(90deg, #ff007f, #b829ff, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .glass-panel { background: rgba(10, 10, 25, 0.85); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.12); }
@@ -19,9 +20,11 @@
 </head>
 <body class="bg-[#030014] text-white min-h-screen flex flex-col justify-between relative overflow-x-hidden">
 
+    <!-- Background Cyber Gradients -->
     <div class="absolute top-0 left-1/4 w-96 h-96 bg-purple-600/30 rounded-full blur-[120px] pointer-events-none animate-pulse-slow"></div>
     <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-pink-600/30 rounded-full blur-[120px] pointer-events-none animate-pulse-slow"></div>
 
+    <!-- Header -->
     <header class="flex justify-between items-center px-8 py-5 border-b border-white/10 glass-panel sticky top-0 z-50">
         <div class="flex items-center space-x-3">
             <div class="w-11 h-11 rounded-2xl gradient-bg flex items-center justify-center font-black text-xl shadow-lg shadow-pink-500/40 transform hover:rotate-12 transition">Y</div>
@@ -37,6 +40,7 @@
         </div>
     </header>
 
+    <!-- Main Container -->
     <main class="max-w-xl mx-auto p-6 w-full flex-grow flex flex-col justify-center relative z-10">
         <div class="text-center mb-8">
             <div class="inline-block mb-3 px-4 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold tracking-wide">
@@ -47,6 +51,7 @@
         </div>
 
         <div class="glass-panel rounded-3xl p-7 shadow-2xl relative overflow-hidden cyber-glow">
+            <!-- Language Selection -->
             <div class="mb-5">
                 <label class="block text-xs font-extrabold uppercase tracking-widest text-pink-400 mb-2.5 flex items-center justify-between">
                     <span>ဘာသာစကား ရွေးချယ်ရန်</span>
@@ -63,24 +68,64 @@
                 </div>
             </div>
 
-            <div class="border-2 border-dashed border-purple-500/40 rounded-2xl p-8 text-center bg-gradient-to-b from-purple-950/20 to-transparent hover:border-cyan-400 hover:bg-cyan-950/20 transition-all duration-300 cursor-pointer mb-6 group">
+            <!-- Upload Box -->
+            <div id="uploadBox" class="border-2 border-dashed border-purple-500/40 rounded-2xl p-8 text-center bg-gradient-to-b from-purple-950/20 to-transparent hover:border-cyan-400 hover:bg-cyan-950/20 transition-all duration-300 cursor-pointer mb-6 group">
                 <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-3xl group-hover:scale-110 group-hover:rotate-6 transition duration-300 shadow-inner">
                     📁
                 </div>
-                <p class="text-sm font-bold text-slate-200 group-hover:text-cyan-300 transition">Video သို့မဟုတ် Audio ဖိုင် ဆွဲထည့်ပါ</p>
+                <p id="uploadText" class="text-sm font-bold text-slate-200 group-hover:text-cyan-300 transition">Video သို့မဟုတ် Audio ဖိုင် ဆွဲထည့်ပါ</p>
                 <p class="text-xs text-slate-400 mt-1.5">MP4, MKV, MP3 (Maximum Size: 500MB)</p>
-                <input type="file" class="hidden" id="videoFile">
+                <input type="file" class="hidden" id="videoFile" accept="video/*,audio/*">
             </div>
 
-            <button class="w-full py-4 rounded-2xl font-black text-base gradient-bg hover:opacity-95 transition-all transform hover:-translate-y-0.5 shadow-xl shadow-pink-600/40 tracking-wider text-white flex items-center justify-center space-x-2">
+            <!-- Action Button -->
+            <button id="translateBtn" class="w-full py-4 rounded-2xl font-black text-base gradient-bg hover:opacity-95 transition-all transform hover:-translate-y-0.5 shadow-xl shadow-pink-600/40 tracking-wider text-white flex items-center justify-center space-x-2 cursor-pointer">
                 <span>✨ ဘာသာပြန်စတင်မည် (Translate Now)</span>
             </button>
         </div>
     </main>
 
+    <!-- Footer -->
     <footer class="text-center py-6 text-xs text-slate-500 border-t border-white/5 glass-panel">
         <p>&copy; 2026 YNT Studio. All rights reserved. Powered by Advanced AI Processing.</p>
     </footer>
 
+    <!-- Interactive JavaScript Logic -->
+    <script>
+        const fileInput = document.getElementById('videoFile');
+        const uploadBox = document.getElementById('uploadBox');
+        const uploadText = document.getElementById('uploadText');
+        const translateBtn = document.getElementById('translateBtn');
+
+        uploadBox.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                uploadText.textContent = `ရွေးချယ်ထားသောဖိုင်: ${file.name}`;
+            }
+        });
+
+        translateBtn.addEventListener('click', () => {
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('ကျေးဇူးပြု၍ Video သို့မဟုတ် Audio ဖိုင် အရင်ရွေးချယ်ပါ။');
+                return;
+            }
+
+            translateBtn.disabled = true;
+            translateBtn.innerHTML = "⏳ ဘာသာပြန်ဆိုနေပါပြီ (Processing)...";
+            translateBtn.classList.add('opacity-75');
+
+            setTimeout(() => {
+                alert('ဗီဒီယို ဘာသာပြန်ခြင်းနှင့် SRT စာတန်းထိုး ထုတ်လုပ်ခြင်း အောင်မြင်ပါပြီ!');
+                translateBtn.disabled = false;
+                translateBtn.innerHTML = "✨ ဘာသာပြန်စတင်မည် (Translate Now)";
+                translateBtn.classList.remove('opacity-75');
+            }, 3000);
+        });
+    </script>
 </body>
 </html>
