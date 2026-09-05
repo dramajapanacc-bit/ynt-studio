@@ -16,207 +16,151 @@ module.exports = async function handler(req, res) {
     });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-
-  if (!apiKey) {
-    return res.status(500).json({
-      success: false,
-      error: "GEMINI_API_KEY မတွေ့ပါ။",
-    });
-  }
-
-  let tempPath = null;
-
   try {
-    const contentType = req.headers["content-type"] || "";
+    const apiKey = process.env.GEMINI_API_KEY;
 
-    let imagePath = null;
-    let imageMime = null;
-    let theme = "Cinematic";
-    let prompt = "";
-
-    /*
-     * WEBSITE က FormData နဲ့ ပို့လာရင်
-     */
-    if (contentType.includes("multipart/form-data")) {
-      const form = formidable({
-        multiples: false,
-        keepExtensions: true,
-        maxFileSize: 15 * 1024 * 1024,
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        error: "GEMINI_API_KEY မတွေ့ပါ။",
       });
+    }
 
-      const [fields, files] = await form.parse(req);
+    const form = formidable({
+      multiples: false,
+      keepExtensions: true,
+      maxFileSize: 15 * 1024 * 1024,
+    });
 
-      theme =
-        Array.isArray(fields.theme)
-          ? fields.theme[0]
-          : fields.theme || "Cinematic";
+    const [fields, files] = await form.parse(req);
 
-      prompt =
-        Array.isArray(fields.prompt)
-          ? fields.prompt[0]
-          : fields.prompt || "";
+    const theme = Array.isArray(fields.theme)
+      ? fields.theme[0]
+      : fields.theme || "Cinematic";
 
-      /*
-       * file field name ဘာပဲဖြစ်ဖြစ်
-       * ပထမဆုံး image file ကိုရှာမယ်
-       */
-      for (const key of Object.keys(files)) {
-        const value = Array.isArray(files[key])
-          ? files[key][0]
-          : files[key];
+    let uploadedImage = null;
 
-        if (value && value.filepath) {
-          imagePath = value.filepath;
-          imageMime =
-            value.mimetype || "image/jpeg";
-          tempPath = value.filepath;
-          break;
-        }
+    for (const key of Object.keys(files)) {
+      const value = Array.isArray(files[key])
+        ? files[key][0]
+        : files[key];
+
+      if (value && value.filepath) {
+        uploadedImage = value;
+        break;
       }
     }
 
-    /*
-     * JSON နဲ့ပို့လာတဲ့အခြေအနေကိုလည်း support လုပ်မယ်
-     */
-    else if (contentType.includes("application/json")) {
-      let body = "";
-
-      for await (const chunk of req) {
-        body += chunk;
-      }
-
-      const data = JSON.parse(body || "{}");
-
-      theme = data.theme || "Cinematic";
-      prompt = data.prompt || "";
-    }
-
-    if (!imagePath && !prompt) {
+    if (!uploadedImage) {
       return res.status(400).json({
         success: false,
-        error: "Thumbnail အတွက် ပုံ သို့မဟုတ် Prompt မတွေ့ပါ။",
+        error: "ပုံဖိုင် မတွေ့ပါ။",
       });
     }
+
+    const imageData = fs.readFileSync(
+      uploadedImage.filepath,
+      "base64"
+    );
+
+    const mimeType =
+      uploadedImage.mimetype || "image/jpeg";
 
     const ai = new GoogleGenAI({
-      apiKey,
+      apiKey: apiKey,
     });
 
-    /*
-     * AI Prompt
-     */
-    const thumbnailPrompt = `
-Create a professional cinematic video thumbnail.
+    const prompt = `
+Create a professional cinematic video thumbnail
+from the provided reference image.
 
-Theme:
-${theme}
-
-Additional instructions:
-${prompt || "Transform the provided image into a professional cinematic thumbnail."}
+Theme: ${theme}
 
 Requirements:
-- Landscape 16:9 composition
-- Professional YouTube/Facebook movie thumbnail
-- Dramatic cinematic lighting
-- Strong contrast
+- 16:9 landscape thumbnail
+- Professional movie thumbnail style
+- Cinematic lighting
+- Dramatic composition
+- High contrast
 - Premium visual quality
-- Keep the main person/subject recognizable
-- Make the composition visually powerful
-- Make the main subject stand out
-- Leave suitable clean space for title text
-- Do not add random words
-- Do not add a watermark
-- Do not add a logo
-- Do not change the main identity of the person
+- Keep the main people recognizable
+- Make the subjects stand out
+- Beautiful cinematic color grading
+- Suitable for YouTube and Facebook
+- No watermark
+- No logo
+- No random text
+- Do not add unnecessary objects
 `;
 
-    const contents = [];
+    console.log("Starting Gemini image generation...");
 
-    /*
-     * User ရွေးထားတဲ့ ပုံကို AI ထဲထည့်မယ်
-     */
-    if (imagePath) {
-      const base64Image = fs.readFileSync(
-        imagePath,
-        "base64"
-      );
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-image",
 
-      contents.push({
-        inlineData: {
-          mimeType: imageMime,
-          data: base64Image,
+      contents: [
+        {
+          text: prompt,
         },
-      });
-    }
-
-    contents.push({
-      text: thumbnailPrompt,
-    });
-
-    console.log("Starting thumbnail generation...");
-
-    const response =
-      await ai.models.generateContent({
-        model: "gemini-2.5-flash-image",
-
-        contents,
-
-        config: {
-          responseModalities: ["IMAGE"],
-
-          responseFormat: {
-            image: {
-              aspectRatio: "16:9",
-            },
+        {
+          inlineData: {
+            mimeType: mimeType,
+            data: imageData,
           },
         },
-      });
+      ],
 
-    let imageData = null;
-    let outputMime = "image/png";
+      config: {
+        responseFormat: {
+          image: {
+            aspectRatio: "16:9",
+          },
+        },
+      },
+    });
 
     const parts =
       response?.candidates?.[0]?.content?.parts || [];
 
-    for (const part of parts) {
-      if (part.inlineData) {
-        imageData = part.inlineData.data;
+    let generatedImage = null;
+    let generatedMime = "image/png";
 
-        outputMime =
-          part.inlineData.mimeType ||
-          "image/png";
+    for (const part of parts) {
+      if (part.inlineData?.data) {
+        generatedImage = part.inlineData.data;
+
+        generatedMime =
+          part.inlineData.mimeType || "image/png";
 
         break;
       }
     }
 
-    if (!imageData) {
+    if (!generatedImage) {
       console.error(
-        "Gemini response:",
+        "Gemini returned no image:",
         JSON.stringify(response)
       );
 
       return res.status(500).json({
         success: false,
-        error:
-          "AI က Thumbnail ပုံကို ပြန်မပေးနိုင်ပါ။",
+        error: "Gemini က ပုံကို ပြန်မပေးနိုင်ပါ။",
       });
     }
 
-    console.log(
-      "Thumbnail generated successfully."
-    );
+    try {
+      fs.unlinkSync(uploadedImage.filepath);
+    } catch (e) {}
 
     return res.status(200).json({
       success: true,
       image:
-        `data:${outputMime};base64,${imageData}`,
+        `data:${generatedMime};base64,${generatedImage}`,
     });
 
   } catch (error) {
     console.error(
-      "THUMBNAIL API ERROR:",
+      "THUMBNAIL ERROR:",
       error
     );
 
@@ -224,20 +168,7 @@ Requirements:
       success: false,
       error:
         error?.message ||
-        "Thumbnail ထုတ်ရာတွင် အမှားတစ်ခု ဖြစ်နေပါသည်။",
+        "Thumbnail API Error",
     });
-
-  } finally {
-    if (tempPath) {
-      try {
-        if (fs.existsSync(tempPath)) {
-          fs.unlinkSync(tempPath);
-        }
-      } catch (e) {
-        console.log(
-          "Temporary file cleanup failed."
-        );
-      }
-    }
   }
 };
