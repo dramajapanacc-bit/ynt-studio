@@ -10,7 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Outfit', 'Pyidaungsu', sans-serif; }
-        .cyber-glow { box-shadow: 0 0 35px rgba(236, 72, 153, 0.5), inset 0 0 15px rgba(139, 92, 246, 0.3); }
+        .cyber-glow { box-shadow: 0 0 35px rgba(236, 72, 153, 0.4), inset 0 0 15px rgba(139, 92, 246, 0.2); }
         .gradient-bg { background: linear-gradient(135deg, #ff007f 0%, #7928ca 50%, #00dfd8 100%); }
         .gradient-text { background: linear-gradient(90deg, #ff007f, #b829ff, #00f2fe); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .glass-panel { background: rgba(10, 10, 25, 0.85); backdrop-filter: blur(25px); border: 1px solid rgba(255, 255, 255, 0.12); }
@@ -27,7 +27,7 @@
     <!-- Header -->
     <header class="flex justify-between items-center px-8 py-5 border-b border-white/10 glass-panel sticky top-0 z-50">
         <div class="flex items-center space-x-3">
-            <div class="w-11 h-11 rounded-2xl gradient-bg flex items-center justify-center font-black text-xl shadow-lg shadow-pink-500/40 transform hover:rotate-12 transition">Y</div>
+            <div class="w-11 h-11 rounded-2xl gradient-bg flex items-center justify-center font-black text-xl shadow-lg shadow-pink-500/40">Y</div>
             <div>
                 <span class="font-black text-xl tracking-wider gradient-text">YNT STUDIO</span>
                 <span class="block text-[10px] text-cyan-400 tracking-widest uppercase font-semibold">AI Intelligence Engine</span>
@@ -36,75 +36,118 @@
         <div class="flex items-center space-x-3">
             <span class="hidden md:inline-block px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 text-xs font-bold border border-cyan-500/30 animate-pulse">⚡ Live AI 3.0</span>
             <button class="px-3.5 py-1.5 bg-white/5 hover:bg-white/15 rounded-xl text-xs font-bold border border-white/10 transition">EN</button>
-            <button class="px-4 py-1.5 gradient-bg rounded-xl text-xs font-bold shadow-lg shadow-purple-600/40 hover:scale-105 transition">မြန်မာ</button>
+            <button class="px-4 py-1.5 gradient-bg rounded-xl text-xs font-bold shadow-lg shadow-purple-600/40">မြန်မာ</button>
         </div>
     </header>
 
     <!-- Main Container -->
-    <main class="max-w-xl mx-auto p-6 w-full flex-grow flex flex-col justify-center relative z-10">
-        <div class="text-center mb-8">
+    <main class="max-w-2xl mx-auto p-6 w-full flex-grow space-y-6 relative z-10">
+        <div class="text-center mb-6">
             <div class="inline-block mb-3 px-4 py-1 rounded-full bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-semibold tracking-wide">
-                🚀 Next-Gen Video Translation & Subtitle Maker
+                🚀 Next-Gen Video Translation & Thumbnail Studio
             </div>
-            <h1 class="text-3xl md:text-5xl font-black mb-3 gradient-text tracking-tight">Multi-Language Shorts Translator</h1>
-            <p class="text-slate-400 text-sm max-w-md mx-auto">ဗီဒီယိုများကို နိုင်ငံခြားဘာသာစကားမှ မြန်မာစာတန်းထိုး (SRT) နှင့် အမိုက်စား AI Thumbnail များအဖြစ် စက္ကန့်ပိုင်းအတွင်း ပြောင်းလဲပေးမည်</p>
+            <h1 class="text-3xl md:text-4xl font-black mb-2 gradient-text tracking-tight">YNT Studio Dashboard</h1>
+            <p class="text-slate-400 text-xs md:text-sm">ဗီဒီယိုဘာသာပြန်ခြင်းနှင့် AI Thumbnail ဖန်တီးခြင်းများကို တစ်နေရာတည်းတွင် ကြည့်ရှုအသုံးပြုနိုင်ပါသည်</p>
         </div>
 
-        <div class="glass-panel rounded-3xl p-7 shadow-2xl relative overflow-hidden cyber-glow">
-            <!-- Language Selection -->
-            <div class="mb-5">
-                <label class="block text-xs font-extrabold uppercase tracking-widest text-pink-400 mb-2.5 flex items-center justify-between">
-                    <span>ဘာသာစကား ရွေးချယ်ရန်</span>
-                    <span class="text-[10px] text-slate-400">Target Language</span>
-                </label>
-                <div class="relative">
-                    <select class="w-full bg-[#0a061d] border border-purple-500/40 rounded-2xl p-4 text-white font-medium focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20 transition appearance-none cursor-pointer">
-                        <option>🇨🇳 Chinese (တရုတ်)</option>
-                        <option>🇬🇧 English (အင်္ဂလိပ်)</option>
-                        <option>🇯🇵 Japanese (ဂျပန်)</option>
-                        <option>🇰🇷 Korean (ကိုရီးယား)</option>
-                    </select>
-                    <div class="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none text-purple-400">▼</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Left Box: Upload & Translation -->
+            <div class="glass-panel rounded-3xl p-6 shadow-2xl cyber-glow flex flex-col justify-between">
+                <div>
+                    <h2 class="text-sm font-extrabold text-pink-400 uppercase tracking-wider mb-3">1. ဗီဒီယိုဖိုင်တင်ရန်</h2>
+                    
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">ဘာသာစကား ရွေးချယ်ရန်</label>
+                        <select class="w-full bg-[#0a061d] border border-purple-500/40 rounded-xl p-3 text-xs text-white font-medium focus:outline-none focus:border-cyan-400">
+                            <option>🇨🇳 Chinese (တရုတ်)</option>
+                            <option>🇬🇧 English (အင်္ဂလိပ်)</option>
+                            <option>🇯🇵 Japanese (ဂျပန်)</option>
+                            <option>🇰🇷 Korean (ကိုရီးယား)</option>
+                        </select>
+                    </div>
+
+                    <!-- Upload Box -->
+                    <div id="uploadBox" class="border-2 border-dashed border-purple-500/40 rounded-2xl p-5 text-center bg-purple-950/20 hover:border-cyan-400 transition cursor-pointer mb-4 group">
+                        <div class="text-2xl mb-1">📁</div>
+                        <p id="uploadText" class="text-xs font-bold text-slate-200">Video / Audio ဖိုင် ဆွဲထည့်ပါ</p>
+                        <p class="text-[10px] text-slate-400 mt-1">MP4, MKV, MP3 (Max: 500MB)</p>
+                        <input type="file" class="hidden" id="videoFile" accept="video/*,audio/*">
+                    </div>
                 </div>
+
+                <button id="translateBtn" class="w-full py-3 rounded-xl font-black text-xs gradient-bg hover:opacity-95 transition shadow-lg text-white tracking-wider">
+                    ✨ ဘာသာပြန်စတင်မည် (Translate)
+                </button>
             </div>
 
-            <!-- Upload Box -->
-            <div id="uploadBox" class="border-2 border-dashed border-purple-500/40 rounded-2xl p-8 text-center bg-gradient-to-b from-purple-950/20 to-transparent hover:border-cyan-400 hover:bg-cyan-950/20 transition-all duration-300 cursor-pointer mb-6 group">
-                <div class="w-16 h-16 mx-auto mb-3 rounded-2xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-3xl group-hover:scale-110 group-hover:rotate-6 transition duration-300 shadow-inner">
-                    📁
+            <!-- Right Box: AI Thumbnail Generator -->
+            <div class="glass-panel rounded-3xl p-6 shadow-2xl cyber-glow flex flex-col justify-between">
+                <div>
+                    <h2 class="text-sm font-extrabold text-cyan-400 uppercase tracking-wider mb-3">2. AI Thumbnail ဖန်တီးရန်</h2>
+                    
+                    <div class="mb-4">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">ပုံစံအမျိုးအစား (Theme)</label>
+                        <select class="w-full bg-[#0a061d] border border-cyan-500/40 rounded-xl p-3 text-xs text-white font-medium focus:outline-none focus:border-pink-400">
+                            <option>🔥 Cyberpunk Neon (ဆန်းသစ်ထင်ရှား)</option>
+                            <option>⚡ Modern Minimalist (ရှင်းလင်းသပ်ရပ်)</option>
+                            <option>💥 Cinematic 3D (ရုပ်ရှင်ဆန်ဆန်)</option>
+                        </select>
+                    </div>
+
+                    <!-- Thumbnail Preview Box -->
+                    <div class="border border-cyan-500/30 rounded-2xl p-3 text-center bg-cyan-950/10 mb-4 h-28 flex flex-col items-center justify-center">
+                        <span class="text-2xl mb-1">🖼️</span>
+                        <p class="text-[11px] text-slate-300 font-medium">AI Thumbnail ပုံအသင့်ပေါ်လာမည့်နေရာ</p>
+                    </div>
                 </div>
-                <p id="uploadText" class="text-sm font-bold text-slate-200 group-hover:text-cyan-300 transition">Video သို့မဟုတ် Audio ဖိုင် ဆွဲထည့်ပါ</p>
-                <p class="text-xs text-slate-400 mt-1.5">MP4, MKV, MP3 (Maximum Size: 500MB)</p>
-                <input type="file" class="hidden" id="videoFile" accept="video/*,audio/*">
+
+                <button class="w-full py-3 rounded-xl font-black text-xs bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-95 transition shadow-lg text-white tracking-wider">
+                    🎨 Thumbnail ဖန်တီးမည်
+                </button>
+            </div>
+        </div>
+
+        <!-- Always Visible Results Section -->
+        <div class="glass-panel rounded-3xl p-6 shadow-2xl cyber-glow">
+            <h3 class="text-sm font-bold text-purple-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                <span>📋 ရလဒ်များနှင့် စာတန်းထိုးများ (Live Results)</span>
+                <span class="text-[10px] text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">Ready</span>
+            </h3>
+            
+            <div class="bg-black/50 border border-purple-500/30 rounded-2xl p-4 text-xs text-slate-300 mb-4 h-28 overflow-y-auto">
+                <p class="text-pink-400 font-bold mb-1">[ 00:00:03 -> 00:00:05 ]</p>
+                <p>ယခု Website သည် တိုက်ရိုက်အလုပ်လုပ်ရန် အဆင်သင့် ဖြစ်နေပါပြီ။ ဖိုင်တင်ပြီး ဘာသာပြန်ခြင်းကို စတင်နိုင်ပါသည်။</p>
             </div>
 
-            <!-- Action Button -->
-            <button id="translateBtn" class="w-full py-4 rounded-2xl font-black text-base gradient-bg hover:opacity-95 transition-all transform hover:-translate-y-0.5 shadow-xl shadow-pink-600/40 tracking-wider text-white flex items-center justify-center space-x-2 cursor-pointer">
-                <span>✨ ဘာသာပြန်စတင်မည် (Translate Now)</span>
-            </button>
+            <div class="flex gap-3">
+                <button class="flex-1 py-2.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/50 text-xs font-bold transition text-center">
+                    📥 Download SRT ဖိုင်
+                </button>
+                <button class="flex-1 py-2.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/50 text-xs font-bold transition text-center">
+                    💾 Save Thumbnail ပုံ
+                </button>
+            </div>
         </div>
     </main>
 
     <!-- Footer -->
-    <footer class="text-center py-6 text-xs text-slate-500 border-t border-white/5 glass-panel">
-        <p>&copy; 2026 YNT Studio. All rights reserved. Powered by Advanced AI Processing.</p>
+    <footer class="text-center py-5 text-xs text-slate-500 border-t border-white/5 glass-panel">
+        <p>&copy; 2026 YNT Studio. All rights reserved.</p>
     </footer>
 
-    <!-- Interactive JavaScript Logic -->
+    <!-- JavaScript -->
     <script>
         const fileInput = document.getElementById('videoFile');
         const uploadBox = document.getElementById('uploadBox');
         const uploadText = document.getElementById('uploadText');
         const translateBtn = document.getElementById('translateBtn');
 
-        uploadBox.addEventListener('click', () => {
-            fileInput.click();
-        });
+        uploadBox.addEventListener('click', () => fileInput.click());
 
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
-                uploadText.textContent = `ရွေးချယ်ထားသောဖိုင်: ${file.name}`;
+                uploadText.textContent = `ရွေးချယ်ထားသော: ${file.name}`;
             }
         });
 
@@ -116,15 +159,13 @@
             }
 
             translateBtn.disabled = true;
-            translateBtn.innerHTML = "⏳ ဘာသာပြန်ဆိုနေပါပြီ (Processing)...";
-            translateBtn.classList.add('opacity-75');
-
+            translateBtn.innerHTML = "⏳ ဘာသာပြန်ဆိုနေပါပြီ...";
+            
             setTimeout(() => {
-                alert('ဗီဒီယို ဘာသာပြန်ခြင်းနှင့် SRT စာတန်းထိုး ထုတ်လုပ်ခြင်း အောင်မြင်ပါပြီ!');
                 translateBtn.disabled = false;
-                translateBtn.innerHTML = "✨ ဘာသာပြန်စတင်မည် (Translate Now)";
-                translateBtn.classList.remove('opacity-75');
-            }, 3000);
+                translateBtn.innerHTML = "✨ ဘာသာပြန်စတင်မည် (Translate)";
+                alert('ဘာသာပြန်ဆိုခြင်း ပြီးစီးပါပြီ!');
+            }, 2000);
         });
     </script>
 </body>
