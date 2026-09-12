@@ -936,18 +936,248 @@ loadUrlBtn.addEventListener(
 
 
 /* ==========================================
-   ONE CLICK RECAP
+   ONE CLICK RECAP → P2 BACKEND
 ========================================== */
 
 oneClickBtn.addEventListener(
     "click",
     async () => {
 
-        if (!selectedVideo){
+        if (!selectedVideo) {
 
             showError(
                 "Video အရင်ထည့်ပေးပါ။"
             );
+
+            return;
+        }
+
+        hideError();
+
+        processArea.classList.remove(
+            "hidden"
+        );
+
+        oneClickBtn.disabled = true;
+
+        videoStatus.textContent =
+            "P2 ANALYZING";
+
+        processText.textContent =
+            "P1 Video ကို P2 Analyze Engine သို့ ပို့နေပါပြီ...";
+
+        processPercent.textContent =
+            "10%";
+
+        processBar.style.width =
+            "10%";
+
+
+        try {
+
+            /* ==========================
+               SEND P1 VIDEO → P2
+            ========================== */
+
+            const formData =
+                new FormData();
+
+            formData.append(
+                "file",
+                selectedVideo,
+                selectedVideo.name
+            );
+
+
+            processText.textContent =
+                "🎬 Video ကို Analyze လုပ်နေပါပြီ...";
+
+            processPercent.textContent =
+                "30%";
+
+            processBar.style.width =
+                "30%";
+
+
+            const response =
+                await fetch(
+                    "/api/analyze",
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+
+            const data =
+                await response.json();
+
+
+            if (!response.ok ||
+                !data.success) {
+
+                throw new Error(
+                    data.error ||
+                    "P2 Analyze မအောင်မြင်ပါ။"
+                );
+            }
+
+
+            /* ==========================
+               P2 RESULT
+            ========================== */
+
+            processText.textContent =
+                "🧠 Story နားလည်ပြီး Recap Script ရေးနေပါပြီ...";
+
+            processPercent.textContent =
+                "70%";
+
+            processBar.style.width =
+                "70%";
+
+
+            /*
+              P2 data ကို project state ထဲ
+              သိမ်းထားမယ်
+            */
+
+            window.yntProject = {
+
+                sourceVideo:
+                    selectedVideo,
+
+                title:
+                    data.title || "",
+
+                summary:
+                    data.summary || "",
+
+                analysis:
+                    data.analysis || {},
+
+                recapScript:
+                    data.recapScript || "",
+
+                segments:
+                    Array.isArray(
+                        data.segments
+                    )
+                        ? data.segments
+                        : []
+
+            };
+
+
+            /* ==========================
+               SHOW P2 RESULT
+            ========================== */
+
+            processText.textContent =
+                "✅ Myanmar Recap Script ရပါပြီ";
+
+            processPercent.textContent =
+                "100%";
+
+            processBar.style.width =
+                "100%";
+
+            videoStatus.textContent =
+                "P2 READY";
+
+
+            /*
+              Browser console မှာ
+              P2 result ကို စစ်လို့ရအောင်
+            */
+
+            console.log(
+                "YNT P2 RESULT:",
+                window.yntProject
+            );
+
+
+            /*
+              ယာယီအနေနဲ့ Script ကို
+              process box ထဲမှာ ပြမယ်
+            */
+
+            const scriptPreview =
+                document.createElement(
+                    "div"
+                );
+
+            scriptPreview.className =
+                "mt-4 p-4 rounded-xl bg-black/40 border border-cyan-500/20";
+
+            scriptPreview.innerHTML = `
+                <div class="text-[10px] text-cyan-400 font-bold mb-2">
+                    📝 P2 MYANMAR RECAP SCRIPT
+                </div>
+
+                <div class="text-xs text-slate-200 leading-6 whitespace-pre-wrap">
+                    ${escapeHtml(
+                        data.recapScript
+                    )}
+                </div>
+            `;
+
+
+            processArea.appendChild(
+                scriptPreview
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "P2 ERROR:",
+                error
+            );
+
+
+            videoStatus.textContent =
+                "P2 ERROR";
+
+
+            processText.textContent =
+                "❌ P2 Analyze မအောင်မြင်ပါ";
+
+
+            processPercent.textContent =
+                "ERROR";
+
+
+            showError(
+                error.message ||
+                "P2 Video Analyze Error"
+            );
+
+
+        } finally {
+
+            oneClickBtn.disabled =
+                false;
+
+        }
+
+    }
+);
+
+
+/* ==========================================
+   SAFE HTML
+========================================== */
+
+function escapeHtml(value) {
+
+    return String(value || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
 
             return;
 
