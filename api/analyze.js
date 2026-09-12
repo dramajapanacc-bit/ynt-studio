@@ -1,6 +1,5 @@
-import formidable from "formidable";
-import fs from "fs";
 import { GoogleGenAI } from "@google/genai";
+import Busboy from "busboy";
 
 export const config = {
   api: {
@@ -8,207 +7,172 @@ export const config = {
   },
 };
 
-function parseForm(req) {
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+});
+
+function parseMultipart(req) {
   return new Promise((resolve, reject) => {
-    const form = formidable({
-      multiples: false,
-      keepExtensions: true,
-      maxFileSize: 500 * 1024 * 1024,
+    const bb = Busboy({
+      headers: req.headers,
+      limits: {
+        fileSize: 500 * 1024 * 1024,
+      },
     });
 
-    form.parse(req, (error, fields, files) => {
-      if (error) {
-        reject(error);
-        return;
+    let videoBuffer = null;
+    let fileName = "";
+    let mimeType = "";
+    const fields = {};
+
+    const chunks = [];
+
+    bb.on("field", (name, value) => {
+      fields[name] = value;
+    });
+
+    bb.on("file", (name, file, info) => {
+      fileName = info.filename || "video";
+      mimeType = info.mimeType || "video/mp4";
+
+      file.on("data", (chunk) => {
+        chunks.push(chunk);
+      });
+    });
+
+    bb.on("error", reject);
+
+    bb.on("finish", () => {
+      videoBuffer = Buffer.concat(chunks);
+
+      if (!videoBuffer.length) {
+        return reject(
+          new Error("Video file is required.")
+        );
       }
 
-      resolve({ fields, files });
+      resolve({
+        videoBuffer,
+        fileName,
+        mimeType,
+        fields,
+      });
     });
+
+    req.pipe(bb);
   });
 }
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({
-      success: false,
       error: "POST method only",
     });
   }
 
-  let localVideoPath = null;
-
   try {
-    // ==============================
-    // 1. CHECK API KEY
-    // ==============================
+    const {
+      videoBuffer,
+      fileName,
+      mimeType,
+    } = await parseMultipart(req);
 
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({
-        success: false,
-        error: "GEMINI_API_KEY မတွေ့ပါ။",
+        error:
+          "GEMINI_API_KEY is not configured.",
       });
     }
 
-    // ==============================
-    // 2. RECEIVE P1 VIDEO
-    // ==============================
+    /*
+     * Gemini File API သို့ video upload
+     */
 
-    const { files } = await parseForm(req);
-
-    let videoFile = files.file;
-
-    if (Array.isArray(videoFile)) {
-      videoFile = videoFile[0];
-    }
-
-    if (!videoFile) {
-      return res.status(400).json({
-        success: false,
-        error: "P1 Video file မရရှိပါ။",
-      });
-    }
-
-    localVideoPath =
-      videoFile.filepath ||
-      videoFile.path;
-
-    if (!localVideoPath) {
-      throw new Error(
-        "Uploaded video path မရရှိပါ။"
-      );
-    }
-
-    // ==============================
-    // 3. GEMINI CLIENT
-    // ==============================
-
-    const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-    });
-
-    // ==============================
-    // 4. UPLOAD VIDEO TO GEMINI
-    // ==============================
-
-    const uploadedVideo =
+    const uploadedFile =
       await ai.files.upload({
-        file: localVideoPath,
+        file: new Blob(
+          [videoBuffer],
+          { type: mimeType }
+        ),
         config: {
-          mimeType:
-            videoFile.mimetype ||
-            "video/mp4",
+          displayName: fileName,
         },
       });
 
-    if (!uploadedVideo?.uri) {
-      throw new Error(
-        "Video ကို Gemini သို့ upload မအောင်မြင်ပါ။"
-      );
-    }
 
-    // ==============================
-    // 5. P2 VIDEO ANALYSIS PROMPT
-    // ==============================
+    /*
+     * Video ကို story အနေနဲ့ Analyze
+     */
 
     const prompt = `
-You are the P2 Video Analysis and Myanmar Recap Script Engine for YNT Studio.
+You are an expert movie/video recap writer.
 
-Analyze the uploaded video itself.
+Analyze the uploaded video carefully.
 
-Do NOT create a generic script.
-Do NOT use placeholder text.
-Do NOT assume the story.
+Understand:
+1. Main story
+2. Important characters
+3. Important events
+4. Scene progression
+5. Beginning, middle and ending
+6. Important visual actions
+7. Emotional moments
 
-Understand the actual video content.
+Then create a NATURAL MYANMAR VIDEO RECAP SCRIPT.
 
-Analyze:
+Requirements:
+- Write in natural spoken Myanmar.
+- Do not translate word-for-word.
+- Do not invent events that are not in the video.
+- Keep the story in correct chronological order.
+- Make it suitable for Myanmar narration.
+- Do not write headings inside the narration.
+- Do not use excessive punctuation.
+- The script should sound like a human narrator explaining a movie.
+- Make the narration detailed enough for the whole source video.
+- Do NOT shorten the entire video into only a few sentences.
 
-- Main story
-- Beginning
-- Middle
-- Ending
-- Characters / people
-- Important events
-- Important dialogue
-- Important visual moments
-- Scene order
-- Emotional moments
-- Key information
-- Approximate timestamps when possible
-
-Then create a natural Myanmar-language recap script based ONLY on what is actually shown or heard in the video.
-
-Myanmar narration requirements:
-
-- Natural Myanmar language
-- Easy to understand
-- Sounds like a real human narrator
-- Suitable for AI voice generation
-- Storytelling style
-- Smooth sentence flow
-- Do not write like subtitles
-- Do not use robotic wording
-- Do not invent information
-- Do not change the story
-- Do not repeatedly use the same sentence
-- Do not use ALL CAPS
-- Do not make the narrator sound like shouting
-- Keep important story details
-- Follow the actual order of events
-
-The recap should be suitable for P3 Myanmar AI Voice.
-
-Return ONLY valid JSON.
-
-Use exactly this structure:
+Return JSON only:
 
 {
-  "title": "",
-  "summary": "",
+  "title": "short Myanmar recap title",
+  "summary": "short Myanmar summary",
+  "recapScript": "full Myanmar narration script",
   "analysis": {
-    "beginning": "",
-    "middle": "",
-    "ending": "",
+    "story": "",
     "characters": [],
-    "importantEvents": [],
-    "keyScenes": []
+    "events": [],
+    "ending": ""
   },
-  "recapScript": "",
   "segments": [
     {
-      "start": "00:00",
-      "end": "00:15",
-      "narration": ""
+      "start": 0,
+      "end": 10,
+      "description": "",
+      "importance": 1
     }
   ]
 }
 `;
 
-    // ==============================
-    // 6. GENERATE P2 RESULT
-    // ==============================
 
     const result =
       await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model:
+          "gemini-2.5-flash",
 
         contents: [
           {
             role: "user",
-
             parts: [
               {
                 fileData: {
                   fileUri:
-                    uploadedVideo.uri,
-
+                    uploadedFile.uri,
                   mimeType:
-                    uploadedVideo.mimeType ||
-                    videoFile.mimetype ||
-                    "video/mp4",
+                    uploadedFile.mimeType,
                 },
               },
-
               {
                 text: prompt,
               },
@@ -217,136 +181,83 @@ Use exactly this structure:
         ],
       });
 
-    // ==============================
-    // 7. GET AI TEXT
-    // ==============================
 
-    let output =
+    const text =
       result.text || "";
 
-    output = output
-      .replace(/^```json\s*/i, "")
-      .replace(/^```\s*/i, "")
-      .replace(/\s*```$/i, "")
-      .trim();
 
-    if (!output) {
-      throw new Error(
-        "P2 AI response မရရှိပါ။"
-      );
-    }
+    /*
+     * JSON clean
+     */
 
-    // ==============================
-    // 8. PARSE JSON
-    // ==============================
+    let cleaned =
+      text
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim();
+
 
     let data;
 
     try {
-      data = JSON.parse(output);
-    } catch (jsonError) {
-      console.error(
-        "Invalid Gemini JSON:",
-        output
-      );
 
-      throw new Error(
-        "P2 AI က valid JSON မပြန်ပေးပါ။"
-      );
+      data =
+        JSON.parse(cleaned);
+
+    } catch {
+
+      /*
+       * Gemini JSON မမှန်ရင်
+       * text ကို fallback အနေနဲ့ သုံး
+       */
+
+      data = {
+        title: "YNT Recap",
+        summary:
+          "Video analysis completed.",
+        recapScript: text,
+        analysis: {},
+        segments: [],
+      };
+
     }
 
-    // ==============================
-    // 9. CHECK RECAP SCRIPT
-    // ==============================
-
-    if (
-      !data.recapScript ||
-      typeof data.recapScript !== "string"
-    ) {
-      throw new Error(
-        "Myanmar Recap Script မရရှိပါ။"
-      );
-    }
-
-    // ==============================
-    // 10. RETURN P2 DATA
-    // ==============================
 
     return res.status(200).json({
       success: true,
 
       title:
-        data.title ||
-        "YNT Myanmar Recap",
+        data.title || "YNT Recap",
 
       summary:
         data.summary || "",
 
-      analysis:
-        data.analysis || {
-          beginning: "",
-          middle: "",
-          ending: "",
-          characters: [],
-          importantEvents: [],
-          keyScenes: [],
-        },
-
       recapScript:
-        data.recapScript,
+        data.recapScript || "",
+
+      analysis:
+        data.analysis || {},
 
       segments:
         Array.isArray(data.segments)
           ? data.segments
           : [],
-
-      sourceVideo: {
-        filename:
-          videoFile.originalFilename ||
-          videoFile.name ||
-          "video",
-
-        mimeType:
-          videoFile.mimetype ||
-          "video/mp4",
-      },
     });
+
 
   } catch (error) {
 
     console.error(
-      "YNT P2 ERROR:",
+      "YNT ANALYZE ERROR:",
       error
     );
 
     return res.status(500).json({
       success: false,
-
       error:
         error.message ||
-        "P2 Video Analysis Error",
+        "P2 backend error",
     });
 
-  } finally {
-
-    // ==============================
-    // 11. DELETE TEMP VIDEO
-    // ==============================
-
-    if (
-      localVideoPath &&
-      fs.existsSync(localVideoPath)
-    ) {
-      try {
-        fs.unlinkSync(
-          localVideoPath
-        );
-      } catch (cleanupError) {
-        console.warn(
-          "Temporary video cleanup failed:",
-          cleanupError.message
-        );
-      }
-    }
   }
 }
