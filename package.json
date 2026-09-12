@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "@google/genai": "latest",
+    "@vercel/blob": "latest",
     "busboy": "latest"
   }
 }
