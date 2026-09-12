@@ -1,9 +1,6 @@
 {
-  "name": "ynt-studio",
-  "version": "1.0.0",
-  "private": true,
   "dependencies": {
     "@google/genai": "latest",
-    "formidable": "^3.5.4"
+    "busboy": "latest"
   }
 }
