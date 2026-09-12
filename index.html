@@ -12,6 +12,7 @@
 *{box-sizing:border-box}
 
 body{
+    margin:0;
     font-family:Arial,"Noto Sans Myanmar","Myanmar Text",sans-serif;
     background:#030014;
 }
@@ -34,8 +35,8 @@ body{
 
 .glow{
     box-shadow:
-    0 0 35px rgba(236,72,153,.16),
-    inset 0 0 18px rgba(139,92,246,.08);
+        0 0 35px rgba(236,72,153,.16),
+        inset 0 0 18px rgba(139,92,246,.08);
 }
 
 .drop-active{
@@ -43,9 +44,9 @@ body{
     background:rgba(0,242,254,.08)!important;
 }
 
-.disabled{
+button:disabled{
     opacity:.45;
-    pointer-events:none;
+    cursor:not-allowed;
 }
 
 video{
@@ -59,13 +60,26 @@ video{
     background:#22c55e;
     display:inline-block;
 }
+
+.step-active{
+    border-color:#00f2fe!important;
+    box-shadow:0 0 20px rgba(0,242,254,.12);
+}
+
+.step-done{
+    border-color:#22c55e!important;
+}
+
+.script-box{
+    white-space:pre-wrap;
+    line-height:1.9;
+}
 </style>
 </head>
 
-
 <body class="text-white min-h-screen">
 
-<!-- Background -->
+<!-- BACKGROUND -->
 <div class="fixed -top-40 left-1/4 w-96 h-96
 bg-purple-600/20 rounded-full blur-[120px]
 pointer-events-none"></div>
@@ -102,7 +116,6 @@ ONE CLICK RECAP
 
 </div>
 
-
 <div class="flex items-center gap-2">
 
 <span class="hidden md:flex items-center gap-2
@@ -122,7 +135,6 @@ FREE MODE
 </header>
 
 
-
 <!-- MAIN -->
 <main class="relative z-10 max-w-6xl mx-auto
 px-4 md:px-6 py-8">
@@ -140,14 +152,12 @@ text-purple-300 text-[10px] font-bold">
 
 </div>
 
-
 <h1 class="text-3xl md:text-5xl font-black
 gradient-text mb-3">
 
 YNT Studio
 
 </h1>
-
 
 <p class="text-slate-400 text-xs md:text-sm">
 
@@ -159,12 +169,9 @@ Myanmar Recap Video ပြုလုပ်ပါ
 </section>
 
 
-
-<!-- P1 CARD -->
+<!-- P1 -->
 <section class="glass glow rounded-3xl p-5 md:p-7">
 
-
-<!-- CARD HEADER -->
 <div class="flex items-center justify-between mb-6">
 
 <div>
@@ -183,7 +190,6 @@ Recap ပြုလုပ်မည့် မူရင်း Video
 
 </div>
 
-
 <div id="videoStatus"
 class="px-3 py-1.5 rounded-full
 bg-white/5 border border-white/10
@@ -196,8 +202,7 @@ WAITING
 </div>
 
 
-
-<!-- LINK INPUT -->
+<!-- LINK -->
 <div class="mb-5">
 
 <label class="block text-xs font-bold
@@ -207,19 +212,17 @@ text-slate-300 mb-2">
 
 </label>
 
-
 <div class="flex flex-col md:flex-row gap-2">
 
 <input
 id="videoUrl"
 type="url"
-placeholder="YouTube / TikTok / RedNote video link ထည့်ပါ..."
+placeholder="YouTube / TikTok / RedNote link..."
 class="flex-1 bg-black/40
 border border-purple-500/30
 rounded-xl px-4 py-3
 text-xs text-white
 outline-none focus:border-cyan-400">
-
 
 <button
 id="loadUrlBtn"
@@ -229,18 +232,17 @@ bg-purple-600/30
 border border-purple-500/40
 text-xs font-bold">
 
-🔗 Link အသုံးပြုမည်
+🔗 Link သိမ်းမည်
 
 </button>
 
 </div>
 
 <p class="text-[9px] text-slate-600 mt-2">
-မှတ်ချက် — Link download/backend support ကို နောက်အဆင့်တွင် ချိတ်မည်။
+Link download backend ကို နောက်အဆင့်မှာ ချိတ်နိုင်ပါသည်။
 </p>
 
 </div>
-
 
 
 <!-- OR -->
@@ -248,14 +250,11 @@ text-xs font-bold">
 
 <div class="h-px flex-1 bg-white/10"></div>
 
-<span class="text-[10px] text-slate-600">
-OR
-</span>
+<span class="text-[10px] text-slate-600">OR</span>
 
 <div class="h-px flex-1 bg-white/10"></div>
 
 </div>
-
 
 
 <!-- UPLOAD -->
@@ -267,9 +266,7 @@ rounded-2xl p-8 text-center
 bg-purple-950/20
 cursor-pointer transition">
 
-<div class="text-4xl mb-3">
-📁
-</div>
+<div class="text-4xl mb-3">📁</div>
 
 <p id="uploadTitle"
 class="text-sm font-bold text-slate-200">
@@ -279,7 +276,6 @@ Video ဖိုင်ရွေးပါ
 </p>
 
 <p class="text-[10px] text-slate-500 mt-2">
-
 MP4 / MOV / MKV / WebM
 </p>
 
@@ -292,84 +288,41 @@ accept="video/*">
 </div>
 
 
-
 <!-- VIDEO INFO -->
 <div
 id="videoInfo"
 class="hidden mt-5 grid grid-cols-2 md:grid-cols-4 gap-3">
 
-
-<div class="bg-black/30 rounded-xl p-3
-border border-white/5">
-
-<div class="text-[9px] text-slate-500">
-FILE
+<div class="bg-black/30 rounded-xl p-3 border border-white/5">
+<div class="text-[9px] text-slate-500">FILE</div>
+<div id="fileName" class="text-xs font-bold truncate mt-1">-</div>
 </div>
 
-<div id="fileName"
-class="text-xs font-bold truncate mt-1">
--
+<div class="bg-black/30 rounded-xl p-3 border border-white/5">
+<div class="text-[9px] text-slate-500">SIZE</div>
+<div id="fileSize" class="text-xs font-bold mt-1">-</div>
 </div>
 
+<div class="bg-black/30 rounded-xl p-3 border border-white/5">
+<div class="text-[9px] text-slate-500">DURATION</div>
+<div id="videoDuration" class="text-xs font-bold mt-1">-</div>
 </div>
 
-
-<div class="bg-black/30 rounded-xl p-3
-border border-white/5">
-
-<div class="text-[9px] text-slate-500">
-SIZE
-</div>
-
-<div id="fileSize"
-class="text-xs font-bold mt-1">
--
-</div>
-
-</div>
-
-
-<div class="bg-black/30 rounded-xl p-3
-border border-white/5">
-
-<div class="text-[9px] text-slate-500">
-DURATION
-</div>
-
-<div id="videoDuration"
-class="text-xs font-bold mt-1">
--
-</div>
-
-</div>
-
-
-<div class="bg-black/30 rounded-xl p-3
-border border-white/5">
-
-<div class="text-[9px] text-slate-500">
-STATUS
-</div>
-
+<div class="bg-black/30 rounded-xl p-3 border border-white/5">
+<div class="text-[9px] text-slate-500">STATUS</div>
 <div id="fileReady"
 class="text-xs font-bold text-green-400 mt-1">
 READY
 </div>
-
 </div>
 
 </div>
-
 
 
 <!-- PREVIEW -->
-<div
-id="previewArea"
-class="hidden mt-5">
+<div id="previewArea" class="hidden mt-5">
 
-
-<div class="flex items-center
-justify-between mb-2">
+<div class="flex items-center justify-between mb-2">
 
 <div class="text-xs font-bold text-slate-300">
 ▶️ Video Preview
@@ -378,8 +331,7 @@ justify-between mb-2">
 <button
 id="removeVideoBtn"
 type="button"
-class="text-[10px] text-red-400
-hover:text-red-300">
+class="text-[10px] text-red-400">
 
 🗑 Remove
 
@@ -387,10 +339,8 @@ hover:text-red-300">
 
 </div>
 
-
 <div class="relative rounded-2xl overflow-hidden
-border border-cyan-500/20
-bg-black">
+border border-cyan-500/20 bg-black">
 
 <video
 id="videoPreview"
@@ -404,67 +354,46 @@ class="w-full mx-auto">
 </div>
 
 
-
-<!-- ACTIONS -->
-<div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-
-
-<button
-id="replaceBtn"
-type="button"
-class="hidden py-3 rounded-xl
-bg-white/5
-border border-white/10
-text-xs font-bold">
-
-🔄 Replace Video
-
-</button>
-
-
+<!-- ONE CLICK -->
 <button
 id="oneClickBtn"
 type="button"
 disabled
-class="py-4 rounded-xl
+class="w-full mt-6 py-4 rounded-xl
 gradient-bg
 font-black text-sm
-shadow-lg
-shadow-purple-600/20
+shadow-lg shadow-purple-600/20
 transition">
 
 🚀 ONE CLICK RECAP
 
 </button>
 
-</div>
 
-
-
-<!-- PROCESS STATUS -->
+<!-- PROCESS -->
 <div
 id="processArea"
 class="hidden mt-5
-bg-black/30
-rounded-2xl p-4
+bg-black/30 rounded-2xl p-4
 border border-purple-500/20">
 
-
-<div class="flex items-center
-justify-between mb-3">
+<div class="flex items-center justify-between mb-3">
 
 <span id="processText"
 class="text-xs font-bold">
+
 Preparing...
+
 </span>
 
 <span id="processPercent"
 class="text-xs text-cyan-400">
+
 0%
+
 </span>
 
 </div>
-
 
 <div class="h-2 rounded-full
 bg-white/5 overflow-hidden">
@@ -480,102 +409,123 @@ transition-all duration-500">
 </div>
 
 
+<!-- P2 RESULT -->
+<div
+id="p2Result"
+class="hidden mt-5">
+
+<div class="rounded-2xl
+border border-cyan-500/20
+bg-black/30 p-5">
+
+<div class="text-xs font-black text-cyan-400 mb-3">
+🧠 P2 — VIDEO ANALYSIS
+</div>
+
+<div id="analysisTitle"
+class="text-sm font-bold mb-2">
+-
+</div>
+
+<div id="analysisSummary"
+class="text-xs text-slate-400 leading-6">
+-
+</div>
+
+</div>
+
+
+<div class="rounded-2xl
+border border-purple-500/20
+bg-black/30 p-5 mt-4">
+
+<div class="text-xs font-black text-purple-400 mb-3">
+📝 P2 — MYANMAR RECAP SCRIPT
+</div>
+
+<div
+id="recapScript"
+class="script-box text-xs
+text-slate-200">
+-
+</div>
+
+</div>
+
+</div>
+
 
 <!-- ERROR -->
 <div
 id="errorBox"
-class="hidden mt-5
-rounded-xl
+class="hidden mt-5 rounded-xl
 border border-red-500/30
 bg-red-500/10
-p-4 text-xs
-text-red-300">
+p-4 text-xs text-red-300">
 </div>
 
 </section>
 
 
-
-<!-- PIPELINE PREVIEW -->
+<!-- PIPELINE -->
 <section class="mt-6 grid grid-cols-1
 sm:grid-cols-2 lg:grid-cols-5 gap-3">
 
+<div id="stepP1"
+class="glass rounded-2xl p-4 border border-pink-500/20">
 
-<div class="glass rounded-2xl p-4
-border border-pink-500/20">
+<div class="text-2xl mb-2">📹</div>
+<div class="text-xs font-black">P1 Video Input</div>
+<div class="text-[9px] text-slate-500 mt-1">
+Original Video
+</div>
+
+</div>
+
+
+<div id="stepP2"
+class="glass rounded-2xl p-4 border border-purple-500/20">
 
 <div class="text-2xl mb-2">🧠</div>
-
-<div class="text-xs font-black">
-Video Analyze
-</div>
-
+<div class="text-xs font-black">P2 Recap Script</div>
 <div class="text-[9px] text-slate-500 mt-1">
-Story / Scene
+AI Analyze + Myanmar Script
 </div>
 
 </div>
 
 
-<div class="glass rounded-2xl p-4
-border border-purple-500/20">
-
-<div class="text-2xl mb-2">📝</div>
-
-<div class="text-xs font-black">
-Recap Script
-</div>
-
-<div class="text-[9px] text-slate-500 mt-1">
-Myanmar Script
-</div>
-
-</div>
-
-
-<div class="glass rounded-2xl p-4
-border border-cyan-500/20">
+<div id="stepP3"
+class="glass rounded-2xl p-4 border border-cyan-500/20">
 
 <div class="text-2xl mb-2">🎙️</div>
-
-<div class="text-xs font-black">
-Myanmar Voice
-</div>
-
+<div class="text-xs font-black">P3 Myanmar Voice</div>
 <div class="text-[9px] text-slate-500 mt-1">
-Natural Voice
+Natural AI Voice
 </div>
 
 </div>
 
 
-<div class="glass rounded-2xl p-4
-border border-blue-500/20">
+<div id="stepP4"
+class="glass rounded-2xl p-4 border border-blue-500/20">
 
 <div class="text-2xl mb-2">✂️</div>
-
-<div class="text-xs font-black">
-Smart Clips
-</div>
-
+<div class="text-xs font-black">P4 Smart Clips</div>
 <div class="text-[9px] text-slate-500 mt-1">
-Auto Sync
+Sync + Subtitle
 </div>
 
 </div>
 
 
-<div class="glass rounded-2xl p-4
-border border-green-500/20">
+<div id="stepP5"
+class="glass rounded-2xl p-4 border border-green-500/20">
 
 <div class="text-2xl mb-2">🎬</div>
-
-<div class="text-xs font-black">
-Final Export
-</div>
-
+<div class="text-xs font-black">P5 Export</div>
 <div class="text-[9px] text-slate-500 mt-1">
-Complete Video
+Final Video
 </div>
 
 </div>
@@ -583,7 +533,6 @@ Complete Video
 </section>
 
 </main>
-
 
 
 <footer class="relative z-10
@@ -596,12 +545,7 @@ text-[10px] text-slate-600">
 </footer>
 
 
-
 <script>
-
-/* ==========================================
-   ELEMENTS
-========================================== */
 
 const uploadBox =
 document.getElementById("uploadBox");
@@ -636,9 +580,6 @@ document.getElementById("videoPreview");
 const removeVideoBtn =
 document.getElementById("removeVideoBtn");
 
-const replaceBtn =
-document.getElementById("replaceBtn");
-
 const oneClickBtn =
 document.getElementById("oneClickBtn");
 
@@ -666,28 +607,30 @@ document.getElementById("processPercent");
 const processText =
 document.getElementById("processText");
 
+const p2Result =
+document.getElementById("p2Result");
+
+const analysisTitle =
+document.getElementById("analysisTitle");
+
+const analysisSummary =
+document.getElementById("analysisSummary");
+
+const recapScript =
+document.getElementById("recapScript");
 
 let selectedVideo = null;
 let previewUrl = null;
 
 
-/* ==========================================
-   UPLOAD CLICK
-========================================== */
+/* =========================
+   UPLOAD
+========================= */
 
 uploadBox.addEventListener("click", () => {
     videoFile.click();
 });
 
-
-replaceBtn.addEventListener("click", () => {
-    videoFile.click();
-});
-
-
-/* ==========================================
-   FILE CHANGE
-========================================== */
 
 videoFile.addEventListener("change", event => {
 
@@ -701,9 +644,9 @@ videoFile.addEventListener("change", event => {
 });
 
 
-/* ==========================================
-   DRAG & DROP
-========================================== */
+/* =========================
+   DRAG DROP
+========================= */
 
 uploadBox.addEventListener("dragover", event => {
 
@@ -730,42 +673,52 @@ uploadBox.addEventListener("drop", event => {
     const file =
         event.dataTransfer.files[0];
 
-    if (file && file.type.startsWith("video/")) {
+    if (!file) return;
 
-        handleVideo(file);
-
-    } else {
-
-        showError("Video ဖိုင်သာ ထည့်ပေးပါ။");
-
-    }
+    handleVideo(file);
 
 });
 
 
-/* ==========================================
+/* =========================
    HANDLE VIDEO
-========================================== */
+========================= */
 
 function handleVideo(file){
 
     hideError();
 
-    if (!file.type.startsWith("video/")) {
+    if (!file.type.startsWith("video/")){
 
-        showError("Video ဖိုင်သာ ရွေးပေးပါ။");
+        showError(
+            "Video ဖိုင်သာ ထည့်ပေးပါ။"
+        );
 
         return;
+    }
 
+
+    const maxSize =
+        500 * 1024 * 1024;
+
+    if(file.size > maxSize){
+
+        showError(
+            "Video size 500MB ထက် မကျော်ရပါ။"
+        );
+
+        return;
     }
 
 
     selectedVideo = file;
 
 
-    if (previewUrl) {
+    if(previewUrl){
 
-        URL.revokeObjectURL(previewUrl);
+        URL.revokeObjectURL(
+            previewUrl
+        );
 
     }
 
@@ -786,13 +739,17 @@ function handleVideo(file){
         formatFileSize(file.size);
 
 
-    videoInfo.classList.remove("hidden");
+    videoInfo.classList.remove(
+        "hidden"
+    );
 
-    previewArea.classList.remove("hidden");
+    previewArea.classList.remove(
+        "hidden"
+    );
 
-    replaceBtn.classList.remove("hidden");
+    oneClickBtn.disabled =
+        false;
 
-    oneClickBtn.disabled = false;
 
     videoStatus.textContent =
         "READY";
@@ -806,33 +763,29 @@ function handleVideo(file){
         "READY";
 
 
-    videoPreview.addEventListener(
-        "loadedmetadata",
-        handleMetadata,
-        {once:true}
+    videoPreview.onloadedmetadata =
+        () => {
+
+            videoDuration.textContent =
+                formatDuration(
+                    videoPreview.duration
+                );
+
+        };
+
+
+    document.getElementById(
+        "stepP1"
+    ).classList.add(
+        "step-done"
     );
 
 }
 
 
-/* ==========================================
-   VIDEO METADATA
-========================================== */
-
-function handleMetadata(){
-
-    const duration =
-        videoPreview.duration;
-
-    videoDuration.textContent =
-        formatDuration(duration);
-
-}
-
-
-/* ==========================================
-   REMOVE VIDEO
-========================================== */
+/* =========================
+   REMOVE
+========================= */
 
 removeVideoBtn.addEventListener(
     "click",
@@ -848,44 +801,54 @@ function removeVideo(){
 
     videoPreview.pause();
 
-    videoPreview.removeAttribute("src");
+    videoPreview.removeAttribute(
+        "src"
+    );
 
     videoPreview.load();
 
 
-    if (previewUrl){
+    if(previewUrl){
 
-        URL.revokeObjectURL(previewUrl);
+        URL.revokeObjectURL(
+            previewUrl
+        );
+
         previewUrl = null;
 
     }
 
 
-    videoInfo.classList.add("hidden");
+    videoInfo.classList.add(
+        "hidden"
+    );
 
-    previewArea.classList.add("hidden");
+    previewArea.classList.add(
+        "hidden"
+    );
 
-    replaceBtn.classList.add("hidden");
-
-    oneClickBtn.disabled = true;
-
-    uploadTitle.textContent =
-        "Video ဖိုင်ရွေးပါ";
+    oneClickBtn.disabled =
+        true;
 
     videoStatus.textContent =
         "WAITING";
 
+    uploadTitle.textContent =
+        "Video ဖိုင်ရွေးပါ";
+
     videoDuration.textContent =
         "-";
 
-    hideError();
+    p2Result.classList.add(
+        "hidden"
+    );
 
 }
 
 
-/* ==========================================
-   LINK BUTTON
-========================================== */
+/* =========================
+   LINK
+========================= */
 
 loadUrlBtn.addEventListener(
     "click",
@@ -894,25 +857,15 @@ loadUrlBtn.addEventListener(
         const url =
             videoUrl.value.trim();
 
-        if (!url){
+        if(!url){
 
             showError(
                 "Video link အရင်ထည့်ပါ။"
             );
 
             return;
-
         }
 
-
-        /*
-         * ဒီနေရာမှာ URL ကို project state
-         * ထဲသိမ်းထားမယ်။
-         *
-         * YouTube / TikTok / RedNote
-         * download API ကို နောက် backend
-         * အဆင့်မှာ ချိတ်မယ်။
-         */
 
         sessionStorage.setItem(
             "ynt_video_url",
@@ -924,26 +877,23 @@ loadUrlBtn.addEventListener(
             "LINK READY";
 
 
-        hideError();
-
-
         showError(
-            "Link သိမ်းပြီးပါပြီ။ Link download/backend ကို နောက်အဆင့်မှာ ချိတ်မယ်။"
+            "Link ကို သိမ်းထားပါပြီ။ Link download backend ကို နောက်အဆင့်မှာ ချိတ်ပါမယ်။"
         );
 
     }
 );
 
 
-/* ==========================================
-   ONE CLICK RECAP → P2 BACKEND
-========================================== */
+/* =========================
+   ONE CLICK → P2
+========================= */
 
 oneClickBtn.addEventListener(
     "click",
     async () => {
 
-        if (!selectedVideo) {
+        if(!selectedVideo){
 
             showError(
                 "Video အရင်ထည့်ပေးပါ။"
@@ -952,35 +902,32 @@ oneClickBtn.addEventListener(
             return;
         }
 
+
         hideError();
+
+        oneClickBtn.disabled =
+            true;
 
         processArea.classList.remove(
             "hidden"
         );
 
-        oneClickBtn.disabled = true;
 
         videoStatus.textContent =
             "P2 ANALYZING";
 
-        processText.textContent =
-            "P1 Video ကို P2 Analyze Engine သို့ ပို့နေပါပြီ...";
 
-        processPercent.textContent =
-            "10%";
-
-        processBar.style.width =
-            "10%";
+        setProgress(
+            10,
+            "P1 Video ကို P2 Engine သို့ ပို့နေပါပြီ..."
+        );
 
 
-        try {
-
-            /* ==========================
-               SEND P1 VIDEO → P2
-            ========================== */
+        try{
 
             const formData =
                 new FormData();
+
 
             formData.append(
                 "file",
@@ -989,146 +936,151 @@ oneClickBtn.addEventListener(
             );
 
 
-            processText.textContent =
-                "🎬 Video ကို Analyze လုပ်နေပါပြီ...";
-
-            processPercent.textContent =
-                "30%";
-
-            processBar.style.width =
-                "30%";
+            setProgress(
+                25,
+                "🎬 Video ကို AI Analyze လုပ်နေပါပြီ..."
+            );
 
 
             const response =
                 await fetch(
                     "/api/analyze",
                     {
-                        method: "POST",
-                        body: formData
+                        method:"POST",
+                        body:formData
                     }
                 );
 
 
-            const data =
-                await response.json();
+            let data = {};
 
+            try{
 
-            if (!response.ok ||
-                !data.success) {
+                data =
+                    await response.json();
+
+            }catch{
 
                 throw new Error(
-                    data.error ||
-                    "P2 Analyze မအောင်မြင်ပါ။"
+                    "Backend က JSON response မပေးပါ။"
                 );
+
             }
 
 
-            /* ==========================
-               P2 RESULT
-            ========================== */
+            if(!response.ok){
 
-            processText.textContent =
-                "🧠 Story နားလည်ပြီး Recap Script ရေးနေပါပြီ...";
+                throw new Error(
+                    data.error ||
+                    "P2 Analyze API Error"
+                );
 
-            processPercent.textContent =
-                "70%";
-
-            processBar.style.width =
-                "70%";
+            }
 
 
-            /*
-              P2 data ကို project state ထဲ
-              သိမ်းထားမယ်
-            */
+            setProgress(
+                70,
+                "📝 Myanmar Recap Script ရေးနေပါပြီ..."
+            );
+
+
+            const script =
+                data.recapScript ||
+                data.script ||
+                "";
+
+
+            const title =
+                data.title ||
+                "YNT Recap";
+
+
+            const summary =
+                data.summary ||
+                "Video analysis completed.";
+
+
+            if(!script){
+
+                throw new Error(
+                    "Myanmar Recap Script မရရှိပါ။"
+                );
+
+            }
+
+
+            /* ======================
+               PROJECT STATE
+            ====================== */
 
             window.yntProject = {
 
-                sourceVideo:
-                    selectedVideo,
+                sourceVideo:selectedVideo,
 
-                title:
-                    data.title || "",
+                title:title,
 
-                summary:
-                    data.summary || "",
+                summary:summary,
 
                 analysis:
                     data.analysis || {},
 
-                recapScript:
-                    data.recapScript || "",
+                recapScript:script,
 
                 segments:
                     Array.isArray(
                         data.segments
                     )
-                        ? data.segments
-                        : []
+                    ? data.segments
+                    : []
 
             };
 
 
-            /* ==========================
-               SHOW P2 RESULT
-            ========================== */
+            /* ======================
+               SHOW P2
+            ====================== */
 
-            processText.textContent =
-                "✅ Myanmar Recap Script ရပါပြီ";
+            analysisTitle.textContent =
+                title;
 
-            processPercent.textContent =
-                "100%";
 
-            processBar.style.width =
-                "100%";
+            analysisSummary.textContent =
+                summary;
+
+
+            recapScript.textContent =
+                script;
+
+
+            p2Result.classList.remove(
+                "hidden"
+            );
+
+
+            setProgress(
+                100,
+                "✅ P2 Recap Script Ready"
+            );
+
 
             videoStatus.textContent =
                 "P2 READY";
 
 
-            /*
-              Browser console မှာ
-              P2 result ကို စစ်လို့ရအောင်
-            */
+            document.getElementById(
+                "stepP2"
+            ).classList.add(
+                "step-done"
+            );
+
 
             console.log(
-                "YNT P2 RESULT:",
+                "YNT PROJECT:",
                 window.yntProject
             );
 
 
-            /*
-              ယာယီအနေနဲ့ Script ကို
-              process box ထဲမှာ ပြမယ်
-            */
-
-            const scriptPreview =
-                document.createElement(
-                    "div"
-                );
-
-            scriptPreview.className =
-                "mt-4 p-4 rounded-xl bg-black/40 border border-cyan-500/20";
-
-            scriptPreview.innerHTML = `
-                <div class="text-[10px] text-cyan-400 font-bold mb-2">
-                    📝 P2 MYANMAR RECAP SCRIPT
-                </div>
-
-                <div class="text-xs text-slate-200 leading-6 whitespace-pre-wrap">
-                    ${escapeHtml(
-                        data.recapScript
-                    )}
-                </div>
-            `;
-
-
-            processArea.appendChild(
-                scriptPreview
-            );
-
-
-        } catch (error) {
+        }catch(error){
 
             console.error(
                 "P2 ERROR:",
@@ -1140,21 +1092,18 @@ oneClickBtn.addEventListener(
                 "P2 ERROR";
 
 
-            processText.textContent =
-                "❌ P2 Analyze မအောင်မြင်ပါ";
-
-
-            processPercent.textContent =
-                "ERROR";
+            setProgress(
+                0,
+                "❌ P2 Analyze မအောင်မြင်ပါ"
+            );
 
 
             showError(
                 error.message ||
-                "P2 Video Analyze Error"
+                "P2 Analyze Error"
             );
 
-
-        } finally {
+        }finally{
 
             oneClickBtn.disabled =
                 false;
@@ -1165,120 +1114,59 @@ oneClickBtn.addEventListener(
 );
 
 
-/* ==========================================
-   SAFE HTML
-========================================== */
+/* =========================
+   PROGRESS
+========================= */
 
-function escapeHtml(value) {
+function setProgress(
+    percent,
+    text
+){
 
-    return String(value || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    processText.textContent =
+        text;
+
+    processPercent.textContent =
+        percent + "%";
+
+    processBar.style.width =
+        percent + "%";
+
 }
 
-            return;
 
-        }
+/* =========================
+   ERROR
+========================= */
 
+function showError(message){
 
-        hideError();
+    errorBox.textContent =
+        "⚠️ " + message;
 
-        processArea.classList.remove(
-            "hidden"
-        );
-
-        oneClickBtn.disabled = true;
-
-        videoStatus.textContent =
-            "PROCESSING";
-
-
-        const steps = [
-
-            "Video ကို ပြင်ဆင်နေပါပြီ...",
-            "Video Analyze အတွက် ပြင်ဆင်နေပါပြီ...",
-            "Recap Script အတွက် ပြင်ဆင်နေပါပြီ...",
-            "Myanmar Voice အတွက် ပြင်ဆင်နေပါပြီ...",
-            "Auto Sync အတွက် ပြင်ဆင်နေပါပြီ..."
-
-        ];
-
-
-        for (
-            let i = 0;
-            i < steps.length;
-            i++
-        ){
-
-            processText.textContent =
-                steps[i];
-
-            const percent =
-                Math.round(
-                    ((i + 1) /
-                    steps.length) * 100
-                );
-
-
-            processPercent.textContent =
-                percent + "%";
-
-
-            processBar.style.width =
-                percent + "%";
-
-
-            await wait(500);
-
-        }
-
-
-        /*
-         * အခု version မှာ pipeline UI ကိုပဲ
-         * test လုပ်ထားပါတယ်။
-         *
-         * Gemini Video Analyze
-         * Myanmar Script
-         * TTS
-         * FFmpeg Auto Sync
-         *
-         * တွေကို backend ချိတ်ပြီး
-         * တကယ် run စေမယ့်အပိုင်းက
-         * နောက်ဆင့်ဖြစ်ပါတယ်။
-         */
-
-
-        processText.textContent =
-            "P1 Ready — နောက်အဆင့်သို့ ဆက်နိုင်ပါပြီ";
-
-        videoStatus.textContent =
-            "READY";
-
-        oneClickBtn.disabled = false;
-
-    }
-);
-
-
-/* ==========================================
-   HELPERS
-========================================== */
-
-function wait(ms){
-
-    return new Promise(
-        resolve => setTimeout(resolve, ms)
+    errorBox.classList.remove(
+        "hidden"
     );
 
 }
 
 
+function hideError(){
+
+    errorBox.classList.add(
+        "hidden"
+    );
+
+}
+
+
+/* =========================
+   DURATION
+========================= */
+
 function formatDuration(seconds){
 
-    if (!Number.isFinite(seconds))
+    if(!Number.isFinite(seconds))
         return "-";
 
 
@@ -1289,16 +1177,18 @@ function formatDuration(seconds){
     const hours =
         Math.floor(seconds / 3600);
 
+
     const minutes =
         Math.floor(
             (seconds % 3600) / 60
         );
 
+
     const secs =
         seconds % 60;
 
 
-    if (hours > 0){
+    if(hours > 0){
 
         return (
             String(hours).padStart(2,"0")
@@ -1320,49 +1210,43 @@ function formatDuration(seconds){
 }
 
 
+/* =========================
+   FILE SIZE
+========================= */
+
 function formatFileSize(bytes){
 
-    if (bytes < 1024)
+    if(bytes < 1024)
         return bytes + " B";
 
-    if (bytes < 1024 * 1024)
+
+    if(bytes < 1024 * 1024){
+
         return (
             (bytes / 1024).toFixed(1)
             + " KB"
         );
 
-    if (bytes < 1024 * 1024 * 1024)
+    }
+
+
+    if(bytes < 1024 * 1024 * 1024){
+
         return (
-            (bytes / (1024 * 1024)).toFixed(1)
+            (bytes /
+                (1024 * 1024)
+            ).toFixed(1)
             + " MB"
         );
 
+    }
+
+
     return (
         (bytes /
-        (1024 * 1024 * 1024))
-        .toFixed(1)
+            (1024 * 1024 * 1024)
+        ).toFixed(1)
         + " GB"
-    );
-
-}
-
-
-function showError(message){
-
-    errorBox.textContent =
-        "⚠️ " + message;
-
-    errorBox.classList.remove(
-        "hidden"
-    );
-
-}
-
-
-function hideError(){
-
-    errorBox.classList.add(
-        "hidden"
     );
 
 }
