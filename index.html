@@ -3,2047 +3,2579 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YNT Studio — One Click Recap</title>
 
-<script src="https://cdn.tailwindcss.com"></script>
+<title>YNT AI News Video</title>
 
 <style>
-*{box-sizing:border-box}
+*{
+  box-sizing:border-box;
+}
 
-html{scroll-behavior:smooth}
+html{
+  scroll-behavior:smooth;
+}
 
 body{
-    margin:0;
-    font-family:Arial,"Noto Sans Myanmar","Myanmar Text",sans-serif;
-    background:#030014;
+  margin:0;
+  background:
+    radial-gradient(circle at 10% 0%,rgba(124,58,237,.25),transparent 30%),
+    radial-gradient(circle at 90% 10%,rgba(6,182,212,.18),transparent 28%),
+    #05030d;
+  color:#fff;
+  font-family:
+    Arial,
+    "Noto Sans Myanmar",
+    "Myanmar Text",
+    sans-serif;
+}
+
+button,
+input,
+textarea,
+select{
+  font:inherit;
+}
+
+button{
+  cursor:pointer;
+}
+
+.app{
+  width:min(1100px,calc(100% - 24px));
+  margin:auto;
+  padding:20px 0 50px;
 }
 
 .glass{
-    background:rgba(10,8,28,.88);
-    backdrop-filter:blur(22px);
-    -webkit-backdrop-filter:blur(22px);
-    border:1px solid rgba(255,255,255,.10);
+  background:rgba(15,12,32,.82);
+  border:1px solid rgba(255,255,255,.09);
+  box-shadow:0 15px 50px rgba(0,0,0,.25);
+  backdrop-filter:blur(20px);
 }
 
-.gradient-bg{
-    background:linear-gradient(135deg,#ff007f,#7928ca,#00dfd8);
+.header{
+  position:sticky;
+  top:0;
+  z-index:100;
+  background:rgba(5,3,13,.86);
+  border-bottom:1px solid rgba(255,255,255,.08);
+  backdrop-filter:blur(20px);
 }
 
-.gradient-text{
-    background:linear-gradient(90deg,#ff007f,#b829ff,#00f2fe);
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
+.header-inner{
+  width:min(1100px,calc(100% - 24px));
+  margin:auto;
+  min-height:70px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:15px;
 }
 
-.glow{
-    box-shadow:
-    0 0 35px rgba(236,72,153,.13),
-    inset 0 0 20px rgba(139,92,246,.06);
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
 }
 
-.step-active{
-    border-color:#00f2fe!important;
-    box-shadow:0 0 25px rgba(0,242,254,.12);
+.logo{
+  width:45px;
+  height:45px;
+  border-radius:15px;
+  display:grid;
+  place-items:center;
+  font-weight:900;
+  font-size:21px;
+  background:linear-gradient(135deg,#ff0080,#7c3aed,#06b6d4);
 }
 
-.drop-active{
-    border-color:#00f2fe!important;
-    background:rgba(0,242,254,.07)!important;
+.brand-title{
+  font-size:15px;
+  font-weight:900;
+  letter-spacing:2px;
 }
 
-button:disabled{
-    opacity:.45;
-    cursor:not-allowed;
+.brand-sub{
+  color:#8b5cf6;
+  font-size:9px;
+  letter-spacing:2px;
+  margin-top:3px;
 }
 
-video{
-    max-height:460px;
+.status{
+  color:#4ade80;
+  font-size:10px;
+  font-weight:800;
+  padding:7px 11px;
+  border-radius:30px;
+  background:rgba(34,197,94,.08);
+  border:1px solid rgba(34,197,94,.18);
 }
 
-input,textarea,select{
-    font-family:inherit;
+.hero{
+  text-align:center;
+  padding:38px 5px 25px;
 }
 
-::-webkit-scrollbar{
-    width:6px;
+.badge{
+  display:inline-block;
+  padding:7px 12px;
+  border-radius:30px;
+  background:rgba(139,92,246,.10);
+  border:1px solid rgba(139,92,246,.22);
+  color:#c4b5fd;
+  font-size:9px;
+  font-weight:900;
+  letter-spacing:1px;
 }
 
-::-webkit-scrollbar-thumb{
-    background:#7928ca;
-    border-radius:10px;
+.hero h1{
+  margin:15px 0 8px;
+  font-size:clamp(32px,7vw,58px);
+  line-height:1.1;
+  background:linear-gradient(90deg,#ff4fa3,#a78bfa,#22d3ee);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
 }
 
-@keyframes pulse{
-    0%,100%{opacity:.35}
-    50%{opacity:.75}
+.hero p{
+  margin:auto;
+  max-width:620px;
+  color:#8b8799;
+  font-size:12px;
+  line-height:2;
 }
 
-.pulse{
-    animation:pulse 4s infinite;
+/* =========================
+   COLLAPSIBLE CARDS
+========================= */
+
+.card{
+  margin-bottom:12px;
+  border-radius:24px;
+  overflow:hidden;
 }
 
-@keyframes spin{
-    to{transform:rotate(360deg)}
+.card-head{
+  width:100%;
+  border:0;
+  background:transparent;
+  color:white;
+  padding:19px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  text-align:left;
 }
 
-.spin{
-    animation:spin 1s linear infinite;
+.card-head:hover{
+  background:rgba(255,255,255,.025);
+}
+
+.step{
+  flex:0 0 38px;
+  width:38px;
+  height:38px;
+  border-radius:13px;
+  display:grid;
+  place-items:center;
+  font-size:13px;
+  font-weight:900;
+  background:rgba(124,58,237,.14);
+  border:1px solid rgba(124,58,237,.3);
+  color:#c4b5fd;
+}
+
+.head-text{
+  flex:1;
+}
+
+.head-small{
+  color:#8b5cf6;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:2px;
+  margin-bottom:4px;
+}
+
+.head-title{
+  font-size:14px;
+  font-weight:900;
+}
+
+.head-desc{
+  color:#777386;
+  font-size:9px;
+  margin-top:4px;
+}
+
+.arrow{
+  color:#777386;
+  font-size:17px;
+  transition:.25s;
+}
+
+.card.open .arrow{
+  transform:rotate(180deg);
+}
+
+.card-body{
+  display:none;
+  padding:0 19px 20px;
+}
+
+.card.open .card-body{
+  display:block;
+  animation:show .25s ease;
+}
+
+@keyframes show{
+  from{
+    opacity:0;
+    transform:translateY(-5px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+/* =========================
+   NEWS
+========================= */
+
+textarea,
+input,
+select{
+  width:100%;
+  border:1px solid rgba(255,255,255,.09);
+  background:rgba(0,0,0,.28);
+  color:#fff;
+  outline:none;
+  border-radius:16px;
+  padding:14px;
+}
+
+textarea{
+  resize:vertical;
+  min-height:180px;
+  line-height:1.9;
+  font-size:12px;
+}
+
+textarea:focus,
+input:focus,
+select:focus{
+  border-color:#8b5cf6;
+}
+
+.counter{
+  display:flex;
+  justify-content:space-between;
+  color:#666174;
+  font-size:9px;
+  margin-top:7px;
+}
+
+.row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:12px;
+}
+
+/* =========================
+   OPTION GRID
+========================= */
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+}
+
+.option{
+  min-height:85px;
+  padding:14px;
+  border-radius:17px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.025);
+  transition:.2s;
+  text-align:center;
+}
+
+.option:hover{
+  transform:translateY(-2px);
+  border-color:rgba(139,92,246,.45);
+}
+
+.option.selected{
+  border-color:#22d3ee;
+  background:rgba(34,211,238,.08);
+  box-shadow:0 0 20px rgba(34,211,238,.08);
+}
+
+.icon{
+  font-size:29px;
+}
+
+.name{
+  font-size:10px;
+  font-weight:900;
+  margin-top:7px;
+}
+
+.mini{
+  color:#676174;
+  font-size:8px;
+  margin-top:4px;
+}
+
+/* =========================
+   SCENE
+========================= */
+
+.scene-empty{
+  border:1px dashed rgba(255,255,255,.10);
+  border-radius:18px;
+  padding:30px 15px;
+  text-align:center;
+  color:#696475;
+  font-size:10px;
+}
+
+.scene-list{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.scene{
+  display:grid;
+  grid-template-columns:85px 1fr auto;
+  gap:12px;
+  align-items:center;
+  padding:10px;
+  border-radius:17px;
+  background:rgba(0,0,0,.22);
+  border:1px solid rgba(255,255,255,.07);
+}
+
+.scene-img{
+  width:85px;
+  height:65px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  font-size:27px;
+  background:
+    linear-gradient(135deg,#20123d,#071c27);
+}
+
+.scene-number{
+  color:#22d3ee;
+  font-size:8px;
+  font-weight:900;
+}
+
+.scene-title{
+  font-size:10px;
+  font-weight:900;
+  margin-top:4px;
+}
+
+.scene-text{
+  color:#777183;
+  font-size:8px;
+  line-height:1.7;
+  margin-top:4px;
+}
+
+.scene-btn{
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  color:#bbb5c7;
+  border-radius:10px;
+  padding:8px;
+  font-size:9px;
+}
+
+/* =========================
+   STYLE
+========================= */
+
+.style-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+
+.style-option{
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:17px;
+  padding:15px;
+  background:rgba(255,255,255,.025);
+}
+
+.style-option.selected{
+  border-color:#f472b6;
+  background:rgba(244,114,182,.08);
+}
+
+.style-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.style-name{
+  font-size:10px;
+  font-weight:900;
+}
+
+.check{
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  border:1px solid #555;
+}
+
+.style-option.selected .check{
+  background:#f472b6;
+  border-color:#f472b6;
+}
+
+/* =========================
+   GENERATE
+========================= */
+
+.generate{
+  margin-top:18px;
+  padding:20px;
+  border-radius:25px;
+}
+
+.generate-btn{
+  width:100%;
+  border:0;
+  color:#fff;
+  padding:18px;
+  border-radius:17px;
+  font-weight:900;
+  font-size:13px;
+  background:linear-gradient(135deg,#ec4899,#7c3aed,#06b6d4);
+  box-shadow:0 15px 40px rgba(124,58,237,.18);
+}
+
+.generate-btn:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+}
+
+.progress{
+  display:none;
+  margin-top:15px;
+}
+
+.progress.show{
+  display:block;
+}
+
+.progress-info{
+  display:flex;
+  justify-content:space-between;
+  color:#858091;
+  font-size:9px;
+  margin-bottom:7px;
+}
+
+.track{
+  height:7px;
+  border-radius:20px;
+  background:#171423;
+  overflow:hidden;
+}
+
+.bar{
+  width:0%;
+  height:100%;
+  background:linear-gradient(90deg,#ec4899,#8b5cf6,#22d3ee);
+  transition:.4s;
+}
+
+.error{
+  display:none;
+  margin-top:12px;
+  padding:12px;
+  border-radius:13px;
+  background:rgba(239,68,68,.08);
+  border:1px solid rgba(239,68,68,.20);
+  color:#fca5a5;
+  font-size:9px;
+}
+
+.error.show{
+  display:block;
+}
+
+/* =========================
+   RESULT
+========================= */
+
+.result{
+  display:none;
+  margin-top:14px;
+  padding:20px;
+  border-radius:25px;
+}
+
+.result.show{
+  display:block;
+}
+
+.result-title{
+  font-size:15px;
+  font-weight:900;
+  margin-bottom:14px;
+}
+
+.preview{
+  width:100%;
+  aspect-ratio:9/16;
+  max-height:600px;
+  border-radius:20px;
+  background:
+    radial-gradient(circle at 50% 30%,#3b1d61,transparent 30%),
+    linear-gradient(145deg,#090612,#101827);
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.preview-inner{
+  text-align:center;
+  padding:30px;
+}
+
+.preview-character{
+  font-size:90px;
+}
+
+.preview-text{
+  margin-top:20px;
+  font-size:15px;
+  line-height:1.8;
+  font-weight:900;
+}
+
+.download{
+  width:100%;
+  margin-top:12px;
+  padding:14px;
+  border-radius:15px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.04);
+  color:#fff;
+  font-size:10px;
+  font-weight:900;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:700px){
+
+  .grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .style-grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .row{
+    grid-template-columns:1fr;
+  }
+
+}
+
+@media(max-width:430px){
+
+  .app{
+    width:min(100% - 14px,1100px);
+  }
+
+  .header-inner{
+    width:min(100% - 14px,1100px);
+  }
+
+  .status{
+    display:none;
+  }
+
+  .hero h1{
+    font-size:35px;
+  }
+
+  .grid{
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .style-grid{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .scene{
+    grid-template-columns:65px 1fr;
+  }
+
+  .scene-img{
+    width:65px;
+    height:55px;
+  }
+
+  .scene-btn{
+    display:none;
+  }
+
 }
 </style>
 </head>
 
-<body class="text-white min-h-screen overflow-x-hidden">
+<body>
 
-<!-- BACKGROUND -->
-<div class="fixed -top-40 left-1/4 w-96 h-96
-bg-purple-600/20 rounded-full blur-[120px]
-pointer-events-none pulse"></div>
+<header class="header">
 
-<div class="fixed -bottom-40 right-1/4 w-96 h-96
-bg-pink-600/20 rounded-full blur-[120px]
-pointer-events-none pulse"></div>
+  <div class="header-inner">
 
+    <div class="brand">
 
-<!-- HEADER -->
-<header class="sticky top-0 z-50 glass border-b border-white/10">
+      <div class="logo">
+        Y
+      </div>
 
-<div class="max-w-7xl mx-auto px-4 md:px-8 py-4
-flex items-center justify-between">
+      <div>
 
-<div class="flex items-center gap-3">
+        <div class="brand-title">
+          YNT STUDIO
+        </div>
 
-<div class="w-11 h-11 rounded-2xl gradient-bg
-flex items-center justify-center
-font-black text-xl">
-Y
-</div>
+        <div class="brand-sub">
+          AI NEWS VIDEO
+        </div>
 
-<div>
-<div class="font-black text-xl tracking-wider gradient-text">
-YNT STUDIO
-</div>
+      </div>
 
-<div class="text-[9px] text-cyan-400
-tracking-[3px] uppercase font-bold">
-ONE CLICK RECAP
-</div>
-</div>
+    </div>
 
-</div>
+    <div class="status">
+      ● READY
+    </div>
 
-<div class="flex items-center gap-2">
+  </div>
 
-<div class="hidden sm:flex items-center gap-2
-px-3 py-1.5 rounded-full
-bg-green-500/10
-border border-green-500/30
-text-green-400 text-[10px] font-bold">
-
-<span class="w-2 h-2 rounded-full bg-green-400"></span>
-FREE MODE
-
-</div>
-
-</div>
-
-</div>
 </header>
 
 
-<!-- MAIN -->
-<main class="relative z-10 max-w-7xl mx-auto px-4 md:px-6 py-8">
+<main class="app">
 
+  <!-- HERO -->
 
-<!-- TITLE -->
-<section class="text-center mb-8">
+  <section class="hero">
 
-<div class="inline-block px-4 py-1.5 mb-3
-rounded-full bg-purple-500/10
-border border-purple-500/30
-text-purple-300 text-[10px] font-bold">
+    <div class="badge">
+      ✨ AI NEWS → SHORT VIDEO
+    </div>
 
-🚀 NEXT-GEN AI VIDEO STUDIO
+    <h1>
+      YNT AI News Video
+    </h1>
 
-</div>
+    <p>
+      သတင်းစာသားတစ်ခု ထည့်လိုက်ရုံနဲ့
+      AI က Story ကိုခွဲပြီး သက်ဆိုင်တဲ့ Scene,
+      Image, မြန်မာစကားပြောနဲ့ Short Video
+      အဖြစ် ပြင်ဆင်ပေးမယ့် Creator
+    </p>
 
-<h1 class="text-3xl md:text-5xl font-black
-gradient-text mb-3">
+  </section>
 
-YNT Studio
 
-</h1>
+  <!-- =================================================
+       CARD 01 NEWS
+  ================================================== -->
 
-<p class="text-slate-400 text-xs md:text-sm">
+  <section class="card glass open">
 
-Video တစ်ခုထည့်ပြီး One Click နဲ့
-Myanmar Recap Video ပြုလုပ်ပါ
+    <button
+      class="card-head"
+      type="button">
 
-</p>
+      <div class="step">
+        01
+      </div>
 
-</section>
+      <div class="head-text">
 
+        <div class="head-small">
+          INPUT
+        </div>
 
-<!-- PIPELINE -->
-<section class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        <div class="head-title">
+          📰 သတင်း / Story
+        </div>
 
-<div id="navP1"
-class="glass rounded-2xl p-4 border border-pink-500/20">
-<div class="text-xl mb-2">📹</div>
-<div class="text-xs font-black">P1</div>
-<div class="text-[10px] text-slate-500">Video Input</div>
-</div>
+        <div class="head-desc">
+          မြန်မာလို သတင်းစာသားထည့်ပါ
+        </div>
 
-<div id="navP2"
-class="glass rounded-2xl p-4 border border-purple-500/20">
-<div class="text-xl mb-2">🧠</div>
-<div class="text-xs font-black">P2</div>
-<div class="text-[10px] text-slate-500">Recap Script</div>
-</div>
+      </div>
 
-<div id="navP3"
-class="glass rounded-2xl p-4 border border-cyan-500/20">
-<div class="text-xl mb-2">🎙️</div>
-<div class="text-xs font-black">P3</div>
-<div class="text-[10px] text-slate-500">Myanmar Voice</div>
-</div>
+      <div class="arrow">
+        ▼
+      </div>
 
-<div id="navP4"
-class="glass rounded-2xl p-4 border border-blue-500/20">
-<div class="text-xl mb-2">✂️</div>
-<div class="text-xs font-black">P4</div>
-<div class="text-[10px] text-slate-500">Edit + Subtitle</div>
-</div>
+    </button>
 
-<div id="navP5"
-class="glass rounded-2xl p-4 border border-green-500/20">
-<div class="text-xl mb-2">🎬</div>
-<div class="text-xs font-black">P5</div>
-<div class="text-[10px] text-slate-500">Export</div>
-</div>
 
-</section>
+    <div class="card-body">
 
+      <textarea
+        id="newsInput"
+        maxlength="20000"
+        placeholder="ဥပမာ - ယနေ့ မြန်မာနိုင်ငံမှာ ဖြစ်ပွားခဲ့တဲ့ သတင်းအကြောင်းအရာကို ဒီနေရာမှာ ရေးထည့်ပါ..."></textarea>
 
-<!-- ================================================= -->
-<!-- P1 -->
-<!-- ================================================= -->
+      <div class="counter">
 
-<section id="p1"
-class="glass glow rounded-3xl p-5 md:p-7 mb-6">
+        <span>
+          AI will understand your story
+        </span>
 
-<div class="flex justify-between items-start mb-6">
+        <span id="newsCounter">
+          0 / 20000
+        </span>
 
-<div>
-<div class="text-[10px] text-pink-400 font-bold mb-1">
-P1
-</div>
+      </div>
 
-<h2 class="text-xl font-black">
-📹 Video Input
-</h2>
 
-<p class="text-[11px] text-slate-500 mt-1">
-Recap ပြုလုပ်မည့် မူရင်း Video
-</p>
-</div>
+      <div class="row">
 
-<span id="p1Status"
-class="px-3 py-1.5 rounded-full
-bg-white/5 border border-white/10
-text-[10px] text-slate-400">
-WAITING
-</span>
+        <input
+          id="newsTitle"
+          placeholder="သတင်းခေါင်းစဉ် (optional)">
 
-</div>
+        <select id="newsLanguage">
 
+          <option value="my">
+            🇲🇲 Myanmar
+          </option>
 
-<!-- URL -->
-<label class="block text-xs font-bold text-slate-300 mb-2">
-🔗 Video Link
-</label>
+          <option value="mixed">
+            Myanmar + English
+          </option>
 
-<div class="flex flex-col md:flex-row gap-2 mb-2">
-
-<input
-id="videoUrl"
-type="url"
-placeholder="YouTube / TikTok / RedNote Link..."
-class="flex-1 bg-black/40
-border border-purple-500/30
-rounded-xl px-4 py-3
-text-xs outline-none
-focus:border-cyan-400">
+        </select>
 
-<button
-id="linkBtn"
-type="button"
-class="px-5 py-3 rounded-xl
-bg-purple-600/30
-border border-purple-500/40
-text-xs font-bold">
+      </div>
 
-🔗 Link ထည့်မည်
+    </div>
 
-</button>
+  </section>
 
-</div>
 
-<p class="text-[9px] text-slate-600 mb-5">
-Link download ကို Backend ချိတ်သည့်အဆင့်တွင် အလုပ်လုပ်စေမည်။
-</p>
+  <!-- =================================================
+       CARD 02 AI ANALYZE
+  ================================================== -->
 
+  <section class="card glass">
 
-<div class="flex items-center gap-3 mb-5">
+    <button
+      class="card-head"
+      type="button">
 
-<div class="h-px flex-1 bg-white/10"></div>
-<span class="text-[10px] text-slate-600">OR</span>
-<div class="h-px flex-1 bg-white/10"></div>
+      <div class="step">
+        02
+      </div>
 
-</div>
+      <div class="head-text">
 
+        <div class="head-small">
+          AI STORY
+        </div>
 
-<!-- UPLOAD -->
-<div
-id="uploadBox"
-class="border-2 border-dashed
-border-purple-500/40
-rounded-2xl p-8 text-center
-bg-purple-950/20
-cursor-pointer transition">
+        <div class="head-title">
+          🧠 AI Analyze & Storyboard
+        </div>
 
-<div class="text-4xl mb-3">
-📁
-</div>
+        <div class="head-desc">
+          သတင်းကို Scene အလိုက် ခွဲမယ်
+        </div>
 
-<div id="uploadTitle"
-class="text-sm font-bold">
-Video ဖိုင်ရွေးပါ
-</div>
+      </div>
 
-<div class="text-[10px] text-slate-500 mt-2">
-MP4 / MOV / MKV / WebM
-</div>
+      <div class="arrow">
+        ▼
+      </div>
 
-<div class="text-[10px] text-cyan-500/70 mt-1">
-Target: 150MB+
-</div>
+    </button>
 
-<input
-id="videoFile"
-type="file"
-class="hidden"
-accept="video/*">
 
-</div>
+    <div class="card-body">
 
+      <button
+        id="analyzeBtn"
+        class="generate-btn"
+        type="button">
 
-<!-- VIDEO INFO -->
-<div
-id="videoInfo"
-class="hidden mt-5 grid grid-cols-2 md:grid-cols-4 gap-3">
+        🧠 ANALYZE NEWS
 
-<div class="bg-black/30 rounded-xl p-3">
-<div class="text-[9px] text-slate-500">FILE</div>
-<div id="fileName"
-class="text-xs font-bold truncate mt-1">-</div>
-</div>
+      </button>
 
-<div class="bg-black/30 rounded-xl p-3">
-<div class="text-[9px] text-slate-500">SIZE</div>
-<div id="fileSize"
-class="text-xs font-bold mt-1">-</div>
-</div>
 
-<div class="bg-black/30 rounded-xl p-3">
-<div class="text-[9px] text-slate-500">DURATION</div>
-<div id="fileDuration"
-class="text-xs font-bold mt-1">-</div>
-</div>
+      <div
+        id="analysisResult"
+        class="scene-list"
+        style="margin-top:12px">
 
-<div class="bg-black/30 rounded-xl p-3">
-<div class="text-[9px] text-slate-500">STATUS</div>
-<div id="fileStatus"
-class="text-xs font-bold text-green-400 mt-1">
-READY
-</div>
-</div>
+        <div class="scene-empty">
+          သတင်းထည့်ပြီး ANALYZE NEWS ကိုနှိပ်ပါ။
+        </div>
 
-</div>
+      </div>
 
+    </div>
 
-<!-- PREVIEW -->
-<div id="previewArea" class="hidden mt-5">
+  </section>
 
-<div class="flex justify-between items-center mb-2">
 
-<div class="text-xs font-bold text-slate-300">
-▶️ Original Video
-</div>
+  <!-- =================================================
+       CARD 03 IMAGES
+  ================================================== -->
 
-<button
-id="removeBtn"
-type="button"
-class="text-[10px] text-red-400">
-🗑 Remove
-</button>
+  <section class="card glass">
 
-</div>
+    <button
+      class="card-head"
+      type="button">
 
-<div class="rounded-2xl overflow-hidden
-border border-cyan-500/20 bg-black">
+      <div class="step">
+        03
+      </div>
 
-<video
-id="videoPreview"
-controls
-playsinline
-class="w-full mx-auto">
-</video>
+      <div class="head-text">
 
-</div>
+        <div class="head-small">
+          VISUALS
+        </div>
 
-</div>
+        <div class="head-title">
+          🖼️ AI Scene Images
+        </div>
 
+        <div class="head-desc">
+          Scene တစ်ခုချင်းစီနဲ့ ကိုက်တဲ့ ပုံတွေ
+        </div>
 
-<!-- P1 ACTION -->
-<button
-id="startBtn"
-disabled
-type="button"
-class="w-full mt-6 py-4 rounded-xl
-gradient-bg
-font-black text-sm">
+      </div>
 
-🚀 ONE CLICK RECAP စတင်မည်
+      <div class="arrow">
+        ▼
+      </div>
 
-</button>
+    </button>
 
-</section>
 
+    <div class="card-body">
 
-<!-- ================================================= -->
-<!-- P2 -->
-<!-- ================================================= -->
+      <div
+        id="imageGrid"
+        class="scene-list">
 
-<section id="p2"
-class="glass glow rounded-3xl p-5 md:p-7 mb-6">
+        <div class="scene-empty">
+          AI Analyze ပြီးမှ Scene ပုံတွေ ဒီနေရာမှာ ပေါ်ပါမယ်။
+        </div>
 
-<div class="flex justify-between items-start mb-6">
+      </div>
 
-<div>
-<div class="text-[10px] text-purple-400 font-bold mb-1">
-P2
-</div>
 
-<h2 class="text-xl font-black">
-🧠 Recap Script
-</h2>
+      <button
+        id="generateImagesBtn"
+        class="generate-btn"
+        type="button"
+        style="margin-top:12px">
 
-<p class="text-[11px] text-slate-500 mt-1">
-P1 Video ကို Analyze လုပ်ပြီး Myanmar Recap Script ထုတ်မည်
-</p>
-</div>
+        🖼️ GENERATE ALL IMAGES
 
-<span id="p2Status"
-class="px-3 py-1.5 rounded-full
-bg-white/5 border border-white/10
-text-[10px] text-slate-400">
-WAITING
-</span>
+      </button>
 
-</div>
+    </div>
 
+  </section>
 
-<!-- P2 VIDEO -->
-<div
-id="p2VideoArea"
-class="hidden mb-5">
 
-<div class="text-xs font-bold text-slate-300 mb-2">
-📹 P1 Original Video
-</div>
+  <!-- =================================================
+       CARD 04 CHARACTER
+  ================================================== -->
 
-<div class="rounded-2xl overflow-hidden
-border border-purple-500/20 bg-black">
+  <section class="card glass">
 
-<video
-id="p2Video"
-controls
-playsinline
-class="w-full">
-</video>
+    <button
+      class="card-head"
+      type="button">
 
-</div>
+      <div class="step">
+        04
+      </div>
 
-</div>
+      <div class="head-text">
 
+        <div class="head-small">
+          CHARACTER
+        </div>
 
-<!-- SCRIPT -->
-<label class="text-xs font-bold text-slate-300 block mb-2">
-📝 Myanmar Recap Script
-</label>
+        <div class="head-title">
+          🎭 Talking Character
+        </div>
 
-<textarea
-id="recapScript"
-rows="10"
-placeholder="P1 Video Analyze ပြီးနောက် Myanmar Recap Script ဒီနေရာမှာ ပေါ်လာပါမည်..."
-class="w-full bg-black/40
-border border-purple-500/30
-rounded-2xl p-4
-text-xs leading-6
-outline-none
-focus:border-purple-400
-resize-y"></textarea>
+        <div class="head-desc">
+          အသီးခေါင်း၊ တိရစ္ဆာန်၊ လူ၊ သရဲ စသည်
+        </div>
 
+      </div>
 
-<div class="flex flex-col md:flex-row gap-3 mt-4">
+      <div class="arrow">
+        ▼
+      </div>
 
-<button
-id="analyzeBtn"
-disabled
-type="button"
-class="flex-1 py-3 rounded-xl
-bg-purple-600/30
-border border-purple-500/40
-text-xs font-bold">
+    </button>
 
-🧠 Analyze + Script Generate
 
-</button>
+    <div class="card-body">
 
-<button
-id="regenerateScriptBtn"
-disabled
-type="button"
-class="flex-1 py-3 rounded-xl
-bg-white/5
-border border-white/10
-text-xs font-bold">
+      <div
+        id="characterGrid"
+        class="grid">
 
-🔄 Regenerate Script
 
-</button>
+        <div
+          class="option selected"
+          data-character="banana">
 
-</div>
+          <div class="icon">
+            🍌
+          </div>
 
-</section>
+          <div class="name">
+            Banana
+          </div>
 
+          <div class="mini">
+            Fruit Character
+          </div>
 
-<!-- ================================================= -->
-<!-- P3 -->
-<!-- ================================================= -->
+        </div>
 
-<section id="p3"
-class="glass glow rounded-3xl p-5 md:p-7 mb-6">
 
-<div class="flex justify-between items-start mb-6">
+        <div
+          class="option"
+          data-character="apple">
 
-<div>
-<div class="text-[10px] text-cyan-400 font-bold mb-1">
-P3
-</div>
+          <div class="icon">
+            🍎
+          </div>
 
-<h2 class="text-xl font-black">
-🎙️ Myanmar Voice
-</h2>
+          <div class="name">
+            Apple
+          </div>
 
-<p class="text-[11px] text-slate-500 mt-1">
-P2 Script ကို သဘာဝကျတဲ့ Myanmar Voice အဖြစ် ပြောင်းမည်
-</p>
-</div>
+          <div class="mini">
+            Fruit Character
+          </div>
 
-<span id="p3Status"
-class="px-3 py-1.5 rounded-full
-bg-white/5 border border-white/10
-text-[10px] text-slate-400">
-WAITING
-</span>
+        </div>
 
-</div>
 
+        <div
+          class="option"
+          data-character="orange">
 
-<!-- VOICES -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+          <div class="icon">
+            🍊
+          </div>
 
-<button
-class="voiceBtn p-4 rounded-2xl
-bg-black/30 border border-cyan-500/20
-text-left"
-data-voice="female1">
+          <div class="name">
+            Orange
+          </div>
 
-<div class="text-xl">👩🏻</div>
-<div class="text-xs font-bold mt-2">Myanmar Female 1</div>
-<div class="text-[9px] text-slate-500">Natural</div>
+          <div class="mini">
+            Fruit Character
+          </div>
 
-</button>
+        </div>
 
-<button
-class="voiceBtn p-4 rounded-2xl
-bg-black/30 border border-cyan-500/20
-text-left"
-data-voice="female2">
 
-<div class="text-xl">👩🏻‍💼</div>
-<div class="text-xs font-bold mt-2">Myanmar Female 2</div>
-<div class="text-[9px] text-slate-500">Calm</div>
+        <div
+          class="option"
+          data-character="mango">
 
-</button>
+          <div class="icon">
+            🥭
+          </div>
 
-<button
-class="voiceBtn p-4 rounded-2xl
-bg-black/30 border border-cyan-500/20
-text-left"
-data-voice="male1">
+          <div class="name">
+            Mango
+          </div>
 
-<div class="text-xl">👨🏻</div>
-<div class="text-xs font-bold mt-2">Myanmar Male 1</div>
-<div class="text-[9px] text-slate-500">Natural</div>
+          <div class="mini">
+            Fruit Character
+          </div>
 
-</button>
+        </div>
 
-<button
-class="voiceBtn p-4 rounded-2xl
-bg-black/30 border border-cyan-500/20
-text-left"
-data-voice="male2">
 
-<div class="text-xl">👨🏻‍💼</div>
-<div class="text-xs font-bold mt-2">Myanmar Male 2</div>
-<div class="text-[9px] text-slate-500">Deep</div>
+        <div
+          class="option"
+          data-character="cat">
 
-</button>
+          <div class="icon">
+            🐱
+          </div>
 
-</div>
+          <div class="name">
+            Cat
+          </div>
 
+          <div class="mini">
+            Animal
+          </div>
 
-<!-- VOICE SETTINGS -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+        </div>
 
-<div class="bg-black/30 rounded-2xl p-4">
 
-<label class="text-[10px] text-slate-500">
-Voice Speed
-</label>
+        <div
+          class="option"
+          data-character="dog">
 
-<input
-id="voiceSpeed"
-type="range"
-min="0.7"
-max="1.3"
-step="0.05"
-value="1"
-class="w-full mt-3">
+          <div class="icon">
+            🐶
+          </div>
 
-<div class="text-xs text-cyan-400 mt-1">
-<span id="speedValue">1.00</span>x
-</div>
+          <div class="name">
+            Dog
+          </div>
 
-</div>
+          <div class="mini">
+            Animal
+          </div>
 
-<div class="bg-black/30 rounded-2xl p-4">
+        </div>
 
-<label class="text-[10px] text-slate-500">
-Volume
-</label>
 
-<input
-id="voiceVolume"
-type="range"
-min="0"
-max="1"
-step="0.05"
-value="1"
-class="w-full mt-3">
+        <div
+          class="option"
+          data-character="ghost">
 
-<div class="text-xs text-cyan-400 mt-1">
-<span id="volumeValue">100</span>%
-</div>
+          <div class="icon">
+            👻
+          </div>
 
-</div>
+          <div class="name">
+            Ghost
+          </div>
 
-<div class="bg-black/30 rounded-2xl p-4">
+          <div class="mini">
+            Horror
+          </div>
 
-<label class="text-[10px] text-slate-500">
-Emotion
-</label>
+        </div>
 
-<select
-id="voiceEmotion"
-class="w-full mt-2 bg-[#0a061d]
-border border-cyan-500/20
-rounded-xl p-2 text-xs">
 
-<option value="natural">Natural</option>
-<option value="calm">Calm</option>
-<option value="dramatic">Dramatic</option>
-<option value="serious">Serious</option>
+        <div
+          class="option"
+          data-character="robot">
 
-</select>
+          <div class="icon">
+            🤖
+          </div>
 
-</div>
+          <div class="name">
+            Robot
+          </div>
 
-</div>
+          <div class="mini">
+            AI
+          </div>
 
+        </div>
 
-<!-- AUDIO -->
-<div
-id="audioArea"
-class="hidden bg-black/30
-border border-cyan-500/20
-rounded-2xl p-4 mb-4">
+      </div>
 
-<div class="text-xs font-bold text-cyan-400 mb-3">
-🔊 Generated Myanmar Voice
-</div>
+    </div>
 
-<audio
-id="voiceAudio"
-controls
-class="w-full">
-</audio>
+  </section>
 
-</div>
 
+  <!-- =================================================
+       CARD 05 VOICE
+  ================================================== -->
 
-<button
-id="generateVoiceBtn"
-disabled
-type="button"
-class="w-full py-4 rounded-xl
-bg-gradient-to-r from-cyan-500 to-blue-600
-font-black text-sm">
+  <section class="card glass">
 
-🎙️ Myanmar Voice Generate
+    <button
+      class="card-head"
+      type="button">
 
-</button>
+      <div class="step">
+        05
+      </div>
 
-</section>
+      <div class="head-text">
 
+        <div class="head-small">
+          AUDIO
+        </div>
 
-<!-- ================================================= -->
-<!-- P4 -->
-<!-- ================================================= -->
+        <div class="head-title">
+          🎙️ Myanmar Voice
+        </div>
 
-<section id="p4"
-class="glass glow rounded-3xl p-5 md:p-7 mb-6">
+        <div class="head-desc">
+          မြန်မာစကားပြော Style ရွေးပါ
+        </div>
 
-<div class="flex justify-between items-start mb-6">
+      </div>
 
-<div>
-<div class="text-[10px] text-blue-400 font-bold mb-1">
-P4
-</div>
+      <div class="arrow">
+        ▼
+      </div>
 
-<h2 class="text-xl font-black">
-✂️ Smart Edit + Subtitles
-</h2>
+    </button>
 
-<p class="text-[11px] text-slate-500 mt-1">
-Original Video + Voice ကို Sync လုပ်ပြီး Subtitle ထည့်မည်
-</p>
-</div>
 
-<span id="p4Status"
-class="px-3 py-1.5 rounded-full
-bg-white/5 border border-white/10
-text-[10px] text-slate-400">
-WAITING
-</span>
+    <div class="card-body">
 
-</div>
+      <div
+        id="voiceGrid"
+        class="grid">
 
 
-<!-- EDITOR -->
-<div class="rounded-2xl overflow-hidden
-border border-blue-500/20 bg-black mb-5">
+        <div
+          class="option selected"
+          data-voice="news-male">
 
-<video
-id="editorVideo"
-controls
-playsinline
-class="w-full">
-</video>
+          <div class="icon">
+            🎙️
+          </div>
 
-</div>
+          <div class="name">
+            News Male
+          </div>
 
+          <div class="mini">
+            Serious
+          </div>
 
-<!-- CLIP CONTROLS -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+        </div>
 
-<div class="bg-black/30 rounded-2xl p-4">
 
-<div class="text-xs font-bold mb-3">
-✂️ Smart Clips
-</div>
+        <div
+          class="option"
+          data-voice="news-female">
 
-<select
-id="clipMode"
-class="w-full bg-[#0a061d]
-border border-blue-500/20
-rounded-xl p-2 text-xs">
+          <div class="icon">
+            🎙️
+          </div>
 
-<option value="auto">
-Auto Select
-</option>
+          <div class="name">
+            News Female
+          </div>
 
-<option value="story">
-Story Important Scenes
-</option>
+          <div class="mini">
+            Serious
+          </div>
 
-<option value="dialogue">
-Dialogue Scenes
-</option>
+        </div>
 
-</select>
 
-</div>
+        <div
+          class="option"
+          data-voice="funny">
 
+          <div class="icon">
+            😂
+          </div>
 
-<div class="bg-black/30 rounded-2xl p-4">
+          <div class="name">
+            Funny
+          </div>
 
-<div class="text-xs font-bold mb-3">
-🌫️ Blur
-</div>
+          <div class="mini">
+            Comedy
+          </div>
 
-<select
-id="blurMode"
-class="w-full bg-[#0a061d]
-border border-blue-500/20
-rounded-xl p-2 text-xs">
+        </div>
 
-<option value="none">None</option>
-<option value="soft">Soft Blur</option>
-<option value="medium">Medium Blur</option>
-<option value="strong">Strong Blur</option>
 
-</select>
+        <div
+          class="option"
+          data-voice="sad">
 
-</div>
+          <div class="icon">
+            😢
+          </div>
 
+          <div class="name">
+            Emotional
+          </div>
 
-<div class="bg-black/30 rounded-2xl p-4">
+          <div class="mini">
+            Sad
+          </div>
 
-<div class="text-xs font-bold mb-3">
-🎨 Subtitle Style
-</div>
+        </div>
 
-<select
-id="subtitleStyle"
-class="w-full bg-[#0a061d]
-border border-blue-500/20
-rounded-xl p-2 text-xs">
 
-<option value="classic">Classic</option>
-<option value="cinematic">Cinematic</option>
-<option value="bold">Bold</option>
-<option value="neon">Neon</option>
+        <div
+          class="option"
+          data-voice="horror">
 
-</select>
+          <div class="icon">
+            👻
+          </div>
 
-</div>
+          <div class="name">
+            Horror
+          </div>
 
-</div>
+          <div class="mini">
+            Dark
+          </div>
 
+        </div>
 
-<!-- SUBTITLE SETTINGS -->
-<div class="bg-black/30
-border border-purple-500/20
-rounded-2xl p-4 mb-5">
 
-<div class="text-xs font-black text-purple-300 mb-4">
-📝 Myanmar Subtitle Controls
-</div>
+        <div
+          class="option"
+          data-voice="dramatic">
 
-<div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div class="icon">
+            🔥
+          </div>
 
-<div>
-<label class="text-[9px] text-slate-500">
-Font Size
-</label>
+          <div class="name">
+            Dramatic
+          </div>
 
-<input
-id="subtitleSize"
-type="range"
-min="18"
-max="72"
-value="36"
-class="w-full mt-2">
+          <div class="mini">
+            Cinematic
+          </div>
 
-<div class="text-xs mt-1">
-<span id="subtitleSizeValue">36</span>px
-</div>
+        </div>
 
-</div>
+      </div>
 
+    </div>
 
-<div>
-<label class="text-[9px] text-slate-500">
-Position
-</label>
+  </section>
 
-<select
-id="subtitlePosition"
-class="w-full mt-2 bg-[#0a061d]
-border border-white/10
-rounded-xl p-2 text-xs">
 
-<option value="bottom">Bottom</option>
-<option value="middle">Middle</option>
-<option value="top">Top</option>
+  <!-- =================================================
+       CARD 06 TIKTOK STYLE
+  ================================================== -->
 
-</select>
+  <section class="card glass">
 
-</div>
+    <button
+      class="card-head"
+      type="button">
 
+      <div class="step">
+        06
+      </div>
 
-<div>
-<label class="text-[9px] text-slate-500">
-Text Color
-</label>
+      <div class="head-text">
 
-<input
-id="subtitleColor"
-type="color"
-value="#ffffff"
-class="w-full h-9 mt-2 bg-transparent">
+        <div class="head-small">
+          VIRAL STYLE
+        </div>
 
-</div>
+        <div class="head-title">
+          📱 TikTok / Reels Style
+        </div>
 
+        <div class="head-desc">
+          Short-video editing style ရွေးပါ
+        </div>
 
-<div>
-<label class="text-[9px] text-slate-500">
-Background
-</label>
+      </div>
 
-<select
-id="subtitleBackground"
-class="w-full mt-2 bg-[#0a061d]
-border border-white/10
-rounded-xl p-2 text-xs">
+      <div class="arrow">
+        ▼
+      </div>
 
-<option value="none">None</option>
-<option value="box">Dark Box</option>
-<option value="shadow">Shadow</option>
+    </button>
 
-</select>
 
-</div>
+    <div class="card-body">
 
-</div>
+      <div
+        id="styleGrid"
+        class="style-grid">
 
-</div>
 
+        <div
+          class="style-option selected"
+          data-style="news">
 
-<!-- TIMELINE -->
-<div class="bg-black/30 rounded-2xl p-4 mb-5">
+          <div class="style-top">
 
-<div class="flex justify-between mb-3">
+            <div class="style-name">
+              📰 News Reel
+            </div>
 
-<span class="text-xs font-bold">
-🎞️ Timeline
-</span>
+            <div class="check"></div>
 
-<span
-id="timelineStatus"
-class="text-[10px] text-slate-500">
-No clips yet
-</span>
+          </div>
 
-</div>
+          <div class="mini">
+            Fast news presentation
+          </div>
 
-<div
-id="timeline"
-class="min-h-[70px]
-rounded-xl
-border border-dashed
-border-white/10
-flex items-center
-justify-center
-text-[10px]
-text-slate-600">
+        </div>
 
-Smart Clips will appear here
 
-</div>
+        <div
+          class="style-option"
+          data-style="meme">
 
-</div>
+          <div class="style-top">
 
+            <div class="style-name">
+              🤣 Meme
+            </div>
 
-<button
-id="buildVideoBtn"
-disabled
-type="button"
-class="w-full py-4 rounded-xl
-bg-gradient-to-r from-blue-500 to-purple-600
-font-black text-sm">
+            <div class="check"></div>
 
-✂️ Smart Edit + Voice Sync + Subtitle
+          </div>
 
-</button>
+          <div class="mini">
+            Viral meme editing
+          </div>
 
-</section>
+        </div>
 
 
-<!-- ================================================= -->
-<!-- P5 -->
-<!-- ================================================= -->
+        <div
+          class="style-option"
+          data-style="story">
 
-<section id="p5"
-class="glass glow rounded-3xl p-5 md:p-7 mb-6">
+          <div class="style-top">
 
-<div class="flex justify-between items-start mb-6">
+            <div class="style-name">
+              📖 Story
+            </div>
 
-<div>
-<div class="text-[10px] text-green-400 font-bold mb-1">
-P5
-</div>
+            <div class="check"></div>
 
-<h2 class="text-xl font-black">
-🎬 Final Export
-</h2>
+          </div>
 
-<p class="text-[11px] text-slate-500 mt-1">
-Complete Myanmar Recap Video
-</p>
-</div>
+          <div class="mini">
+            Storytelling
+          </div>
 
-<span id="p5Status"
-class="px-3 py-1.5 rounded-full
-bg-white/5 border border-white/10
-text-[10px] text-slate-400">
-WAITING
-</span>
+        </div>
 
-</div>
 
+        <div
+          class="style-option"
+          data-style="cinematic">
 
-<!-- FINAL VIDEO -->
-<div
-id="finalVideoArea"
-class="aspect-video
-rounded-2xl
-bg-black/40
-border border-green-500/20
-flex items-center
-justify-center
-mb-5">
+          <div class="style-top">
 
-<div class="text-center">
+            <div class="style-name">
+              🎬 Cinematic
+            </div>
 
-<div class="text-4xl mb-3">
-🎬
-</div>
+            <div class="check"></div>
 
-<div class="text-xs text-slate-500">
-Final Video Preview
-</div>
+          </div>
 
-</div>
+          <div class="mini">
+            Movie-like visuals
+          </div>
 
-</div>
+        </div>
 
 
-<!-- EXPORT INFO -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        <div
+          class="style-option"
+          data-style="horror">
 
-<div class="bg-black/30 rounded-xl p-3">
-<div class="text-[9px] text-slate-500">
-DURATION
-</div>
-<div id="finalDuration"
-class="text-xs font-bold mt-1">
--
-</div>
-</div>
+          <div class="style-top">
 
-<div class="bg-black/30 rounded-xl p-3">
-<div class="text-[9px] text-slate-500">
-VOICE
-</div>
-<div id="finalVoice"
-class="text-xs font-bold mt-1">
--
-</div>
-</div>
+            <div class="style-name">
+              👻 Horror
+            </div>
 
-<div class="bg-black/30 rounded-xl p-3">
-<div class="text-[9px] text-slate-500">
-SUBTITLE
-</div>
-<div class="text-xs font-bold text-green-400 mt-1">
-MYANMAR
-</div>
-</div>
+            <div class="check"></div>
 
-<div class="bg-black/30 rounded-xl p-3">
-<div class="text-[9px] text-slate-500">
-STATUS
-</div>
-<div id="finalReady"
-class="text-xs font-bold mt-1">
-WAITING
-</div>
-</div>
+          </div>
 
-</div>
+          <div class="mini">
+            Dark / scary
+          </div>
 
+        </div>
 
-<!-- EXPORT PROGRESS -->
-<div id="exportArea"
-class="hidden mb-5">
 
-<div class="flex justify-between text-[10px] mb-2">
+        <div
+          class="style-option"
+          data-style="fast">
 
-<span id="exportText">
-Preparing export...
-</span>
+          <div class="style-top">
 
-<span id="exportPercent">
-0%
-</span>
+            <div class="style-name">
+              ⚡ Fast Caption
+            </div>
 
-</div>
+            <div class="check"></div>
 
-<div class="h-2 bg-white/5 rounded-full overflow-hidden">
+          </div>
 
-<div
-id="exportBar"
-class="h-full w-0 gradient-bg transition-all">
-</div>
+          <div class="mini">
+            Quick cuts + captions
+          </div>
 
-</div>
+        </div>
 
-</div>
+      </div>
 
 
-<button
-id="exportBtn"
-disabled
-type="button"
-class="w-full py-4 rounded-xl
-bg-gradient-to-r
-from-green-500
-to-emerald-600
-font-black text-sm">
+      <div class="row">
 
-🎬 Export Final Video
+        <select id="ratio">
 
-</button>
+          <option value="9:16">
+            📱 9:16 Vertical
+          </option>
 
-</section>
+          <option value="1:1">
+            ⬜ 1:1 Square
+          </option>
 
+          <option value="16:9">
+            🖥️ 16:9 Landscape
+          </option>
 
-<!-- GLOBAL ERROR -->
-<div
-id="errorBox"
-class="hidden fixed bottom-5 left-1/2
--translate-x-1/2
-z-[100]
-w-[calc(100%-2rem)]
-max-w-xl
-rounded-2xl
-border border-red-500/30
-bg-[#18050b]
-p-4 text-xs text-red-300 shadow-2xl">
-</div>
+        </select>
 
+
+        <select id="duration">
+
+          <option value="15">
+            15 sec
+          </option>
+
+          <option value="30">
+            30 sec
+          </option>
+
+          <option value="60">
+            60 sec
+          </option>
+
+        </select>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- =================================================
+       CARD 07 SUBTITLE
+  ================================================== -->
+
+  <section class="card glass">
+
+    <button
+      class="card-head"
+      type="button">
+
+      <div class="step">
+        07
+      </div>
+
+      <div class="head-text">
+
+        <div class="head-small">
+          CAPTION
+        </div>
+
+        <div class="head-title">
+          💬 Myanmar Subtitle
+        </div>
+
+        <div class="head-desc">
+          စကားပြောနဲ့ အချိန်ကိုက် Subtitle
+        </div>
+
+      </div>
+
+      <div class="arrow">
+        ▼
+      </div>
+
+    </button>
+
+
+    <div class="card-body">
+
+      <div class="row">
+
+        <select id="subtitleStyle">
+
+          <option value="bold">
+            Bold White
+          </option>
+
+          <option value="yellow">
+            Yellow Highlight
+          </option>
+
+          <option value="karaoke">
+            Karaoke
+          </option>
+
+          <option value="minimal">
+            Minimal
+          </option>
+
+          <option value="viral">
+            Viral Big Text
+          </option>
+
+        </select>
+
+
+        <select id="subtitlePosition">
+
+          <option value="bottom">
+            Bottom
+          </option>
+
+          <option value="center">
+            Center
+          </option>
+
+          <option value="top">
+            Top
+          </option>
+
+        </select>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- =================================================
+       CREATE
+  ================================================== -->
+
+  <section class="generate glass">
+
+    <button
+      id="createBtn"
+      class="generate-btn"
+      type="button">
+
+      🎬 CREATE AI NEWS VIDEO
+
+    </button>
+
+
+    <div
+      id="progress"
+      class="progress">
+
+      <div class="progress-info">
+
+        <span id="progressText">
+          Preparing...
+        </span>
+
+        <span id="progressPercent">
+          0%
+        </span>
+
+      </div>
+
+      <div class="track">
+
+        <div
+          id="progressBar"
+          class="bar">
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <div
+      id="error"
+      class="error">
+    </div>
+
+  </section>
+
+
+  <!-- =================================================
+       RESULT
+  ================================================== -->
+
+  <section
+    id="result"
+    class="result glass">
+
+    <div class="result-title">
+      🎉 Generated Video
+    </div>
+
+
+    <div
+      id="preview"
+      class="preview">
+
+      <div class="preview-inner">
+
+        <div
+          id="previewCharacter"
+          class="preview-character">
+          🍌
+        </div>
+
+        <div
+          id="previewText"
+          class="preview-text">
+          Your AI News Video
+        </div>
+
+      </div>
+
+    </div>
+
+
+    <button
+      id="downloadBtn"
+      class="download"
+      type="button">
+
+      ⬇️ DOWNLOAD MP4
+
+    </button>
+
+  </section>
 
 </main>
 
 
-<footer class="border-t border-white/5
-text-center py-6
-text-[10px] text-slate-600">
-
-© 2026 YNT Studio — One Click Recap
-
-</footer>
-
-
 <script>
 
-/* =================================================
+/* =====================================================
    STATE
-================================================= */
+===================================================== */
 
 const state = {
-    video: null,
-    videoUrl: null,
-    previewUrl: null,
-    selectedVoice: null,
-    recapScript: "",
-    voiceAudioUrl: null,
-    finalVideoUrl: null,
-    p2Ready: false,
-    p3Ready: false,
-    p4Ready: false
+
+  category: "news",
+
+  character: "banana",
+
+  voice: "news-male",
+
+  style: "news",
+
+  ratio: "9:16",
+
+  duration: "15",
+
+  subtitleStyle: "bold",
+
+  subtitlePosition: "bottom"
+
 };
 
 
-/* =================================================
-   ELEMENTS
-================================================= */
+/* =====================================================
+   CARD OPEN / CLOSE
+===================================================== */
 
-const $ = id => document.getElementById(id);
+document
+  .querySelectorAll(".card-head")
+  .forEach(head => {
 
-const videoFile = $("videoFile");
-const uploadBox = $("uploadBox");
-const uploadTitle = $("uploadTitle");
+    head.addEventListener(
+      "click",
+      () => {
 
-const videoPreview = $("videoPreview");
-const p2Video = $("p2Video");
-const editorVideo = $("editorVideo");
+        const card =
+          head.closest(".card");
 
-const videoInfo = $("videoInfo");
-const previewArea = $("previewArea");
+        card.classList.toggle(
+          "open"
+        );
 
-const fileName = $("fileName");
-const fileSize = $("fileSize");
-const fileDuration = $("fileDuration");
-const fileStatus = $("fileStatus");
+      }
+    );
 
-const startBtn = $("startBtn");
-const analyzeBtn = $("analyzeBtn");
-const regenerateScriptBtn = $("regenerateScriptBtn");
-
-const recapScript = $("recapScript");
-
-const generateVoiceBtn = $("generateVoiceBtn");
-const voiceAudio = $("voiceAudio");
-const audioArea = $("audioArea");
-
-const buildVideoBtn = $("buildVideoBtn");
-const exportBtn = $("exportBtn");
-
-const errorBox = $("errorBox");
+  });
 
 
-/* =================================================
-   P1 UPLOAD
-================================================= */
+/* =====================================================
+   NEWS COUNTER
+===================================================== */
 
-uploadBox.addEventListener("click", () => {
-    videoFile.click();
-});
+const newsInput =
+  document.getElementById(
+    "newsInput"
+  );
 
+const newsCounter =
+  document.getElementById(
+    "newsCounter"
+  );
 
-uploadBox.addEventListener("dragover", e => {
+newsInput.addEventListener(
+  "input",
+  () => {
 
-    e.preventDefault();
+    newsCounter.textContent =
+      newsInput.value.length +
+      " / 20000";
 
-    uploadBox.classList.add("drop-active");
-
-});
-
-
-uploadBox.addEventListener("dragleave", () => {
-
-    uploadBox.classList.remove("drop-active");
-
-});
-
-
-uploadBox.addEventListener("drop", e => {
-
-    e.preventDefault();
-
-    uploadBox.classList.remove("drop-active");
-
-    const file = e.dataTransfer.files[0];
-
-    if(file) handleVideo(file);
-
-});
+  }
+);
 
 
-videoFile.addEventListener("change", e => {
+/* =====================================================
+   CHARACTER
+===================================================== */
 
-    const file = e.target.files[0];
+document
+  .querySelectorAll(
+    "#characterGrid .option"
+  )
+  .forEach(option => {
 
-    if(file) handleVideo(file);
+    option.addEventListener(
+      "click",
+      () => {
 
-});
+        document
+          .querySelectorAll(
+            "#characterGrid .option"
+          )
+          .forEach(item => {
+
+            item.classList.remove(
+              "selected"
+            );
+
+          });
+
+        option.classList.add(
+          "selected"
+        );
+
+        state.character =
+          option.dataset.character;
+
+      }
+    );
+
+  });
 
 
-function handleVideo(file){
+/* =====================================================
+   VOICE
+===================================================== */
+
+document
+  .querySelectorAll(
+    "#voiceGrid .option"
+  )
+  .forEach(option => {
+
+    option.addEventListener(
+      "click",
+      () => {
+
+        document
+          .querySelectorAll(
+            "#voiceGrid .option"
+          )
+          .forEach(item => {
+
+            item.classList.remove(
+              "selected"
+            );
+
+          });
+
+        option.classList.add(
+          "selected"
+        );
+
+        state.voice =
+          option.dataset.voice;
+
+      }
+    );
+
+  });
+
+
+/* =====================================================
+   STYLE
+===================================================== */
+
+document
+  .querySelectorAll(
+    "#styleGrid .style-option"
+  )
+  .forEach(option => {
+
+    option.addEventListener(
+      "click",
+      () => {
+
+        document
+          .querySelectorAll(
+            "#styleGrid .style-option"
+          )
+          .forEach(item => {
+
+            item.classList.remove(
+              "selected"
+            );
+
+          });
+
+        option.classList.add(
+          "selected"
+        );
+
+        state.style =
+          option.dataset.style;
+
+      }
+    );
+
+  });
+
+
+/* =====================================================
+   SELECTS
+===================================================== */
+
+document
+  .getElementById("ratio")
+  .addEventListener(
+    "change",
+    e => {
+
+      state.ratio =
+        e.target.value;
+
+    }
+  );
+
+
+document
+  .getElementById("duration")
+  .addEventListener(
+    "change",
+    e => {
+
+      state.duration =
+        e.target.value;
+
+    }
+  );
+
+
+document
+  .getElementById("subtitleStyle")
+  .addEventListener(
+    "change",
+    e => {
+
+      state.subtitleStyle =
+        e.target.value;
+
+    }
+  );
+
+
+document
+  .getElementById("subtitlePosition")
+  .addEventListener(
+    "change",
+    e => {
+
+      state.subtitlePosition =
+        e.target.value;
+
+    }
+  );
+
+
+/* =====================================================
+   ANALYZE
+===================================================== */
+
+const analyzeBtn =
+  document.getElementById(
+    "analyzeBtn"
+  );
+
+const analysisResult =
+  document.getElementById(
+    "analysisResult"
+  );
+
+analyzeBtn.addEventListener(
+  "click",
+  async () => {
+
+    const text =
+      newsInput.value.trim();
+
+    if (!text) {
+
+      showError(
+        "အရင်ဆုံး သတင်းစာသား ထည့်ပါ။"
+      );
+
+      return;
+
+    }
 
     hideError();
 
-    if(!file.type.startsWith("video/")){
+    analyzeBtn.disabled =
+      true;
 
-        showError("Video ဖိုင်သာ ထည့်ပေးပါ။");
+    analyzeBtn.textContent =
+      "🧠 ANALYZING...";
 
-        return;
-
-    }
 
     /*
-       UI target = 150MB+
-       Actual large upload will later use
-       Cloudflare R2 direct upload.
-    */
+     * Backend ချိတ်ပြီးတဲ့အခါ
+     * ဒီ endpoint က real AI analysis
+     * ပြန်ပေးမယ်။
+     */
 
-    state.video = file;
+    try {
 
-    if(state.previewUrl){
-        URL.revokeObjectURL(state.previewUrl);
+      const response =
+        await fetch(
+          "/api/analyze-news",
+          {
+            method:"POST",
+
+            headers:{
+              "Content-Type":
+                "application/json"
+            },
+
+            body:JSON.stringify({
+
+              text,
+
+              title:
+                document
+                  .getElementById(
+                    "newsTitle"
+                  ).value,
+
+              language:
+                document
+                  .getElementById(
+                    "newsLanguage"
+                  ).value
+
+            })
+
+          }
+        );
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          "AI Analyze backend မချိတ်ရသေးပါ။"
+        );
+
+      }
+
+
+      const data =
+        await response.json();
+
+
+      renderScenes(
+        data.scenes || []
+      );
+
+
+    } catch(error) {
+
+      /*
+       * Demo scene မထုတ်ပါ။
+       * Backend မရှိသေးတာကို တိတိကျကျပြမယ်။
+       */
+
+      showError(
+        error.message
+      );
+
+    } finally {
+
+      analyzeBtn.disabled =
+        false;
+
+      analyzeBtn.textContent =
+        "🧠 ANALYZE NEWS";
+
     }
 
-    state.previewUrl =
-        URL.createObjectURL(file);
+  }
+);
 
-    videoPreview.src =
-        state.previewUrl;
 
-    p2Video.src =
-        state.previewUrl;
+/* =====================================================
+   RENDER SCENES
+===================================================== */
 
-    editorVideo.src =
-        state.previewUrl;
+function renderScenes(
+  scenes
+){
 
-    uploadTitle.textContent =
-        "✅ " + file.name;
+  if (
+    !Array.isArray(scenes) ||
+    !scenes.length
+  ){
 
-    fileName.textContent =
-        file.name;
+    analysisResult.innerHTML =
+      `
+      <div class="scene-empty">
+        Scene မရရှိသေးပါ။
+      </div>
+      `;
 
-    fileSize.textContent =
-        formatFileSize(file.size);
+    return;
 
-    fileStatus.textContent =
-        "READY";
+  }
 
-    videoInfo.classList.remove("hidden");
-    previewArea.classList.remove("hidden");
 
-    startBtn.disabled = false;
+  analysisResult.innerHTML =
+    scenes.map(
+      (scene,index) => `
 
-    $("p1Status").textContent =
-        "READY";
+        <div class="scene">
 
-    videoPreview.onloadedmetadata =
-        () => {
+          <div class="scene-img">
+            🖼️
+          </div>
 
-            fileDuration.textContent =
-                formatDuration(
-                    videoPreview.duration
-                );
+          <div>
+
+            <div class="scene-number">
+              SCENE ${index + 1}
+            </div>
+
+            <div class="scene-title">
+              ${escapeHtml(
+                scene.title ||
+                "Scene"
+              )}
+            </div>
+
+            <div class="scene-text">
+              ${escapeHtml(
+                scene.description ||
+                ""
+              )}
+            </div>
+
+          </div>
+
+          <button
+            class="scene-btn"
+            type="button">
+            Edit
+          </button>
+
+        </div>
+
+      `
+    ).join("");
+
+}
+
+
+/* =====================================================
+   IMAGE GENERATION
+===================================================== */
+
+const generateImagesBtn =
+  document.getElementById(
+    "generateImagesBtn"
+  );
+
+generateImagesBtn.addEventListener(
+  "click",
+  async () => {
+
+    const text =
+      newsInput.value.trim();
+
+    if (!text) {
+
+      showError(
+        "သတင်းစာသား အရင်ထည့်ပါ။"
+      );
+
+      return;
+
+    }
+
+    hideError();
+
+    generateImagesBtn.disabled =
+      true;
+
+    generateImagesBtn.textContent =
+      "🖼️ GENERATING...";
+
+
+    try {
+
+      const response =
+        await fetch(
+          "/api/generate-images",
+          {
+            method:"POST",
+
+            headers:{
+              "Content-Type":
+                "application/json"
+            },
+
+            body:JSON.stringify({
+
+              text,
+
+              style:
+                state.style,
+
+              ratio:
+                state.ratio
+
+            })
+
+          }
+        );
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          "Image generation backend မချိတ်ရသေးပါ။"
+        );
+
+      }
+
+
+      const data =
+        await response.json();
+
+
+      renderScenes(
+        data.scenes || []
+      );
+
+
+    } catch(error) {
+
+      showError(
+        error.message
+      );
+
+    } finally {
+
+      generateImagesBtn.disabled =
+        false;
+
+      generateImagesBtn.textContent =
+        "🖼️ GENERATE ALL IMAGES";
+
+    }
+
+  }
+);
+
+
+/* =====================================================
+   CREATE VIDEO
+===================================================== */
+
+const createBtn =
+  document.getElementById(
+    "createBtn"
+  );
+
+const progress =
+  document.getElementById(
+    "progress"
+  );
+
+const progressBar =
+  document.getElementById(
+    "progressBar"
+  );
+
+const progressText =
+  document.getElementById(
+    "progressText"
+  );
+
+const progressPercent =
+  document.getElementById(
+    "progressPercent"
+  );
+
+const result =
+  document.getElementById(
+    "result"
+  );
+
+
+createBtn.addEventListener(
+  "click",
+  async () => {
+
+    const text =
+      newsInput.value.trim();
+
+    if (!text) {
+
+      showError(
+        "သတင်းစာသား အရင်ထည့်ပါ။"
+      );
+
+      return;
+
+    }
+
+
+    hideError();
+
+    result.classList.remove(
+      "show"
+    );
+
+    progress.classList.add(
+      "show"
+    );
+
+    createBtn.disabled =
+      true;
+
+
+    setProgress(
+      10,
+      "🧠 Story ကို စစ်ဆေးနေပါပြီ..."
+    );
+
+
+    try {
+
+      const response =
+        await fetch(
+          "/api/create-news-video",
+          {
+            method:"POST",
+
+            headers:{
+              "Content-Type":
+                "application/json"
+            },
+
+            body:JSON.stringify({
+
+              text,
+
+              character:
+                state.character,
+
+              voice:
+                state.voice,
+
+              style:
+                state.style,
+
+              ratio:
+                state.ratio,
+
+              duration:
+                state.duration,
+
+              subtitleStyle:
+                state.subtitleStyle,
+
+              subtitlePosition:
+                state.subtitlePosition
+
+            })
+
+          }
+        );
+
+
+      setProgress(
+        50,
+        "🎙️ Myanmar Voice + Images Sync..."
+      );
+
+
+      if (!response.ok) {
+
+        let message =
+          "Video backend မချိတ်ရသေးပါ။";
+
+        try {
+
+          const data =
+            await response.json();
+
+          message =
+            data.error ||
+            message;
+
+        } catch {}
+
+        throw new Error(
+          message
+        );
+
+      }
+
+
+      const data =
+        await response.json();
+
+
+      if (
+        !data.success ||
+        !data.videoUrl
+      ){
+
+        throw new Error(
+          "MP4 video URL မရရှိသေးပါ။"
+        );
+
+      }
+
+
+      setProgress(
+        90,
+        "🎬 Final MP4 ပြင်ဆင်နေပါပြီ..."
+      );
+
+
+      setProgress(
+        100,
+        "✅ Video Ready"
+      );
+
+
+      const preview =
+        document.getElementById(
+          "preview"
+        );
+
+      preview.innerHTML =
+        `
+        <video
+          controls
+          playsinline
+          style="
+            width:100%;
+            height:100%;
+            object-fit:contain;
+            background:#000;
+          "
+          src="${data.videoUrl}">
+        </video>
+        `;
+
+
+      document
+        .getElementById(
+          "downloadBtn"
+        )
+        .onclick = () => {
+
+          const a =
+            document.createElement(
+              "a"
+            );
+
+          a.href =
+            data.videoUrl;
+
+          a.download =
+            "ynt-ai-news-video.mp4";
+
+          a.click();
 
         };
 
-    $("p2VideoArea").classList.remove("hidden");
 
-    analyzeBtn.disabled = false;
-
-}
-
-
-/* =================================================
-   REMOVE
-================================================= */
-
-$("removeBtn").addEventListener(
-    "click",
-    () => {
-
-        state.video = null;
-
-        videoFile.value = "";
-
-        videoPreview.pause();
-
-        videoPreview.removeAttribute("src");
-
-        p2Video.removeAttribute("src");
-
-        editorVideo.removeAttribute("src");
-
-        videoPreview.load();
-        p2Video.load();
-        editorVideo.load();
-
-        if(state.previewUrl){
-
-            URL.revokeObjectURL(
-                state.previewUrl
-            );
-
-            state.previewUrl = null;
-
-        }
-
-        videoInfo.classList.add("hidden");
-        previewArea.classList.add("hidden");
-
-        startBtn.disabled = true;
-        analyzeBtn.disabled = true;
-
-        $("p1Status").textContent =
-            "WAITING";
-
-    }
-);
-
-
-/* =================================================
-   LINK
-================================================= */
-
-$("linkBtn").addEventListener(
-    "click",
-    () => {
-
-        const url =
-            $("videoUrl").value.trim();
-
-        if(!url){
-
-            showError(
-                "Video Link အရင်ထည့်ပါ။"
-            );
-
-            return;
-
-        }
-
-        state.videoUrl = url;
-
-        sessionStorage.setItem(
-            "ynt_video_url",
-            url
-        );
-
-        $("p1Status").textContent =
-            "LINK READY";
-
-        showError(
-            "Link ကို သိမ်းထားပါပြီ။ Actual download ကို R2 backend ချိတ်တဲ့အဆင့်မှာ အလုပ်လုပ်စေမယ်။"
-        );
-
-    }
-);
-
-
-/* =================================================
-   ONE CLICK
-================================================= */
-
-startBtn.addEventListener(
-    "click",
-    () => {
-
-        if(!state.video){
-
-            showError(
-                "Video အရင်ထည့်ပေးပါ။"
-            );
-
-            return;
-
-        }
-
-        $("p2").scrollIntoView({
-            behavior:"smooth"
-        });
-
-        analyzeBtn.focus();
-
-    }
-);
-
-
-/* =================================================
-   P2 ANALYZE
-================================================= */
-
-analyzeBtn.addEventListener(
-    "click",
-    async () => {
-
-        if(!state.video){
-
-            showError(
-                "P1 Video မရှိပါ။"
-            );
-
-            return;
-
-        }
-
-        setButtonLoading(
-            analyzeBtn,
-            true,
-            "🧠 AI Analyze လုပ်နေပါပြီ..."
-        );
-
-        $("p2Status").textContent =
-            "ANALYZING";
-
-        hideError();
-
-        try{
-
-            /*
-              IMPORTANT:
-              ဒီ UI version မှာ backend ကို
-              မလိမ်ဘဲ demo fallback မထုတ်ပါဘူး။
-
-              နောက် backend ချိတ်တဲ့အဆင့်မှာ
-              /api/analyze ကို R2/Gemini နဲ့
-              တကယ်ချိတ်မယ်။
-            */
-
-            await wait(700);
-
-            $("p2Status").textContent =
-                "BACKEND READY";
-
-            showError(
-                "P2 UI အဆင်သင့်ဖြစ်ပါပြီ။ Gemini/R2 backend မချိတ်သေးတဲ့အတွက် Script မထုတ်သေးပါ။"
-            );
-
-        }catch(error){
-
-            console.error(error);
-
-            showError(
-                error.message ||
-                "P2 Analyze Error"
-            );
-
-            $("p2Status").textContent =
-                "ERROR";
-
-        }finally{
-
-            setButtonLoading(
-                analyzeBtn,
-                false,
-                "🧠 Analyze + Script Generate"
-            );
-
-        }
-
-    }
-);
-
-
-/* =================================================
-   SCRIPT EDIT
-================================================= */
-
-recapScript.addEventListener(
-    "input",
-    () => {
-
-        state.recapScript =
-            recapScript.value.trim();
-
-        const ready =
-            state.recapScript.length > 0;
-
-        generateVoiceBtn.disabled =
-            !ready;
-
-        regenerateScriptBtn.disabled =
-            !ready;
-
-        if(ready){
-
-            $("p2Status").textContent =
-                "SCRIPT READY";
-
-        }
-
-    }
-);
-
-
-/* =================================================
-   REGENERATE
-================================================= */
-
-regenerateScriptBtn.addEventListener(
-    "click",
-    () => {
-
-        if(!state.video){
-
-            showError(
-                "P1 Video မရှိပါ။"
-            );
-
-            return;
-
-        }
-
-        showError(
-            "Regenerate ကို Gemini backend ချိတ်ပြီးနောက် တကယ်အလုပ်လုပ်မယ်။"
-        );
-
-    }
-);
-
-
-/* =================================================
-   VOICE SELECT
-================================================= */
-
-document.querySelectorAll(".voiceBtn")
-.forEach(btn => {
-
-    btn.addEventListener(
-        "click",
+      setTimeout(
         () => {
 
-            document.querySelectorAll(
-                ".voiceBtn"
-            ).forEach(v => {
+          progress.classList.remove(
+            "show"
+          );
 
-                v.classList.remove(
-                    "step-active"
-                );
+          result.classList.add(
+            "show"
+          );
 
-            });
+          result.scrollIntoView({
+            behavior:"smooth"
+          });
 
-            btn.classList.add(
-                "step-active"
-            );
-
-            state.selectedVoice =
-                btn.dataset.voice;
-
-            $("p3Status").textContent =
-                "VOICE SELECTED";
-
-        }
-    );
-
-});
+        },
+        400
+      );
 
 
-$("voiceSpeed").addEventListener(
-    "input",
-    e => {
+    } catch(error) {
 
-        $("speedValue").textContent =
-            Number(e.target.value).toFixed(2);
+      progress.classList.remove(
+        "show"
+      );
+
+      showError(
+        error.message
+      );
+
+    } finally {
+
+      createBtn.disabled =
+        false;
 
     }
+
+  }
 );
 
 
-$("voiceVolume").addEventListener(
-    "input",
-    e => {
-
-        $("volumeValue").textContent =
-            Math.round(
-                Number(e.target.value) * 100
-            );
-
-    }
-);
-
-
-/* =================================================
-   P3 VOICE
-================================================= */
-
-generateVoiceBtn.addEventListener(
-    "click",
-    async () => {
-
-        if(!state.recapScript){
-
-            showError(
-                "P2 Recap Script အရင်ရပါစေ။"
-            );
-
-            return;
-
-        }
-
-        if(!state.selectedVoice){
-
-            showError(
-                "Myanmar Voice တစ်ခုရွေးပါ။"
-            );
-
-            return;
-
-        }
-
-        setButtonLoading(
-            generateVoiceBtn,
-            true,
-            "🎙️ AI Voice ပြုလုပ်နေပါပြီ..."
-        );
-
-        $("p3Status").textContent =
-            "GENERATING";
-
-        hideError();
-
-        try{
-
-            /*
-              Actual TTS backend will be added later.
-
-              DO NOT create fake audio.
-              This keeps the UI honest until
-              the real Myanmar TTS API is connected.
-            */
-
-            await wait(700);
-
-            $("p3Status").textContent =
-                "BACKEND READY";
-
-            showError(
-                "P3 UI အဆင်သင့်ဖြစ်ပါပြီ။ Real Myanmar TTS backend မချိတ်သေးသောကြောင့် အသံဖိုင်မဖန်တီးသေးပါ။"
-            );
-
-        }catch(error){
-
-            console.error(error);
-
-            $("p3Status").textContent =
-                "ERROR";
-
-            showError(
-                error.message ||
-                "Myanmar Voice Error"
-            );
-
-        }finally{
-
-            setButtonLoading(
-                generateVoiceBtn,
-                false,
-                "🎙️ Myanmar Voice Generate"
-            );
-
-        }
-
-    }
-);
-
-
-/* =================================================
-   P4
-================================================= */
-
-buildVideoBtn.addEventListener(
-    "click",
-    async () => {
-
-        if(!state.video){
-
-            showError(
-                "P1 Video မရှိပါ။"
-            );
-
-            return;
-
-        }
-
-        if(!state.recapScript){
-
-            showError(
-                "P2 Script မရှိပါ။"
-            );
-
-            return;
-
-        }
-
-        if(!state.selectedVoice){
-
-            showError(
-                "P3 Voice ရွေးထားရပါမယ်။"
-            );
-
-            return;
-
-        }
-
-        setButtonLoading(
-            buildVideoBtn,
-            true,
-            "✂️ Smart Edit လုပ်နေပါပြီ..."
-        );
-
-        $("p4Status").textContent =
-            "PROCESSING";
-
-        hideError();
-
-        try{
-
-            await wait(700);
-
-            $("timeline").innerHTML = `
-                <div class="grid grid-cols-3 gap-2 w-full">
-                    <div class="h-12 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-[9px]">
-                        Clip 01
-                    </div>
-                    <div class="h-12 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-[9px]">
-                        Clip 02
-                    </div>
-                    <div class="h-12 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-[9px]">
-                        Clip 03
-                    </div>
-                </div>
-            `;
-
-            $("timelineStatus").textContent =
-                "3 Smart Clips";
-
-            $("p4Status").textContent =
-                "EDITOR READY";
-
-            state.p4Ready = true;
-
-            exportBtn.disabled = false;
-
-            $("p5").scrollIntoView({
-                behavior:"smooth"
-            });
-
-        }catch(error){
-
-            console.error(error);
-
-            $("p4Status").textContent =
-                "ERROR";
-
-            showError(
-                error.message ||
-                "P4 Error"
-            );
-
-        }finally{
-
-            setButtonLoading(
-                buildVideoBtn,
-                false,
-                "✂️ Smart Edit + Voice Sync + Subtitle"
-            );
-
-        }
-
-    }
-);
-
-
-/* =================================================
-   SUBTITLE SETTINGS
-================================================= */
-
-$("subtitleSize").addEventListener(
-    "input",
-    e => {
-
-        $("subtitleSizeValue").textContent =
-            e.target.value;
-
-    }
-);
-
-
-/* =================================================
-   P5 EXPORT
-================================================= */
-
-exportBtn.addEventListener(
-    "click",
-    async () => {
-
-        if(!state.p4Ready){
-
-            showError(
-                "P4 Video အရင်ပြင်ဆင်ပါ။"
-            );
-
-            return;
-
-        }
-
-        $("exportArea")
-        .classList.remove("hidden");
-
-        exportBtn.disabled = true;
-
-        $("p5Status").textContent =
-            "EXPORTING";
-
-        const steps = [
-            "Final Video ပြင်ဆင်နေပါပြီ...",
-            "Voice Sync စစ်နေပါပြီ...",
-            "Subtitle ထည့်နေပါပြီ...",
-            "Final Render ပြုလုပ်နေပါပြီ..."
-        ];
-
-        for(let i=0;i<steps.length;i++){
-
-            const percent =
-                Math.round(
-                    ((i+1) /
-                    steps.length) * 100
-                );
-
-            $("exportText").textContent =
-                steps[i];
-
-            $("exportPercent").textContent =
-                percent + "%";
-
-            $("exportBar").style.width =
-                percent + "%";
-
-            await wait(500);
-
-        }
-
-        $("p5Status").textContent =
-            "BACKEND READY";
-
-        $("finalReady").textContent =
-            "READY";
-
-        showError(
-            "P5 UI အဆင်သင့်ဖြစ်ပါပြီ။ Real FFmpeg/Render backend ချိတ်ပြီးမှ Final Video ကို တကယ် Export လုပ်မယ်။"
-        );
-
-        exportBtn.disabled = false;
-
-    }
-);
-
-
-/* =================================================
-   HELPERS
-================================================= */
-
-function wait(ms){
-
-    return new Promise(
-        resolve => setTimeout(resolve,ms)
-    );
-
-}
-
-
-function setButtonLoading(
-    button,
-    loading,
-    text
+/* =====================================================
+   PROGRESS
+===================================================== */
+
+function setProgress(
+  percent,
+  message
 ){
 
-    button.disabled =
-        loading;
+  progressBar.style.width =
+    percent + "%";
 
-    button.textContent =
-        text;
+  progressPercent.textContent =
+    percent + "%";
+
+  progressText.textContent =
+    message;
 
 }
 
 
-function showError(message){
+/* =====================================================
+   ERROR
+===================================================== */
 
-    errorBox.textContent =
-        "⚠️ " + message;
+function showError(
+  message
+){
 
-    errorBox.classList.remove(
-        "hidden"
+  const error =
+    document.getElementById(
+      "error"
     );
 
-    clearTimeout(
-        window.yntErrorTimer
-    );
+  error.textContent =
+    "⚠️ " + message;
 
-    window.yntErrorTimer =
-        setTimeout(
-            () => {
-                errorBox.classList.add(
-                    "hidden"
-                );
-            },
-            6000
-        );
+  error.classList.add(
+    "show"
+  );
 
 }
 
 
 function hideError(){
 
-    errorBox.classList.add(
-        "hidden"
+  document
+    .getElementById("error")
+    .classList.remove(
+      "show"
     );
 
 }
 
 
-function formatFileSize(bytes){
+/* =====================================================
+   HTML ESCAPE
+===================================================== */
 
-    if(bytes < 1024)
-        return bytes + " B";
+function escapeHtml(
+  value
+){
 
-    if(bytes < 1024 * 1024)
-        return (
-            (bytes / 1024).toFixed(1)
-            + " KB"
-        );
-
-    if(bytes < 1024 * 1024 * 1024)
-        return (
-            (bytes / (1024*1024)).toFixed(1)
-            + " MB"
-        );
-
-    return (
-        (bytes / (1024*1024*1024)).toFixed(1)
-        + " GB"
-    );
-
-}
-
-
-function formatDuration(seconds){
-
-    if(!Number.isFinite(seconds))
-        return "-";
-
-    seconds =
-        Math.floor(seconds);
-
-    const h =
-        Math.floor(seconds / 3600);
-
-    const m =
-        Math.floor(
-            (seconds % 3600) / 60
-        );
-
-    const s =
-        seconds % 60;
-
-    if(h > 0){
-
-        return (
-            String(h).padStart(2,"0")
-            + ":" +
-            String(m).padStart(2,"0")
-            + ":" +
-            String(s).padStart(2,"0")
-        );
-
-    }
-
-    return (
-        String(m).padStart(2,"0")
-        + ":" +
-        String(s).padStart(2,"0")
+  return String(value)
+    .replace(
+      /&/g,
+      "&amp;"
+    )
+    .replace(
+      /</g,
+      "&lt;"
+    )
+    .replace(
+      />/g,
+      "&gt;"
+    )
+    .replace(
+      /"/g,
+      "&quot;"
+    )
+    .replace(
+      /'/g,
+      "&#039;"
     );
 
 }
