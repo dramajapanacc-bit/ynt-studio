@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>YNT One Clips</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #fff;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(255, 214, 0, 0.12), transparent 30%),
+        radial-gradient(circle at 80% 20%, rgba(0, 255, 170, 0.10), transparent 30%),
+        radial-gradient(circle at 50% 90%, rgba(100, 80, 255, 0.12), transparent 35%),
+        #05060a;
+    }
+
+    .container {
+      width: min(1100px, calc(100% - 32px));
+      margin: auto;
+    }
+
+    header {
+      height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: -.5px;
+    }
+
+    .logo span {
+      background: linear-gradient(90deg, #ffd000, #00ff9d, #6d5cff);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .status {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #00e98b;
+      margin-right: 7px;
+      box-shadow: 0 0 12px #00e98b;
+    }
+
+    .hero {
+      text-align: center;
+      padding: 72px 0 35px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 7px 13px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      background: rgba(255,255,255,.04);
+      font-size: 12px;
+      color: #d8d8d8;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(42px, 8vw, 78px);
+      line-height: .95;
+      letter-spacing: -4px;
+    }
+
+    h1 span {
+      background: linear-gradient(
+        90deg,
+        #fff,
+        #ffd000,
+        #00ff9d,
+        #6d5cff
+      );
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    .hero p {
+      max-width: 650px;
+      margin: 22px auto 0;
+      color: #a6a8b1;
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    .upload-card {
+      margin: 35px auto;
+      max-width: 850px;
+      padding: 12px;
+      border-radius: 25px;
+      background: linear-gradient(
+        135deg,
+        rgba(255,255,255,.10),
+        rgba(255,255,255,.025)
+      );
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 30px 80px rgba(0,0,0,.35);
+    }
+
+    .upload-inner {
+      min-height: 310px;
+      border-radius: 18px;
+      border: 1px dashed rgba(255,255,255,.20);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 35px;
+      cursor: pointer;
+      transition: .25s;
+    }
+
+    .upload-inner:hover {
+      border-color: #ffd000;
+      background: rgba(255,208,0,.035);
+    }
+
+    .upload-icon {
+      font-size: 55px;
+      margin-bottom: 12px;
+    }
+
+    .upload-title {
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .upload-subtitle {
+      color: #8e929c;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .file-name {
+      margin-top: 18px;
+      color: #00ff9d;
+      font-size: 14px;
+      min-height: 20px;
+    }
+
+    .settings {
+      max-width: 850px;
+      margin: 20px auto;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .setting {
+      background: rgba(255,255,255,.045);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .setting label {
+      display: block;
+      color: #858894;
+      font-size: 11px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    select {
+      width: 100%;
+      border: 0;
+      outline: 0;
+      color: white;
+      background: #11131a;
+      padding: 10px;
+      border-radius: 9px;
+    }
+
+    .generate {
+      width: 100%;
+      max-width: 850px;
+      margin: 20px auto;
+      display: block;
+      border: 0;
+      border-radius: 15px;
+      padding: 18px;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+      color: #050505;
+      background: linear-gradient(
+        90deg,
+        #ffd000,
+        #00ff9d,
+        #6d5cff
+      );
+      box-shadow: 0 15px 45px rgba(0,255,157,.12);
+      transition: .2s;
+    }
+
+    .generate:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.08);
+    }
+
+    .generate:disabled {
+      cursor: not-allowed;
+      opacity: .5;
+      transform: none;
+    }
+
+    .pipeline {
+      display: none;
+      max-width: 850px;
+      margin: 35px auto;
+      padding: 22px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+
+    .pipeline.active {
+      display: block;
+    }
+
+    .pipeline-title {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 18px;
+    }
+
+    .progress {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(
+        90deg,
+        #ffd000,
+        #00ff9d,
+        #6d5cff
+      );
+      transition: width .4s;
+    }
+
+    .stage {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 0;
+      color: #777b86;
+      border-bottom: 1px solid rgba(255,255,255,.045);
+      font-size: 14px;
+    }
+
+    .stage:last-child {
+      border-bottom: 0;
+    }
+
+    .stage.active {
+      color: white;
+    }
+
+    .stage.done {
+      color: #00ff9d;
+    }
+
+    .stage-icon {
+      width: 25px;
+      text-align: center;
+    }
+
+    .message {
+      margin-top: 15px;
+      color: #a6a8b1;
+      font-size: 13px;
+    }
+
+    .result {
+      display: none;
+      max-width: 850px;
+      margin: 25px auto 70px;
+      padding: 24px;
+      border-radius: 20px;
+      background: rgba(0,255,157,.045);
+      border: 1px solid rgba(0,255,157,.18);
+    }
+
+    .result.active {
+      display: block;
+    }
+
+    .result h2 {
+      margin-top: 0;
+    }
+
+    .download {
+      display: inline-block;
+      padding: 13px 18px;
+      border-radius: 11px;
+      color: #050505;
+      background: #00ff9d;
+      text-decoration: none;
+      font-weight: 800;
+    }
+
+    .error {
+      color: #ff6262;
+      margin-top: 15px;
+      font-size: 13px;
+    }
+
+    @media (max-width: 700px) {
+      .settings {
+        grid-template-columns: 1fr;
+      }
+
+      .hero {
+        padding-top: 45px;
+      }
+
+      h1 {
+        letter-spacing: -2px;
+      }
+
+      .upload-inner {
+        min-height: 260px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <header>
+      <div class="logo">
+        <span>YNT</span> One Clips
+      </div>
+
+      <div class="status">
+        <span class="status-dot"></span>
+        AI Recap Studio
+      </div>
+    </header>
+
+    <section class="hero">
+
+      <div class="badge">
+        🎬 AI MOVIE RECAP
+      </div>
+
+      <h1>
+        One Movie.<br>
+        <span>One Clip.</span>
+      </h1>
+
+      <p>
+        Upload your movie and let the AI pipeline create
+        a Myanmar movie recap automatically.
+      </p>
+
+    </section>
+
+    <section class="upload-card">
+
+      <label class="upload-inner" for="movie">
+
+        <div>
+
+          <div class="upload-icon">
+            🎞️
+          </div>
+
+          <div class="upload-title">
+            Drop your movie here
+          </div>
+
+          <div class="upload-subtitle">
+            MP4, MKV, MOV, WEBM or AVI
+          </div>
+
+          <div class="file-name" id="fileName">
+            No movie selected
+          </div>
+
+        </div>
+
+      </label>
+
+      <input
+        id="movie"
+        type="file"
+        accept="video/mp4,video/webm,video/quicktime,video/x-matroska,video/x-msvideo"
+      >
+
+    </section>
+
+    <section class="settings">
+
+      <div class="setting">
+        <label>Language</label>
+
+        <select id="language">
+          <option value="my">Myanmar</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+
+      <div class="setting">
+        <label>Recap Style</label>
+
+        <select id="style">
+          <option value="cinematic">Cinematic</option>
+          <option value="storytelling">Storytelling</option>
+          <option value="short">Short & Fast</option>
+        </select>
+      </div>
+
+      <div class="setting">
+        <label>Voice</label>
+
+        <select id="voice">
+          <option value="female">Female</option>
+          <option value="male">Male</option>
+        </select>
+      </div>
+
+    </section>
+
+    <button
+      id="generateBtn"
+      class="generate"
+      disabled
+    >
+      🎬 GENERATE ONE CLIP
+    </button>
+
+    <section
+      id="pipeline"
+      class="pipeline"
+    >
+
+      <div class="pipeline-title">
+        AI Processing
+      </div>
+
+      <div class="progress">
+        <div
+          id="progressBar"
+          class="progress-bar"
+        ></div>
+      </div>
+
+      <div class="stage" data-stage="Upload">
+        <div class="stage-icon">📤</div>
+        <div>Movie Upload</div>
+      </div>
+
+      <div class="stage" data-stage="Whisper">
+        <div class="stage-icon">🎙️</div>
+        <div>Groq Whisper</div>
+      </div>
+
+      <div class="stage" data-stage="Transcript">
+        <div class="stage-icon">📝</div>
+        <div>Transcript</div>
+      </div>
+
+      <div class="stage" data-stage="Gemini">
+        <div class="stage-icon">🤖</div>
+        <div>Gemini Recap</div>
+      </div>
+
+      <div class="stage" data-stage="Voice">
+        <div class="stage-icon">🔊</div>
+        <div>Myanmar Voice</div>
+      </div>
+
+      <div class="stage" data-stage="FFmpeg">
+        <div class="stage-icon">🎥</div>
+        <div>Final Video Render</div>
+      </div>
+
+      <div class="stage" data-stage="Ready">
+        <div class="stage-icon">✅</div>
+        <div>Ready</div>
+      </div>
+
+      <div
+        id="message"
+        class="message"
+      >
+        Waiting...
+      </div>
+
+      <div
+        id="error"
+        class="error"
+      ></div>
+
+    </section>
+
+    <section
+      id="result"
+      class="result"
+    >
+
+      <h2>🎉 Your Recap Is Ready</h2>
+
+      <p>
+        The generated movie recap is ready.
+      </p>
+
+      <a
+        id="downloadBtn"
+        class="download"
+        href="#"
+      >
+        ⬇️ Download MP4
+      </a>
+
+    </section>
+
+  </div>
+
+<script>
+
+const movieInput =
+  document.getElementById("movie");
+
+const fileName =
+  document.getElementById("fileName");
+
+const generateBtn =
+  document.getElementById("generateBtn");
+
+const pipeline =
+  document.getElementById("pipeline");
+
+const progressBar =
+  document.getElementById("progressBar");
+
+const message =
+  document.getElementById("message");
+
+const errorBox =
+  document.getElementById("error");
+
+const result =
+  document.getElementById("result");
+
+const downloadBtn =
+  document.getElementById("downloadBtn");
+
+let selectedFile = null;
+let currentJobId = null;
+
+movieInput.addEventListener("change", () => {
+
+  selectedFile = movieInput.files[0];
+
+  if (!selectedFile) {
+    fileName.textContent =
+      "No movie selected";
+
+    generateBtn.disabled = true;
+
+    return;
+  }
+
+  fileName.textContent =
+    selectedFile.name;
+
+  generateBtn.disabled = false;
+
+});
+
+generateBtn.addEventListener(
+  "click",
+  generateOneClip
+);
+
+async function generateOneClip() {
+
+  if (!selectedFile) {
+    return;
+  }
+
+  generateBtn.disabled = true;
+
+  pipeline.classList.add("active");
+
+  result.classList.remove("active");
+
+  errorBox.textContent = "";
+
+  resetStages();
+
+  message.textContent =
+    "Uploading movie...";
+
+  progressBar.style.width = "5%";
+
+  try {
+
+    const formData =
+      new FormData();
+
+    formData.append(
+      "movie",
+      selectedFile
+    );
+
+    const response =
+      await fetch(
+        "/api/one-clip",
+        {
+          method: "POST",
+          body: formData
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error ||
+        "Upload failed."
+      );
+    }
+
+    currentJobId =
+      data.jobId;
+
+    await pollStatus();
+
+  } catch (error) {
+
+    console.error(error);
+
+    errorBox.textContent =
+      error.message;
+
+    message.textContent =
+      "Processing failed.";
+
+    generateBtn.disabled = false;
+
+  }
+
+}
+
+async function pollStatus() {
+
+  if (!currentJobId) {
+    return;
+  }
+
+  try {
+
+    const response =
+      await fetch(
+        `/api/status/${currentJobId}`
+      );
+
+    const job =
+      await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        job.error ||
+        "Unable to read job status."
+      );
+    }
+
+    updatePipeline(job);
+
+    if (
+      job.status === "processing" ||
+      job.status === "ready"
+    ) {
+
+      if (
+        job.status === "ready" &&
+        job.stage !== "Ready"
+      ) {
+
+        setTimeout(
+          pollStatus,
+          1000
+        );
+
+      } else if (
+        job.status === "processing"
+      ) {
+
+        setTimeout(
+          pollStatus,
+          1200
+        );
+
+      } else {
+
+        finishJob(job);
+
+      }
+
+      return;
+    }
+
+    if (job.status === "completed") {
+
+      finishJob(job);
+
+      return;
+    }
+
+    if (job.status === "error") {
+
+      throw new Error(
+        job.error ||
+        job.message ||
+        "Processing failed."
+      );
+
+    }
+
+    setTimeout(
+      pollStatus,
+      1200
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+    errorBox.textContent =
+      error.message;
+
+    message.textContent =
+      "Processing failed.";
+
+    generateBtn.disabled = false;
+
+  }
+
+}
+
+function updatePipeline(job) {
+
+  const stage =
+    job.stage || "";
+
+  progressBar.style.width =
+    `${job.progress || 0}%`;
+
+  message.textContent =
+    job.message || stage;
+
+  const stages =
+    document.querySelectorAll(
+      ".stage"
+    );
+
+  let activeFound = false;
+
+  stages.forEach((element) => {
+
+    const name =
+      element.dataset.stage;
+
+    element.classList.remove(
+      "active",
+      "done"
+    );
+
+    if (name === stage) {
+
+      element.classList.add(
+        "active"
+      );
+
+      activeFound = true;
+
+    } else if (!activeFound) {
+
+      element.classList.add(
+        "done"
+      );
+
+    }
+
+  });
+
+}
+
+function finishJob(job) {
+
+  progressBar.style.width =
+    "100%";
+
+  message.textContent =
+    "Your recap is ready.";
+
+  document.querySelectorAll(
+    ".stage"
+  ).forEach((stage) => {
+
+    stage.classList.remove(
+      "active"
+    );
+
+    stage.classList.add(
+      "done"
+    );
+
+  });
+
+  result.classList.add(
+    "active"
+  );
+
+  if (job.output) {
+
+    downloadBtn.href =
+      job.output;
+
+  } else {
+
+    downloadBtn.href =
+      `/api/download/${currentJobId}`;
+
+  }
+
+  generateBtn.disabled =
+    false;
+
+}
+
+function resetStages() {
+
+  document.querySelectorAll(
+    ".stage"
+  ).forEach((stage) => {
+
+    stage.classList.remove(
+      "active",
+      "done"
+    );
+
+  });
+
+}
+
+</script>
+
+</body>
+</html>
