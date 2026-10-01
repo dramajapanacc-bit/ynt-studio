@@ -22,12 +22,31 @@ const PUBLIC_DIR = path.join(ROOT, "public");
 const UPLOAD_DIR = path.join(ROOT, "uploads");
 const JOB_DIR = path.join(ROOT, "jobs");
 
+/* =========================================================
+   AI MODELS
+========================================================= */
+
 const GROQ_MODEL = "whisper-large-v3-turbo";
+
 const GEMINI_MODEL = "gemini-3.8-flash";
-const GEMINI_TTS_MODEL = "gemini-3.8-flash-tts";
+
+const GEMINI_TTS_MODEL =
+  "gemini-3.1-flash-tts-preview";
+
+/* =========================================================
+   SETTINGS
+========================================================= */
 
 const AUDIO_CHUNK_SECONDS = 90;
-const TTS_CHUNK_CHARS = 7000;
+
+const TTS_CHUNK_CHARS = 5000;
+
+const MAX_VIDEO_SIZE =
+  500 * 1024 * 1024;
+
+/* =========================================================
+   DIRECTORIES
+========================================================= */
 
 for (const dir of [
   PUBLIC_DIR,
@@ -38,6 +57,10 @@ for (const dir of [
     recursive: true
   });
 }
+
+/* =========================================================
+   EXPRESS
+========================================================= */
 
 app.use(
   express.json({
@@ -51,7 +74,6 @@ app.use(
   })
 );
 
-
 /* =========================================================
    MULTER
 ========================================================= */
@@ -60,10 +82,11 @@ const upload = multer({
   dest: UPLOAD_DIR,
 
   limits: {
-    fileSize: 500 * 1024 * 1024
+    fileSize: MAX_VIDEO_SIZE
   },
 
   fileFilter: (req, file, cb) => {
+
     const allowed = [
       "video/mp4",
       "video/webm",
@@ -72,12 +95,15 @@ const upload = multer({
       "video/x-msvideo"
     ];
 
-    if (allowed.includes(file.mimetype)) {
-      cb(null, true);
-      return;
+    if (
+      allowed.includes(
+        file.mimetype
+      )
+    ) {
+      return cb(null, true);
     }
 
-    cb(
+    return cb(
       new Error(
         "Only MP4, MKV, MOV, WEBM or AVI video files are allowed."
       )
@@ -85,18 +111,19 @@ const upload = multer({
   }
 });
 
-
 /* =========================================================
    JOB STORAGE
 ========================================================= */
 
 const jobs = new Map();
 
-
 function createJob() {
-  const id = crypto.randomUUID();
+
+  const id =
+    crypto.randomUUID();
 
   const job = {
+
     id,
 
     status: "created",
@@ -107,9 +134,12 @@ function createJob() {
 
     message: "Job created.",
 
-    createdAt: new Date().toISOString(),
+    createdAt:
+      new Date().toISOString(),
 
     duration: null,
+
+    totalChunks: null,
 
     transcript: null,
 
@@ -118,33 +148,49 @@ function createJob() {
     output: null,
 
     error: null
+
   };
 
-  jobs.set(id, job);
+  jobs.set(
+    id,
+    job
+  );
 
   return job;
 }
 
 
-function updateJob(id, data) {
-  const job = jobs.get(id);
+function updateJob(
+  id,
+  data
+) {
+
+  const job =
+    jobs.get(id);
 
   if (!job) {
     return;
   }
 
-  Object.assign(job, data);
+  Object.assign(
+    job,
+    data
+  );
 }
-
 
 /* =========================================================
    ENVIRONMENT
 ========================================================= */
 
-function requireEnv(name) {
-  const value = process.env[name];
+function requireEnv(
+  name
+) {
+
+  const value =
+    process.env[name];
 
   if (!value) {
+
     throw new Error(
       `${name} is not configured.`
     );
@@ -153,53 +199,86 @@ function requireEnv(name) {
   return value;
 }
 
-
 /* =========================================================
    COMMAND RUNNER
 ========================================================= */
 
-async function runCommand(command, args) {
+async function runCommand(
+  command,
+  args
+) {
+
   console.log(
     `[CMD] ${command} ${args.join(" ")}`
   );
 
-  const result = await execFileAsync(
-    command,
-    args,
-    {
-      maxBuffer: 50 * 1024 * 1024
-    }
-  );
+  try {
 
-  return result;
+    const result =
+      await execFileAsync(
+        command,
+        args,
+        {
+          maxBuffer:
+            50 * 1024 * 1024
+        }
+      );
+
+    return result;
+
+  } catch (error) {
+
+    console.error(
+      `[CMD ERROR] ${command}`,
+      error
+    );
+
+    throw new Error(
+      `${command} failed: ${
+        error.stderr ||
+        error.message ||
+        "Unknown error"
+      }`
+    );
+  }
 }
-
 
 /* =========================================================
    VIDEO DURATION
 ========================================================= */
 
-async function getVideoDuration(videoPath) {
-  const result = await runCommand(
-    "ffprobe",
-    [
-      "-v",
-      "error",
+async function getVideoDuration(
+  videoPath
+) {
 
-      "-show_entries",
-      "format=duration",
+  const result =
+    await runCommand(
+      "ffprobe",
+      [
+        "-v",
+        "error",
 
-      "-of",
-      "default=noprint_wrappers=1:nokey=1",
+        "-show_entries",
+        "format=duration",
 
-      videoPath
-    ]
-  );
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+
+        videoPath
+      ]
+    );
 
   const duration =
-    Number(result.stdout.trim());
+    Number(
+      result.stdout.trim()
+    );
 
-  if (!Number.isFinite(duration)) {
+  if (
+    !Number.isFinite(
+      duration
+    )
+  ) {
+
     throw new Error(
       "Unable to read video duration."
     );
@@ -207,7 +286,6 @@ async function getVideoDuration(videoPath) {
 
   return duration;
 }
-
 
 /* =========================================================
    EXTRACT AUDIO
@@ -217,6 +295,7 @@ async function extractAudio(
   videoPath,
   outputPath
 ) {
+
   await runCommand(
     "ffmpeg",
     [
@@ -226,6 +305,9 @@ async function extractAudio(
       videoPath,
 
       "-vn",
+
+      "-map",
+      "0:a:0",
 
       "-ac",
       "1",
@@ -244,7 +326,6 @@ async function extractAudio(
   );
 }
 
-
 /* =========================================================
    SPLIT AUDIO
 ========================================================= */
@@ -253,6 +334,7 @@ async function splitAudio(
   audioPath,
   outputDir
 ) {
+
   fs.mkdirSync(
     outputDir,
     {
@@ -272,7 +354,9 @@ async function splitAudio(
       "segment",
 
       "-segment_time",
-      String(AUDIO_CHUNK_SECONDS),
+      String(
+        AUDIO_CHUNK_SECONDS
+      ),
 
       "-reset_timestamps",
       "1",
@@ -287,16 +371,24 @@ async function splitAudio(
     ]
   );
 
-  const files = fs
-    .readdirSync(outputDir)
-    .filter(
-      file =>
-        file.startsWith("chunk-") &&
-        file.endsWith(".mp3")
-    )
-    .sort();
+  const files =
+    fs
+      .readdirSync(
+        outputDir
+      )
+      .filter(
+        file =>
+          file.startsWith(
+            "chunk-"
+          ) &&
+          file.endsWith(
+            ".mp3"
+          )
+      )
+      .sort();
 
   if (!files.length) {
+
     throw new Error(
       "FFmpeg could not create audio chunks."
     );
@@ -311,7 +403,6 @@ async function splitAudio(
   );
 }
 
-
 /* =========================================================
    GROQ WHISPER
 ========================================================= */
@@ -321,12 +412,15 @@ async function transcribeChunk(
   audioPath,
   chunkIndex
 ) {
-  const file = fs.createReadStream(
-    audioPath
-  );
+
+  const file =
+    fs.createReadStream(
+      audioPath
+    );
 
   const response =
     await groq.audio.transcriptions.create({
+
       file,
 
       model:
@@ -340,6 +434,7 @@ async function transcribeChunk(
 
       temperature:
         0
+
     });
 
   const offset =
@@ -347,29 +442,39 @@ async function transcribeChunk(
     AUDIO_CHUNK_SECONDS;
 
   const segments =
-    Array.isArray(response.segments)
+    Array.isArray(
+      response.segments
+    )
       ? response.segments
       : [];
 
   return {
+
     text:
       response.text || "",
 
     segments:
-      segments.map(segment => ({
-        start:
-          Number(segment.start || 0) +
-          offset,
+      segments.map(
+        segment => ({
 
-        end:
-          Number(segment.end || 0) +
-          offset,
+          start:
+            Number(
+              segment.start || 0
+            ) + offset,
 
-        text:
-          String(
-            segment.text || ""
-          ).trim()
-      }))
+          end:
+            Number(
+              segment.end || 0
+            ) + offset,
+
+          text:
+            String(
+              segment.text || ""
+            ).trim()
+
+        })
+      )
+
   };
 }
 
@@ -378,6 +483,7 @@ async function transcribeMovie(
   jobId,
   audioChunks
 ) {
+
   const groq =
     new Groq({
       apiKey:
@@ -387,6 +493,7 @@ async function transcribeMovie(
     });
 
   const allSegments = [];
+
   const allTexts = [];
 
   for (
@@ -394,16 +501,19 @@ async function transcribeMovie(
     i < audioChunks.length;
     i++
   ) {
+
     const percent =
       15 +
       Math.round(
-        (i / audioChunks.length) *
-        35
+        (i /
+          audioChunks.length) *
+          35
       );
 
     updateJob(
       jobId,
       {
+
         stage:
           "Whisper",
 
@@ -411,7 +521,12 @@ async function transcribeMovie(
           percent,
 
         message:
-          `Groq Whisper: ${i + 1} / ${audioChunks.length}`
+          `Groq Whisper: ${
+            i + 1
+          } / ${
+            audioChunks.length
+          }`
+
       }
     );
 
@@ -423,6 +538,7 @@ async function transcribeMovie(
       );
 
     if (result.text) {
+
       allTexts.push(
         result.text
       );
@@ -439,14 +555,15 @@ async function transcribeMovie(
   );
 
   return {
+
     text:
       allTexts.join(" ").trim(),
 
     segments:
       allSegments
+
   };
 }
-
 
 /* =========================================================
    GEMINI RECAP
@@ -458,6 +575,7 @@ async function generateRecap(
   language = "my",
   style = "cinematic"
 ) {
+
   const ai =
     new GoogleGenAI({
       apiKey:
@@ -469,6 +587,7 @@ async function generateRecap(
   updateJob(
     jobId,
     {
+
       stage:
         "Gemini",
 
@@ -477,14 +596,9 @@ async function generateRecap(
 
       message:
         "Gemini is creating the movie recap..."
+
     }
   );
-
-  /*
-   * Gemini 3.8 Flash supports a large context window,
-   * but we still protect the server from unnecessarily
-   * huge requests.
-   */
 
   const maxCharacters =
     300000;
@@ -500,18 +614,38 @@ async function generateRecap(
 
   const languageInstruction =
     language === "en"
+
       ? "Write the final narration in natural English."
+
       : "Write the final narration in natural spoken Myanmar (Burmese).";
 
-  const styleInstruction =
-    style === "short"
-      ? "Keep it concise and fast-paced."
-      : style === "storytelling"
-        ? "Use a smooth storytelling style with natural suspense."
-        : "Use a cinematic movie-recap narration style.";
+  let styleInstruction =
+    "Use a cinematic movie-recap narration style.";
 
-  const prompt = `
-You are a professional movie recap writer.
+  if (
+    style === "short"
+  ) {
+
+    styleInstruction =
+      "Keep the narration concise, fast-paced and easy to follow.";
+
+  } else if (
+    style === "storytelling"
+  ) {
+
+    styleInstruction =
+      "Use a smooth storytelling style with natural suspense and emotional flow.";
+
+  } else if (
+    style === "detailed"
+  ) {
+
+    styleInstruction =
+      "Give a detailed movie recap while keeping the narration natural.";
+
+  }
+
+  const prompt = `You are a professional movie recap writer.
 
 Create a narration script from the movie transcript below.
 
@@ -547,6 +681,7 @@ ${source}
 
   const response =
     await ai.models.generateContent({
+
       model:
         GEMINI_MODEL,
 
@@ -554,20 +689,19 @@ ${source}
         prompt,
 
       config: {
-        thinkingConfig: {
-          thinkingLevel:
-            "low"
-        },
 
         maxOutputTokens:
           16000
+
       }
+
     });
 
   const text =
     response.text?.trim();
 
   if (!text) {
+
     throw new Error(
       "Gemini returned an empty recap script."
     );
@@ -576,15 +710,20 @@ ${source}
   return text;
 }
 
-
 /* =========================================================
-   SPLIT TTS TEXT
+   SPLIT TEXT FOR TTS
 ========================================================= */
 
-function splitTextForTTS(text) {
+function splitTextForTTS(
+  text
+) {
+
   const clean =
     String(text || "")
-      .replace(/\r/g, "")
+      .replace(
+        /\r/g,
+        ""
+      )
       .trim();
 
   if (!clean) {
@@ -597,9 +736,13 @@ function splitTextForTTS(text) {
     ) || [clean];
 
   const chunks = [];
+
   let current = "";
 
-  for (const sentence of sentences) {
+  for (
+    const sentence of sentences
+  ) {
+
     const part =
       sentence.trim();
 
@@ -609,10 +752,11 @@ function splitTextForTTS(text) {
 
     if (
       current.length +
-      part.length +
-      1 <=
+        part.length +
+        1 <=
       TTS_CHUNK_CHARS
     ) {
+
       current =
         current
           ? `${current} ${part}`
@@ -622,40 +766,45 @@ function splitTextForTTS(text) {
     }
 
     if (current) {
+
       chunks.push(
         current.trim()
       );
     }
 
-    /*
-     * If one sentence itself is too long,
-     * split it safely by character length.
-     */
-
     if (
       part.length >
       TTS_CHUNK_CHARS
     ) {
+
       for (
         let i = 0;
         i < part.length;
-        i += TTS_CHUNK_CHARS
+        i +=
+          TTS_CHUNK_CHARS
       ) {
+
         chunks.push(
           part.slice(
             i,
-            i + TTS_CHUNK_CHARS
+            i +
+              TTS_CHUNK_CHARS
           )
         );
       }
 
       current = "";
+
     } else {
-      current = part;
+
+      current =
+        part;
+
     }
   }
 
   if (current) {
+
     chunks.push(
       current.trim()
     );
@@ -664,7 +813,6 @@ function splitTextForTTS(text) {
   return chunks;
 }
 
-
 /* =========================================================
    GEMINI TTS
 ========================================================= */
@@ -672,16 +820,16 @@ function splitTextForTTS(text) {
 async function generateTTS(
   jobId,
   recapText,
-  outputDir
+  outputDir,
+  voice = "Kore"
 ) {
-  const apiKey =
-    requireEnv(
-      "GEMINI_API_KEY"
-    );
 
   const ai =
     new GoogleGenAI({
-      apiKey
+      apiKey:
+        requireEnv(
+          "GEMINI_API_KEY"
+        )
     });
 
   const chunks =
@@ -690,6 +838,7 @@ async function generateTTS(
     );
 
   if (!chunks.length) {
+
     throw new Error(
       "There is no recap text for TTS."
     );
@@ -709,16 +858,19 @@ async function generateTTS(
     i < chunks.length;
     i++
   ) {
+
     const percent =
       65 +
       Math.round(
-        (i / chunks.length) *
-        20
+        (i /
+          chunks.length) *
+          20
       );
 
     updateJob(
       jobId,
       {
+
         stage:
           "Voice",
 
@@ -726,88 +878,148 @@ async function generateTTS(
           percent,
 
         message:
-          `Gemini Voice: ${i + 1} / ${chunks.length}`
+          `Gemini Voice: ${
+            i + 1
+          } / ${
+            chunks.length
+          }`
+
       }
     );
 
-    const interaction =
-      await ai.interactions.create({
+    const ttsPrompt = `[natural, cinematic, calm, clear movie narration]
+
+${chunks[i]}`;
+
+    const response =
+      await ai.models.generateContent({
+
         model:
           GEMINI_TTS_MODEL,
 
-        input: [
-          {
-            type:
-              "user_input",
+        contents:
+          ttsPrompt,
 
-            content: [
-              {
-                type:
-                  "text",
+        config: {
 
-                text:
-                  chunks[i],
+          responseModalities:
+            ["AUDIO"],
 
-                annotations: [
-                  {
-                    type:
-                      "speech_metadata",
+          speechConfig: {
 
-                    style:
-                      "natural, cinematic, calm, clear Myanmar movie narration"
-                  }
-                ]
+            voiceConfig: {
+
+              prebuiltVoiceConfig: {
+
+                voiceName:
+                  voice
+
               }
-            ]
-          }
-        ],
 
-        response_format: {
-          type:
-            "audio"
-        },
-
-        generation_config: {
-          speech_config: [
-            {
-              voice:
-                "Kore"
             }
-          ]
+
+          }
+
         }
+
       });
 
     const base64 =
-      interaction?.output_audio?.data;
+      response
+        ?.candidates?.[0]
+        ?.content?.parts?.find(
+          part =>
+            part.inlineData?.data
+        )
+        ?.inlineData?.data;
 
     if (!base64) {
+
       throw new Error(
-        `Gemini TTS returned no audio for chunk ${i + 1}.`
+        `Gemini TTS returned no audio for chunk ${
+          i + 1
+        }.`
       );
     }
 
-    const audioPath =
+    const pcmPath =
       path.join(
         outputDir,
-        `tts-${String(i).padStart(4, "0")}.wav`
+        `tts-${String(
+          i
+        ).padStart(
+          4,
+          "0"
+        )}.pcm`
+      );
+
+    const wavPath =
+      path.join(
+        outputDir,
+        `tts-${String(
+          i
+        ).padStart(
+          4,
+          "0"
+        )}.wav`
       );
 
     fs.writeFileSync(
-      audioPath,
+      pcmPath,
       Buffer.from(
         base64,
         "base64"
       )
     );
 
+    /*
+     * Gemini TTS returns
+     * 24kHz mono PCM.
+     * Convert it to WAV.
+     */
+
+    await runCommand(
+      "ffmpeg",
+      [
+        "-y",
+
+        "-f",
+        "s16le",
+
+        "-ar",
+        "24000",
+
+        "-ac",
+        "1",
+
+        "-i",
+        pcmPath,
+
+        "-c:a",
+        "pcm_s16le",
+
+        wavPath
+      ]
+    );
+
+    if (
+      fs.existsSync(
+        pcmPath
+      )
+    ) {
+
+      fs.unlinkSync(
+        pcmPath
+      );
+    }
+
     audioFiles.push(
-      audioPath
+      wavPath
     );
   }
 
   return audioFiles;
 }
-
 
 /* =========================================================
    CONCAT TTS AUDIO
@@ -818,11 +1030,24 @@ async function concatAudio(
   outputPath,
   listPath
 ) {
+
+  if (
+    !audioFiles.length
+  ) {
+
+    throw new Error(
+      "No TTS audio files were generated."
+    );
+  }
+
   const listContent =
     audioFiles
       .map(
         file =>
-          `file '${file.replace(/'/g, "'\\''")}'`
+          `file '${file.replace(
+            /'/g,
+            "'\\''"
+          )}'`
       )
       .join("\n");
 
@@ -854,7 +1079,6 @@ async function concatAudio(
   );
 }
 
-
 /* =========================================================
    FINAL VIDEO
 ========================================================= */
@@ -865,9 +1089,11 @@ async function renderFinalVideo(
   narrationPath,
   outputPath
 ) {
+
   updateJob(
     jobId,
     {
+
       stage:
         "FFmpeg",
 
@@ -876,13 +1102,16 @@ async function renderFinalVideo(
 
       message:
         "Rendering final recap video..."
+
     }
   );
 
   /*
-   * Loop the movie video if narration is longer.
-   * Original movie audio is removed.
-   * Generated narration becomes the final audio.
+   * Original movie video
+   * + Gemini narration
+   *
+   * Original movie audio
+   * is removed.
    */
 
   await runCommand(
@@ -933,6 +1162,409 @@ async function renderFinalVideo(
   );
 }
 
+/* =========================================================
+   PROCESS ONE CLIP
+   BACKGROUND JOB
+========================================================= */
+
+async function processOneClip(
+  jobId,
+  moviePath,
+  language,
+  style,
+  voice
+) {
+
+  try {
+
+    const jobFolder =
+      path.dirname(
+        moviePath
+      );
+
+    /* -----------------------------------------
+       VIDEO INFO
+    ----------------------------------------- */
+
+    updateJob(
+      jobId,
+      {
+
+        stage:
+          "Upload",
+
+        progress:
+          8,
+
+        message:
+          "Reading movie information..."
+
+      }
+    );
+
+    const duration =
+      await getVideoDuration(
+        moviePath
+      );
+
+    updateJob(
+      jobId,
+      {
+        duration
+      }
+    );
+
+    /* -----------------------------------------
+       AUDIO EXTRACTION
+    ----------------------------------------- */
+
+    const audioPath =
+      path.join(
+        jobFolder,
+        "movie-audio.mp3"
+      );
+
+    updateJob(
+      jobId,
+      {
+
+        stage:
+          "FFmpeg",
+
+        progress:
+          10,
+
+        message:
+          "Extracting movie audio..."
+
+      }
+    );
+
+    await extractAudio(
+      moviePath,
+      audioPath
+    );
+
+    /* -----------------------------------------
+       AUDIO CHUNKS
+    ----------------------------------------- */
+
+    const chunksDir =
+      path.join(
+        jobFolder,
+        "audio-chunks"
+      );
+
+    updateJob(
+      jobId,
+      {
+
+        stage:
+          "FFmpeg",
+
+        progress:
+          13,
+
+        message:
+          "Preparing audio for Whisper..."
+
+      }
+    );
+
+    const audioChunks =
+      await splitAudio(
+        audioPath,
+        chunksDir
+      );
+
+    updateJob(
+      jobId,
+      {
+        totalChunks:
+          audioChunks.length
+      }
+    );
+
+    /* -----------------------------------------
+       WHISPER
+    ----------------------------------------- */
+
+    const transcript =
+      await transcribeMovie(
+        jobId,
+        audioChunks
+      );
+
+    if (!transcript.text) {
+
+      throw new Error(
+        "Whisper returned an empty transcript."
+      );
+    }
+
+    const transcriptPath =
+      path.join(
+        jobFolder,
+        "transcript.json"
+      );
+
+    fs.writeFileSync(
+      transcriptPath,
+      JSON.stringify(
+        transcript,
+        null,
+        2
+      ),
+      "utf8"
+    );
+
+    updateJob(
+      jobId,
+      {
+
+        stage:
+          "Transcript",
+
+        progress:
+          52,
+
+        message:
+          "Transcript completed.",
+
+        transcript: {
+
+          characters:
+            transcript.text.length,
+
+          segments:
+            transcript.segments.length
+
+        }
+
+      }
+    );
+
+    /* -----------------------------------------
+       GEMINI RECAP
+    ----------------------------------------- */
+
+    const recap =
+      await generateRecap(
+        jobId,
+        transcript.text,
+        language,
+        style
+      );
+
+    const recapPath =
+      path.join(
+        jobFolder,
+        "recap.txt"
+      );
+
+    fs.writeFileSync(
+      recapPath,
+      recap,
+      "utf8"
+    );
+
+    updateJob(
+      jobId,
+      {
+
+        stage:
+          "Gemini",
+
+        progress:
+          62,
+
+        message:
+          "Myanmar recap script completed.",
+
+        recap: {
+
+          characters:
+            recap.length,
+
+          path:
+            recapPath
+
+        }
+
+      }
+    );
+
+    /* -----------------------------------------
+       GEMINI TTS
+    ----------------------------------------- */
+
+    const ttsDir =
+      path.join(
+        jobFolder,
+        "tts"
+      );
+
+    const ttsFiles =
+      await generateTTS(
+        jobId,
+        recap,
+        ttsDir,
+        voice
+      );
+
+    /* -----------------------------------------
+       CONCAT NARRATION
+    ----------------------------------------- */
+
+    const narrationPath =
+      path.join(
+        jobFolder,
+        "narration.wav"
+      );
+
+    const ttsListPath =
+      path.join(
+        jobFolder,
+        "tts-list.txt"
+      );
+
+    updateJob(
+      jobId,
+      {
+
+        stage:
+          "Voice",
+
+        progress:
+          86,
+
+        message:
+          "Combining narration audio..."
+
+      }
+    );
+
+    await concatAudio(
+      ttsFiles,
+      narrationPath,
+      ttsListPath
+    );
+
+    /* -----------------------------------------
+       FINAL VIDEO
+    ----------------------------------------- */
+
+    const outputPath =
+      path.join(
+        jobFolder,
+        "YNT-One-Clips-Recap.mp4"
+      );
+
+    await renderFinalVideo(
+      jobId,
+      moviePath,
+      narrationPath,
+      outputPath
+    );
+
+    if (
+      !fs.existsSync(
+        outputPath
+      )
+    ) {
+
+      throw new Error(
+        "FFmpeg did not create the final MP4."
+      );
+    }
+
+    const stats =
+      fs.statSync(
+        outputPath
+      );
+
+    if (
+      stats.size <= 0
+    ) {
+
+      throw new Error(
+        "Final MP4 file is empty."
+      );
+    }
+
+    const filename =
+      `YNT-One-Clips-${jobId}.mp4`;
+
+    updateJob(
+      jobId,
+      {
+
+        status:
+          "completed",
+
+        stage:
+          "Ready",
+
+        progress:
+          100,
+
+        message:
+          "Your recap video is ready.",
+
+        output: {
+
+          path:
+            outputPath,
+
+          filename,
+
+          size:
+            stats.size,
+
+          url:
+            `/api/download/${jobId}`
+
+        }
+
+      }
+    );
+
+    console.log(
+      `[JOB ${jobId}] COMPLETED`
+    );
+
+  } catch (error) {
+
+    console.error(
+      `[JOB ${jobId}] ERROR:`,
+      error
+    );
+
+    updateJob(
+      jobId,
+      {
+
+        status:
+          "error",
+
+        stage:
+          "Error",
+
+        progress:
+          0,
+
+        message:
+          error.message ||
+          "Movie processing failed.",
+
+        error:
+          error.message ||
+          "Movie processing failed."
+
+      }
+    );
+  }
+}
 
 /* =========================================================
    HEALTH
@@ -941,7 +1573,9 @@ async function renderFinalVideo(
 app.get(
   "/health",
   (req, res) => {
+
     res.json({
+
       ok: true,
 
       name:
@@ -949,10 +1583,10 @@ app.get(
 
       status:
         "online"
+
     });
   }
 );
-
 
 /* =========================================================
    JOB STATUS
@@ -961,24 +1595,29 @@ app.get(
 app.get(
   "/api/status/:id",
   (req, res) => {
+
     const job =
       jobs.get(
         req.params.id
       );
 
     if (!job) {
+
       return res
         .status(404)
         .json({
+
           error:
             "Job not found."
+
         });
     }
 
-    res.json(job);
+    return res.json(
+      job
+    );
   }
 );
-
 
 /* =========================================================
    DOWNLOAD
@@ -987,17 +1626,21 @@ app.get(
 app.get(
   "/api/download/:id",
   (req, res) => {
+
     const job =
       jobs.get(
         req.params.id
       );
 
     if (!job) {
+
       return res
         .status(404)
         .json({
+
           error:
             "Job not found."
+
         });
     }
 
@@ -1006,11 +1649,14 @@ app.get(
         "completed" ||
       !job.output
     ) {
+
       return res
         .status(404)
         .json({
+
           error:
             "Final video is not ready yet."
+
         });
     }
 
@@ -1019,21 +1665,23 @@ app.get(
         job.output.path
       )
     ) {
+
       return res
         .status(404)
         .json({
+
           error:
             "Output video file no longer exists."
+
         });
     }
 
-    res.download(
+    return res.download(
       job.output.path,
       job.output.filename
     );
   }
 );
-
 
 /* =========================================================
    ONE CLIP
@@ -1045,19 +1693,26 @@ app.post(
   upload.single("movie"),
 
   async (req, res) => {
-    let job = null;
 
     try {
+
       if (!req.file) {
+
         return res
           .status(400)
           .json({
+
             error:
               "Movie file is required."
+
           });
       }
 
-      job =
+      /* -----------------------------------------
+         CREATE JOB
+      ----------------------------------------- */
+
+      const job =
         createJob();
 
       const jobFolder =
@@ -1072,6 +1727,10 @@ app.post(
           recursive: true
         }
       );
+
+      /* -----------------------------------------
+         MOVE MOVIE
+      ----------------------------------------- */
 
       const originalName =
         req.file.originalname ||
@@ -1093,25 +1752,8 @@ app.post(
         moviePath
       );
 
-      updateJob(
-        job.id,
-        {
-          status:
-            "processing",
-
-          stage:
-            "Upload",
-
-          progress:
-            5,
-
-          message:
-            "Movie uploaded."
-        }
-      );
-
       /* -----------------------------------------
-         OPTIONS FROM FRONTEND
+         OPTIONS
       ----------------------------------------- */
 
       const language =
@@ -1122,319 +1764,47 @@ app.post(
         req.body?.style ||
         "cinematic";
 
+      const voice =
+        req.body?.voice ||
+        "Kore";
+
       /* -----------------------------------------
-         VIDEO INFO
+         INITIAL JOB STATUS
       ----------------------------------------- */
 
       updateJob(
         job.id,
         {
+
+          status:
+            "processing",
+
           stage:
             "Upload",
 
           progress:
-            8,
+            5,
 
           message:
-            "Reading movie information..."
+            "Movie uploaded. Processing started."
+
         }
       );
 
-      const duration =
-        await getVideoDuration(
-          moviePath
-        );
-
-      updateJob(
-        job.id,
-        {
-          duration
-        }
+      console.log(
+        `[JOB ${job.id}] STARTED`
       );
 
       /* -----------------------------------------
-         AUDIO EXTRACTION
+         IMPORTANT
+
+         DO NOT WAIT FOR AI / FFMPEG.
+
+         Return the job ID immediately.
       ----------------------------------------- */
 
-      const audioPath =
-        path.join(
-          jobFolder,
-          "movie-audio.mp3"
-        );
+      res.status(202).json({
 
-      updateJob(
-        job.id,
-        {
-          stage:
-            "FFmpeg",
-
-          progress:
-            10,
-
-          message:
-            "Extracting movie audio..."
-        }
-      );
-
-      await extractAudio(
-        moviePath,
-        audioPath
-      );
-
-      /* -----------------------------------------
-         AUDIO CHUNKS
-      ----------------------------------------- */
-
-      const chunksDir =
-        path.join(
-          jobFolder,
-          "audio-chunks"
-        );
-
-      updateJob(
-        job.id,
-        {
-          stage:
-            "FFmpeg",
-
-          progress:
-            13,
-
-          message:
-            "Preparing audio for Whisper..."
-        }
-      );
-
-      const audioChunks =
-        await splitAudio(
-          audioPath,
-          chunksDir
-        );
-
-      updateJob(
-        job.id,
-        {
-          totalChunks:
-            audioChunks.length
-        }
-      );
-
-      /* -----------------------------------------
-         WHISPER
-      ----------------------------------------- */
-
-      const transcript =
-        await transcribeMovie(
-          job.id,
-          audioChunks
-        );
-
-      if (!transcript.text) {
-        throw new Error(
-          "Whisper returned an empty transcript."
-        );
-      }
-
-      const transcriptPath =
-        path.join(
-          jobFolder,
-          "transcript.json"
-        );
-
-      fs.writeFileSync(
-        transcriptPath,
-
-        JSON.stringify(
-          transcript,
-          null,
-          2
-        ),
-
-        "utf8"
-      );
-
-      updateJob(
-        job.id,
-        {
-          stage:
-            "Transcript",
-
-          progress:
-            52,
-
-          message:
-            "Transcript completed.",
-
-          transcript: {
-            characters:
-              transcript.text.length,
-
-            segments:
-              transcript.segments.length
-          }
-        }
-      );
-
-      /* -----------------------------------------
-         GEMINI RECAP
-      ----------------------------------------- */
-
-      const recap =
-        await generateRecap(
-          job.id,
-
-          transcript.text,
-
-          language,
-
-          style
-        );
-
-      const recapPath =
-        path.join(
-          jobFolder,
-          "recap.txt"
-        );
-
-      fs.writeFileSync(
-        recapPath,
-        recap,
-        "utf8"
-      );
-
-      updateJob(
-        job.id,
-        {
-          stage:
-            "Gemini",
-
-          progress:
-            62,
-
-          message:
-            "Myanmar recap script completed.",
-
-          recap: {
-            characters:
-              recap.length,
-
-            path:
-              recapPath
-          }
-        }
-      );
-
-      /* -----------------------------------------
-         GEMINI TTS
-      ----------------------------------------- */
-
-      const ttsDir =
-        path.join(
-          jobFolder,
-          "tts"
-        );
-
-      const ttsFiles =
-        await generateTTS(
-          job.id,
-          recap,
-          ttsDir
-        );
-
-      /* -----------------------------------------
-         CONCAT TTS
-      ----------------------------------------- */
-
-      const narrationPath =
-        path.join(
-          jobFolder,
-          "narration.wav"
-        );
-
-      const ttsListPath =
-        path.join(
-          jobFolder,
-          "tts-list.txt"
-        );
-
-      updateJob(
-        job.id,
-        {
-          stage:
-            "Voice",
-
-          progress:
-            86,
-
-          message:
-            "Combining narration audio..."
-        }
-      );
-
-      await concatAudio(
-        ttsFiles,
-        narrationPath,
-        ttsListPath
-      );
-
-      /* -----------------------------------------
-         FINAL VIDEO
-      ----------------------------------------- */
-
-      const outputPath =
-        path.join(
-          jobFolder,
-          "YNT-One-Clips-Recap.mp4"
-        );
-
-      await renderFinalVideo(
-        job.id,
-        moviePath,
-        narrationPath,
-        outputPath
-      );
-
-      if (
-        !fs.existsSync(
-          outputPath
-        )
-      ) {
-        throw new Error(
-          "FFmpeg did not create the final MP4."
-        );
-      }
-
-      const filename =
-        `YNT-One-Clips-${job.id}.mp4`;
-
-      updateJob(
-        job.id,
-        {
-          status:
-            "completed",
-
-          stage:
-            "Ready",
-
-          progress:
-            100,
-
-          message:
-            "Your recap video is ready.",
-
-          output: {
-            path:
-              outputPath,
-
-            filename,
-
-            url:
-              `/api/download/${job.id}`
-          }
-        }
-      );
-
-      return res.json({
         success:
           true,
 
@@ -1442,43 +1812,75 @@ app.post(
           job.id,
 
         status:
-          "completed",
+          "processing",
 
         message:
-          "YNT One Clips completed successfully.",
+          "Movie processing started.",
+
+        statusUrl:
+          `/api/status/${job.id}`,
 
         download:
           `/api/download/${job.id}`
+
       });
+
+      /* -----------------------------------------
+         BACKGROUND PROCESSING
+      ----------------------------------------- */
+
+      setImmediate(
+        () => {
+
+          processOneClip(
+            job.id,
+            moviePath,
+            language,
+            style,
+            voice
+          ).catch(
+            error => {
+
+              console.error(
+                `[JOB ${job.id}] UNHANDLED ERROR:`,
+                error
+              );
+
+              updateJob(
+                job.id,
+                {
+
+                  status:
+                    "error",
+
+                  stage:
+                    "Error",
+
+                  progress:
+                    0,
+
+                  message:
+                    error.message ||
+                    "Movie processing failed.",
+
+                  error:
+                    error.message ||
+                    "Movie processing failed."
+
+                }
+              );
+            }
+          );
+
+        }
+      );
 
     } catch (error) {
 
       console.error(
-        "ONE CLIP ERROR:",
+        "ONE CLIP START ERROR:",
         error
       );
-
-      if (job) {
-        updateJob(
-          job.id,
-          {
-            status:
-              "error",
-
-            stage:
-              "Error",
-
-            progress:
-              0,
-
-            message:
-              error.message,
-
-            error:
-              error.message
-          }
-        );
-      }
 
       if (
         req.file?.path &&
@@ -1486,27 +1888,29 @@ app.post(
           req.file.path
         )
       ) {
+
         try {
+
           fs.unlinkSync(
             req.file.path
           );
+
         } catch {}
+
       }
 
       return res
         .status(500)
         .json({
+
           error:
             error.message ||
-            "Movie processing failed.",
+            "Unable to start movie processing."
 
-          jobId:
-            job?.id || null
         });
     }
   }
 );
-
 
 /* =========================================================
    FRONTEND
@@ -1518,13 +1922,13 @@ app.use(
   )
 );
 
-
 /* =========================================================
    MULTER / GENERAL ERROR
 ========================================================= */
 
 app.use(
   (err, req, res, next) => {
+
     console.error(
       "SERVER ERROR:",
       err
@@ -1534,32 +1938,37 @@ app.use(
       err instanceof
       multer.MulterError
     ) {
+
       return res
         .status(400)
         .json({
+
           error:
             err.message
+
         });
     }
 
     return res
       .status(500)
       .json({
+
         error:
           err.message ||
           "Server error."
+
       });
   }
 );
 
-
 /* =========================================================
-   START
+   START SERVER
 ========================================================= */
 
 app.listen(
   PORT,
   () => {
+
     console.log(
       "===================================="
     );
@@ -1586,6 +1995,10 @@ app.listen(
 
     console.log(
       "FFmpeg Renderer: READY"
+    );
+
+    console.log(
+      "Background Jobs: READY"
     );
 
     console.log(
