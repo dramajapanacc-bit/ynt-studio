@@ -3458,9 +3458,9 @@ app.use(
 /* =========================================================
    START SERVER
 ========================================================= */
-
 app.listen(
   PORT,
+  "0.0.0.0",
   () => {
 
     console.log(
@@ -3472,7 +3472,7 @@ app.listen(
     );
 
     console.log(
-      `Server running on port ${PORT}`
+      `Server running on 0.0.0.0:${PORT}`
     );
 
     console.log(
