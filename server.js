@@ -14,48 +14,98 @@ dotenv.config();
 const execFileAsync = promisify(execFile);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-const ROOT = process.cwd();
+const PORT =
+  process.env.PORT || 3000;
 
-const PUBLIC_DIR = path.join(ROOT, "public");
-const UPLOAD_DIR = path.join(ROOT, "uploads");
-const JOB_DIR = path.join(ROOT, "jobs");
+const ROOT =
+  process.cwd();
+
+const PUBLIC_DIR =
+  path.join(
+    ROOT,
+    "public"
+  );
+
+const UPLOAD_DIR =
+  path.join(
+    ROOT,
+    "uploads"
+  );
+
+const JOB_DIR =
+  path.join(
+    ROOT,
+    "jobs"
+  );
 
 /* =========================================================
    AI MODELS
 ========================================================= */
 
-const GROQ_MODEL = "whisper-large-v3-turbo";
+const GROQ_MODEL =
+  "whisper-large-v3-turbo";
 
-const GEMINI_MODEL = "gemini-3.8-flash";
+const GEMINI_MODEL =
+  "gemini-3.8-flash";
 
+/*
+ * Current production TTS model.
+ *
+ * Google recommends Gemini 3.8 Flash TTS
+ * or Gemini 3.8 Flash-Lite TTS for new
+ * production workloads.
+ */
 const GEMINI_TTS_MODEL =
-  "gemini-3.1-flash-tts-preview";
+  "gemini-3.8-flash-lite-tts";
 
 /* =========================================================
    SETTINGS
 ========================================================= */
 
-const AUDIO_CHUNK_SECONDS = 90;
+const AUDIO_CHUNK_SECONDS =
+  90;
 
-const TTS_CHUNK_CHARS = 5000;
+/*
+ * Keep TTS chunks reasonably small.
+ * This helps avoid oversized TTS requests.
+ */
+const TTS_CHUNK_CHARS =
+  3500;
 
 const MAX_VIDEO_SIZE =
-  500 * 1024 * 1024;
+  500 *
+  1024 *
+  1024;
+
+/*
+ * Gemini temporary error retry settings.
+ */
+const GEMINI_MAX_RETRIES =
+  5;
+
+const GEMINI_INITIAL_RETRY_DELAY =
+  2000;
 
 /* =========================================================
    DIRECTORIES
 ========================================================= */
 
-for (const dir of [
-  PUBLIC_DIR,
-  UPLOAD_DIR,
-  JOB_DIR
-]) {
-  fs.mkdirSync(dir, {
-    recursive: true
-  });
+for (
+  const dir of [
+    PUBLIC_DIR,
+    UPLOAD_DIR,
+    JOB_DIR
+  ]
+) {
+
+  fs.mkdirSync(
+    dir,
+    {
+      recursive: true
+    }
+  );
+
 }
 
 /* =========================================================
@@ -64,13 +114,15 @@ for (const dir of [
 
 app.use(
   express.json({
-    limit: "10mb"
+    limit:
+      "10mb"
   })
 );
 
 app.use(
   express.urlencoded({
-    extended: true
+    extended:
+      true
   })
 );
 
@@ -78,44 +130,65 @@ app.use(
    MULTER
 ========================================================= */
 
-const upload = multer({
-  dest: UPLOAD_DIR,
+const upload =
+  multer({
 
-  limits: {
-    fileSize: MAX_VIDEO_SIZE
-  },
+    dest:
+      UPLOAD_DIR,
 
-  fileFilter: (req, file, cb) => {
+    limits: {
 
-    const allowed = [
-      "video/mp4",
-      "video/webm",
-      "video/quicktime",
-      "video/x-matroska",
-      "video/x-msvideo"
-    ];
+      fileSize:
+        MAX_VIDEO_SIZE
 
-    if (
-      allowed.includes(
-        file.mimetype
-      )
-    ) {
-      return cb(null, true);
-    }
+    },
 
-    return cb(
-      new Error(
-        "Only MP4, MKV, MOV, WEBM or AVI video files are allowed."
-      )
-    );
-  }
-});
+    fileFilter:
+      (req, file, cb) => {
+
+        const allowed = [
+
+          "video/mp4",
+
+          "video/webm",
+
+          "video/quicktime",
+
+          "video/x-matroska",
+
+          "video/x-msvideo"
+
+        ];
+
+        if (
+          allowed.includes(
+            file.mimetype
+          )
+        ) {
+
+          return cb(
+            null,
+            true
+          );
+
+        }
+
+        return cb(
+          new Error(
+            "Only MP4, MKV, MOV, WEBM or AVI video files are allowed."
+          )
+        );
+
+      }
+
+  });
 
 /* =========================================================
    JOB STORAGE
 ========================================================= */
 
-const jobs = new Map();
+const jobs =
+  new Map();
 
 function createJob() {
 
@@ -126,28 +199,38 @@ function createJob() {
 
     id,
 
-    status: "created",
+    status:
+      "created",
 
-    stage: "Waiting",
+    stage:
+      "Waiting",
 
-    progress: 0,
+    progress:
+      0,
 
-    message: "Job created.",
+    message:
+      "Job created.",
 
     createdAt:
       new Date().toISOString(),
 
-    duration: null,
+    duration:
+      null,
 
-    totalChunks: null,
+    totalChunks:
+      null,
 
-    transcript: null,
+    transcript:
+      null,
 
-    recap: null,
+    recap:
+      null,
 
-    output: null,
+    output:
+      null,
 
-    error: null
+    error:
+      null
 
   };
 
@@ -157,8 +240,8 @@ function createJob() {
   );
 
   return job;
-}
 
+}
 
 function updateJob(
   id,
@@ -166,16 +249,21 @@ function updateJob(
 ) {
 
   const job =
-    jobs.get(id);
+    jobs.get(
+      id
+    );
 
   if (!job) {
+
     return;
+
   }
 
   Object.assign(
     job,
     data
   );
+
 }
 
 /* =========================================================
@@ -194,9 +282,11 @@ function requireEnv(
     throw new Error(
       `${name} is not configured.`
     );
+
   }
 
   return value;
+
 }
 
 /* =========================================================
@@ -220,13 +310,17 @@ async function runCommand(
         args,
         {
           maxBuffer:
-            50 * 1024 * 1024
+            50 *
+            1024 *
+            1024
         }
       );
 
     return result;
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
 
     console.error(
       `[CMD ERROR] ${command}`,
@@ -240,7 +334,239 @@ async function runCommand(
         "Unknown error"
       }`
     );
+
   }
+
+}
+
+/* =========================================================
+   GEMINI RETRY HELPERS
+========================================================= */
+
+function getGeminiErrorStatus(
+  error
+) {
+
+  const candidates = [
+
+    error?.status,
+
+    error?.code,
+
+    error?.response?.status,
+
+    error?.error?.status,
+
+    error?.error?.code,
+
+    error?.cause?.status,
+
+    error?.cause?.code
+
+  ];
+
+  for (
+    const value of candidates
+  ) {
+
+    const number =
+      Number(
+        value
+      );
+
+    if (
+      Number.isFinite(
+        number
+      )
+    ) {
+
+      return number;
+
+    }
+
+  }
+
+  const message =
+    String(
+      error?.message ||
+      error ||
+      ""
+    );
+
+  const match =
+    message.match(
+      /\b(429|500|502|503|504)\b/
+    );
+
+  if (
+    match
+  ) {
+
+    return Number(
+      match[1]
+    );
+
+  }
+
+  return null;
+
+}
+
+function isRetryableGeminiError(
+  error
+) {
+
+  const status =
+    getGeminiErrorStatus(
+      error
+    );
+
+  return [
+    429,
+    500,
+    502,
+    503,
+    504
+  ].includes(
+    status
+  );
+
+}
+
+function sleep(
+  ms
+) {
+
+  return new Promise(
+    resolve =>
+      setTimeout(
+        resolve,
+        ms
+      )
+  );
+
+}
+
+async function callGeminiWithRetry(
+  operationName,
+  operation
+) {
+
+  let lastError =
+    null;
+
+  for (
+    let attempt = 0;
+    attempt <=
+      GEMINI_MAX_RETRIES;
+    attempt++
+  ) {
+
+    try {
+
+      if (
+        attempt > 0
+      ) {
+
+        const delay =
+          GEMINI_INITIAL_RETRY_DELAY *
+          Math.pow(
+            2,
+            attempt - 1
+          );
+
+        const jitter =
+          Math.floor(
+            Math.random() *
+            1000
+          );
+
+        const wait =
+          Math.min(
+            delay +
+              jitter,
+            30000
+          );
+
+        console.log(
+          `[GEMINI RETRY] ${operationName} - waiting ${wait}ms before retry ${attempt}/${GEMINI_MAX_RETRIES}`
+        );
+
+        await sleep(
+          wait
+        );
+
+      }
+
+      console.log(
+        `[GEMINI] ${operationName} - attempt ${attempt + 1}/${GEMINI_MAX_RETRIES + 1}`
+      );
+
+      return await operation();
+
+    } catch (
+      error
+    ) {
+
+      lastError =
+        error;
+
+      const status =
+        getGeminiErrorStatus(
+          error
+        );
+
+      console.error(
+        `[GEMINI ERROR] ${operationName} attempt ${attempt + 1}:`,
+        error?.message ||
+        error
+      );
+
+      if (
+        !isRetryableGeminiError(
+          error
+        )
+      ) {
+
+        throw error;
+
+      }
+
+      if (
+        attempt >=
+        GEMINI_MAX_RETRIES
+      ) {
+
+        break;
+
+      }
+
+      console.log(
+        `[GEMINI] Temporary error ${status}. Retrying...`
+      );
+
+    }
+
+  }
+
+  const status =
+    getGeminiErrorStatus(
+      lastError
+    );
+
+  throw new Error(
+    `Gemini ${operationName} failed after ${
+      GEMINI_MAX_RETRIES + 1
+    } attempts${
+      status
+        ? ` (HTTP ${status})`
+        : ""
+    }. ${
+      lastError?.message ||
+      "Temporary Gemini API error."
+    }`
+  );
+
 }
 
 /* =========================================================
@@ -255,6 +581,7 @@ async function getVideoDuration(
     await runCommand(
       "ffprobe",
       [
+
         "-v",
         "error",
 
@@ -265,6 +592,7 @@ async function getVideoDuration(
         "default=noprint_wrappers=1:nokey=1",
 
         videoPath
+
       ]
     );
 
@@ -282,9 +610,11 @@ async function getVideoDuration(
     throw new Error(
       "Unable to read video duration."
     );
+
   }
 
   return duration;
+
 }
 
 /* =========================================================
@@ -299,6 +629,7 @@ async function extractAudio(
   await runCommand(
     "ffmpeg",
     [
+
       "-y",
 
       "-i",
@@ -322,8 +653,10 @@ async function extractAudio(
       "libmp3lame",
 
       outputPath
+
     ]
   );
+
 }
 
 /* =========================================================
@@ -338,13 +671,15 @@ async function splitAudio(
   fs.mkdirSync(
     outputDir,
     {
-      recursive: true
+      recursive:
+        true
     }
   );
 
   await runCommand(
     "ffmpeg",
     [
+
       "-y",
 
       "-i",
@@ -368,6 +703,7 @@ async function splitAudio(
         outputDir,
         "chunk-%04d.mp3"
       )
+
     ]
   );
 
@@ -387,11 +723,14 @@ async function splitAudio(
       )
       .sort();
 
-  if (!files.length) {
+  if (
+    !files.length
+  ) {
 
     throw new Error(
       "FFmpeg could not create audio chunks."
     );
+
   }
 
   return files.map(
@@ -401,6 +740,7 @@ async function splitAudio(
         file
       )
   );
+
 }
 
 /* =========================================================
@@ -430,7 +770,9 @@ async function transcribeChunk(
         "verbose_json",
 
       timestamp_granularities:
-        ["segment"],
+        [
+          "segment"
+        ],
 
       temperature:
         0
@@ -451,7 +793,8 @@ async function transcribeChunk(
   return {
 
     text:
-      response.text || "",
+      response.text ||
+      "",
 
     segments:
       segments.map(
@@ -459,25 +802,30 @@ async function transcribeChunk(
 
           start:
             Number(
-              segment.start || 0
-            ) + offset,
+              segment.start ||
+              0
+            ) +
+            offset,
 
           end:
             Number(
-              segment.end || 0
-            ) + offset,
+              segment.end ||
+              0
+            ) +
+            offset,
 
           text:
             String(
-              segment.text || ""
+              segment.text ||
+              ""
             ).trim()
 
         })
       )
 
   };
-}
 
+}
 
 async function transcribeMovie(
   jobId,
@@ -492,22 +840,27 @@ async function transcribeMovie(
         )
     });
 
-  const allSegments = [];
+  const allSegments =
+    [];
 
-  const allTexts = [];
+  const allTexts =
+    [];
 
   for (
     let i = 0;
-    i < audioChunks.length;
+    i <
+      audioChunks.length;
     i++
   ) {
 
     const percent =
       15 +
       Math.round(
-        (i /
-          audioChunks.length) *
-          35
+        (
+          i /
+          audioChunks.length
+        ) *
+        35
       );
 
     updateJob(
@@ -537,32 +890,40 @@ async function transcribeMovie(
         i
       );
 
-    if (result.text) {
+    if (
+      result.text
+    ) {
 
       allTexts.push(
         result.text
       );
+
     }
 
     allSegments.push(
       ...result.segments
     );
+
   }
 
   allSegments.sort(
     (a, b) =>
-      a.start - b.start
+      a.start -
+      b.start
   );
 
   return {
 
     text:
-      allTexts.join(" ").trim(),
+      allTexts
+        .join(" ")
+        .trim(),
 
     segments:
       allSegments
 
   };
+
 }
 
 /* =========================================================
@@ -645,7 +1006,8 @@ async function generateRecap(
 
   }
 
-  const prompt = `You are a professional movie recap writer.
+  const prompt =
+`You are a professional movie recap writer.
 
 Create a narration script from the movie transcript below.
 
@@ -680,34 +1042,42 @@ ${source}
 `;
 
   const response =
-    await ai.models.generateContent({
+    await callGeminiWithRetry(
+      "Movie Recap",
+      () =>
+        ai.models.generateContent({
 
-      model:
-        GEMINI_MODEL,
+          model:
+            GEMINI_MODEL,
 
-      contents:
-        prompt,
+          contents:
+            prompt,
 
-      config: {
+          config: {
 
-        maxOutputTokens:
-          16000
+            maxOutputTokens:
+              16000
 
-      }
+          }
 
-    });
+        })
+    );
 
   const text =
     response.text?.trim();
 
-  if (!text) {
+  if (
+    !text
+  ) {
 
     throw new Error(
       "Gemini returned an empty recap script."
     );
+
   }
 
   return text;
+
 }
 
 /* =========================================================
@@ -719,25 +1089,35 @@ function splitTextForTTS(
 ) {
 
   const clean =
-    String(text || "")
+    String(
+      text ||
+      ""
+    )
       .replace(
         /\r/g,
         ""
       )
       .trim();
 
-  if (!clean) {
+  if (
+    !clean
+  ) {
+
     return [];
+
   }
 
   const sentences =
     clean.match(
       /[^.!?။！？]+[.!?။！？]*/g
-    ) || [clean];
+    ) ||
+    [clean];
 
-  const chunks = [];
+  const chunks =
+    [];
 
-  let current = "";
+  let current =
+    "";
 
   for (
     const sentence of sentences
@@ -746,8 +1126,12 @@ function splitTextForTTS(
     const part =
       sentence.trim();
 
-    if (!part) {
+    if (
+      !part
+    ) {
+
       continue;
+
     }
 
     if (
@@ -763,14 +1147,24 @@ function splitTextForTTS(
           : part;
 
       continue;
+
     }
 
-    if (current) {
+    if (
+      current
+    ) {
 
       chunks.push(
         current.trim()
       );
+
     }
+
+    /*
+     * If a single sentence is
+     * larger than our chunk size,
+     * split it safely.
+     */
 
     if (
       part.length >
@@ -779,7 +1173,8 @@ function splitTextForTTS(
 
       for (
         let i = 0;
-        i < part.length;
+        i <
+          part.length;
         i +=
           TTS_CHUNK_CHARS
       ) {
@@ -791,9 +1186,11 @@ function splitTextForTTS(
               TTS_CHUNK_CHARS
           )
         );
+
       }
 
-      current = "";
+      current =
+        "";
 
     } else {
 
@@ -801,16 +1198,111 @@ function splitTextForTTS(
         part;
 
     }
+
   }
 
-  if (current) {
+  if (
+    current
+  ) {
 
     chunks.push(
       current.trim()
     );
+
   }
 
   return chunks;
+
+}
+
+/* =========================================================
+   VOICE MAPPING
+========================================================= */
+
+function resolveVoice(
+  voice
+) {
+
+  /*
+   * Frontend sends:
+   *
+   * female
+   * male
+   *
+   * Gemini requires an actual
+   * prebuilt voice name.
+   */
+
+  if (
+    voice ===
+    "male"
+  ) {
+
+    return "Puck";
+
+  }
+
+  if (
+    voice ===
+    "female"
+  ) {
+
+    return "Kore";
+
+  }
+
+  /*
+   * Also allow a valid Gemini
+   * voice name if sent directly.
+   */
+
+  const allowedVoices = [
+
+    "Zephyr",
+    "Puck",
+    "Charon",
+    "Kore",
+    "Fenrir",
+    "Leda",
+    "Orus",
+    "Aoede",
+    "Callirrhoe",
+    "Autonoe",
+    "Enceladus",
+    "Iapetus",
+    "Umbriel",
+    "Algieba",
+    "Despina",
+    "Erinome",
+    "Algenib",
+    "Rasalgethi",
+    "Laomedeia",
+    "Achernar",
+    "Alnilam",
+    "Schedar",
+    "Gacrux",
+    "Pulcherrima",
+    "Achird",
+    "Zubenelgenubi",
+    "Vindemiatrix",
+    "Sadachbia",
+    "Sadaltager",
+    "Sulafat"
+
+  ];
+
+  if (
+    allowedVoices.includes(
+      voice
+    )
+  ) {
+
+    return voice;
+
+  }
+
+  return "Kore";
+
 }
 
 /* =========================================================
@@ -837,34 +1329,51 @@ async function generateTTS(
       recapText
     );
 
-  if (!chunks.length) {
+  if (
+    !chunks.length
+  ) {
 
     throw new Error(
       "There is no recap text for TTS."
     );
+
   }
 
   fs.mkdirSync(
     outputDir,
     {
-      recursive: true
+      recursive:
+        true
     }
   );
 
-  const audioFiles = [];
+  const audioFiles =
+    [];
+
+  const actualVoice =
+    resolveVoice(
+      voice
+    );
+
+  console.log(
+    `[TTS] Using Gemini voice: ${actualVoice}`
+  );
 
   for (
     let i = 0;
-    i < chunks.length;
+    i <
+      chunks.length;
     i++
   ) {
 
     const percent =
       65 +
       Math.round(
-        (i /
-          chunks.length) *
-          20
+        (
+          i /
+          chunks.length
+        ) *
+        20
       );
 
     updateJob(
@@ -887,71 +1396,109 @@ async function generateTTS(
       }
     );
 
-    const ttsPrompt = `[natural, cinematic, calm, clear movie narration]
+    /*
+     * IMPORTANT:
+     *
+     * For Gemini 3.8 TTS, style
+     * directions belong in
+     * speech_metadata.
+     *
+     * The actual text remains
+     * the narration transcript.
+     */
 
-${chunks[i]}`;
+    const contents = [
 
-    const response =
-      await ai.models.generateContent({
+      {
 
-        model:
-          GEMINI_TTS_MODEL,
+        role:
+          "user",
 
-        contents:
-          ttsPrompt,
+        parts: [
 
-        config: {
+          {
 
-          responseModalities:
-            ["AUDIO"],
+            text:
+              chunks[i],
 
-          speechConfig: {
+            speech_metadata: {
 
-            voiceConfig: {
-
-              prebuiltVoiceConfig: {
-
-                voiceName:
-                  voice
-
-              }
+              style:
+                "Natural cinematic movie narration. Clear spoken delivery, calm pacing, emotional but controlled, suitable for a Myanmar movie recap."
 
             }
 
           }
 
-        }
+        ]
 
-      });
+      }
+
+    ];
+
+    const response =
+      await callGeminiWithRetry(
+        `TTS chunk ${i + 1}/${chunks.length}`,
+        () =>
+          ai.models.generateContent({
+
+            model:
+              GEMINI_TTS_MODEL,
+
+            contents,
+
+            config: {
+
+              responseModalities:
+                [
+                  "AUDIO"
+                ],
+
+              speechConfig: {
+
+                voiceConfig: {
+
+                  voice:
+                    actualVoice
+
+                }
+
+              }
+
+            }
+
+          })
+      );
 
     const base64 =
       response
         ?.candidates?.[0]
         ?.content?.parts?.find(
           part =>
-            part.inlineData?.data
+            part?.inlineData?.data
         )
         ?.inlineData?.data;
 
-    if (!base64) {
+    if (
+      !base64
+    ) {
 
       throw new Error(
         `Gemini TTS returned no audio for chunk ${
           i + 1
         }.`
       );
+
     }
 
-    const pcmPath =
-      path.join(
-        outputDir,
-        `tts-${String(
-          i
-        ).padStart(
-          4,
-          "0"
-        )}.pcm`
-      );
+    /*
+     * Gemini 3.8 unary TTS returns
+     * complete WAV audio.
+     *
+     * Therefore write the
+     * decoded bytes directly
+     * as .wav.
+     */
 
     const wavPath =
       path.join(
@@ -965,7 +1512,7 @@ ${chunks[i]}`;
       );
 
     fs.writeFileSync(
-      pcmPath,
+      wavPath,
       Buffer.from(
         base64,
         "base64"
@@ -973,52 +1520,35 @@ ${chunks[i]}`;
     );
 
     /*
-     * Gemini TTS returns
-     * 24kHz mono PCM.
-     * Convert it to WAV.
+     * Basic file validation.
      */
 
-    await runCommand(
-      "ffmpeg",
-      [
-        "-y",
-
-        "-f",
-        "s16le",
-
-        "-ar",
-        "24000",
-
-        "-ac",
-        "1",
-
-        "-i",
-        pcmPath,
-
-        "-c:a",
-        "pcm_s16le",
-
+    const stats =
+      fs.statSync(
         wavPath
-      ]
-    );
+      );
 
     if (
-      fs.existsSync(
-        pcmPath
-      )
+      stats.size <
+      100
     ) {
 
-      fs.unlinkSync(
-        pcmPath
+      throw new Error(
+        `Generated TTS audio for chunk ${
+          i + 1
+        } is empty or invalid.`
       );
+
     }
 
     audioFiles.push(
       wavPath
     );
+
   }
 
   return audioFiles;
+
 }
 
 /* =========================================================
@@ -1038,6 +1568,7 @@ async function concatAudio(
     throw new Error(
       "No TTS audio files were generated."
     );
+
   }
 
   const listContent =
@@ -1049,7 +1580,9 @@ async function concatAudio(
             "'\\''"
           )}'`
       )
-      .join("\n");
+      .join(
+        "\n"
+      );
 
   fs.writeFileSync(
     listPath,
@@ -1060,6 +1593,7 @@ async function concatAudio(
   await runCommand(
     "ffmpeg",
     [
+
       "-y",
 
       "-f",
@@ -1075,8 +1609,10 @@ async function concatAudio(
       "pcm_s16le",
 
       outputPath
+
     ]
   );
+
 }
 
 /* =========================================================
@@ -1106,18 +1642,16 @@ async function renderFinalVideo(
     }
   );
 
-  /*
-   * Original movie video
-   * + Gemini narration
-   *
-   * Original movie audio
-   * is removed.
-   */
-
   await runCommand(
     "ffmpeg",
     [
+
       "-y",
+
+      /*
+       * Loop video so the video stream
+       * is long enough for narration.
+       */
 
       "-stream_loop",
       "-1",
@@ -1127,6 +1661,11 @@ async function renderFinalVideo(
 
       "-i",
       narrationPath,
+
+      /*
+       * Video from movie.
+       * Audio from generated narration.
+       */
 
       "-map",
       "0:v:0",
@@ -1158,13 +1697,14 @@ async function renderFinalVideo(
       "+faststart",
 
       outputPath
+
     ]
   );
+
 }
 
 /* =========================================================
    PROCESS ONE CLIP
-   BACKGROUND JOB
 ========================================================= */
 
 async function processOneClip(
@@ -1280,8 +1820,10 @@ async function processOneClip(
     updateJob(
       jobId,
       {
+
         totalChunks:
           audioChunks.length
+
       }
     );
 
@@ -1295,11 +1837,14 @@ async function processOneClip(
         audioChunks
       );
 
-    if (!transcript.text) {
+    if (
+      !transcript.text
+    ) {
 
       throw new Error(
         "Whisper returned an empty transcript."
       );
+
     }
 
     const transcriptPath =
@@ -1379,7 +1924,7 @@ async function processOneClip(
           62,
 
         message:
-          "Myanmar recap script completed.",
+          "Movie recap script completed.",
 
         recap: {
 
@@ -1467,6 +2012,10 @@ async function processOneClip(
       outputPath
     );
 
+    /* -----------------------------------------
+       VERIFY OUTPUT
+    ----------------------------------------- */
+
     if (
       !fs.existsSync(
         outputPath
@@ -1476,6 +2025,7 @@ async function processOneClip(
       throw new Error(
         "FFmpeg did not create the final MP4."
       );
+
     }
 
     const stats =
@@ -1484,16 +2034,22 @@ async function processOneClip(
       );
 
     if (
-      stats.size <= 0
+      stats.size <=
+      0
     ) {
 
       throw new Error(
         "Final MP4 file is empty."
       );
+
     }
 
     const filename =
       `YNT-One-Clips-${jobId}.mp4`;
+
+    /* -----------------------------------------
+       COMPLETED
+    ----------------------------------------- */
 
     updateJob(
       jobId,
@@ -1533,7 +2089,9 @@ async function processOneClip(
       `[JOB ${jobId}] COMPLETED`
     );
 
-  } catch (error) {
+  } catch (
+    error
+  ) {
 
     console.error(
       `[JOB ${jobId}] ERROR:`,
@@ -1563,7 +2121,9 @@ async function processOneClip(
 
       }
     );
+
   }
+
 }
 
 /* =========================================================
@@ -1576,15 +2136,30 @@ app.get(
 
     res.json({
 
-      ok: true,
+      ok:
+        true,
 
       name:
         "YNT One Clips",
 
       status:
-        "online"
+        "online",
+
+      models: {
+
+        whisper:
+          GROQ_MODEL,
+
+        recap:
+          GEMINI_MODEL,
+
+        tts:
+          GEMINI_TTS_MODEL
+
+      }
 
     });
+
   }
 );
 
@@ -1611,11 +2186,13 @@ app.get(
             "Job not found."
 
         });
+
     }
 
     return res.json(
       job
     );
+
   }
 );
 
@@ -1642,6 +2219,7 @@ app.get(
             "Job not found."
 
         });
+
     }
 
     if (
@@ -1658,6 +2236,7 @@ app.get(
             "Final video is not ready yet."
 
         });
+
     }
 
     if (
@@ -1674,12 +2253,14 @@ app.get(
             "Output video file no longer exists."
 
         });
+
     }
 
     return res.download(
       job.output.path,
       job.output.filename
     );
+
   }
 );
 
@@ -1690,13 +2271,20 @@ app.get(
 app.post(
   "/api/one-clip",
 
-  upload.single("movie"),
+  upload.single(
+    "movie"
+  ),
 
-  async (req, res) => {
+  async (
+    req,
+    res
+  ) => {
 
     try {
 
-      if (!req.file) {
+      if (
+        !req.file
+      ) {
 
         return res
           .status(400)
@@ -1706,6 +2294,7 @@ app.post(
               "Movie file is required."
 
           });
+
       }
 
       /* -----------------------------------------
@@ -1724,7 +2313,8 @@ app.post(
       fs.mkdirSync(
         jobFolder,
         {
-          recursive: true
+          recursive:
+            true
         }
       );
 
@@ -1739,7 +2329,8 @@ app.post(
       const extension =
         path.extname(
           originalName
-        ) || ".mp4";
+        ) ||
+        ".mp4";
 
       const moviePath =
         path.join(
@@ -1766,10 +2357,10 @@ app.post(
 
       const voice =
         req.body?.voice ||
-        "Kore";
+        "female";
 
       /* -----------------------------------------
-         INITIAL JOB STATUS
+         INITIAL JOB
       ----------------------------------------- */
 
       updateJob(
@@ -1795,35 +2386,45 @@ app.post(
         `[JOB ${job.id}] STARTED`
       );
 
+      console.log(
+        `[JOB ${job.id}] Language: ${language}`
+      );
+
+      console.log(
+        `[JOB ${job.id}] Style: ${style}`
+      );
+
+      console.log(
+        `[JOB ${job.id}] Voice: ${voice}`
+      );
+
       /* -----------------------------------------
-         IMPORTANT
-
-         DO NOT WAIT FOR AI / FFMPEG.
-
-         Return the job ID immediately.
+         RETURN IMMEDIATELY
       ----------------------------------------- */
 
-      res.status(202).json({
+      res
+        .status(202)
+        .json({
 
-        success:
-          true,
+          success:
+            true,
 
-        jobId:
-          job.id,
+          jobId:
+            job.id,
 
-        status:
-          "processing",
+          status:
+            "processing",
 
-        message:
-          "Movie processing started.",
+          message:
+            "Movie processing started.",
 
-        statusUrl:
-          `/api/status/${job.id}`,
+          statusUrl:
+            `/api/status/${job.id}`,
 
-        download:
-          `/api/download/${job.id}`
+          download:
+            `/api/download/${job.id}`
 
-      });
+        });
 
       /* -----------------------------------------
          BACKGROUND PROCESSING
@@ -1869,13 +2470,16 @@ app.post(
 
                 }
               );
+
             }
           );
 
         }
       );
 
-    } catch (error) {
+    } catch (
+      error
+    ) {
 
       console.error(
         "ONE CLIP START ERROR:",
@@ -1908,7 +2512,9 @@ app.post(
             "Unable to start movie processing."
 
         });
+
     }
+
   }
 );
 
@@ -1923,11 +2529,16 @@ app.use(
 );
 
 /* =========================================================
-   MULTER / GENERAL ERROR
+   ERROR HANDLER
 ========================================================= */
 
 app.use(
-  (err, req, res, next) => {
+  (
+    err,
+    req,
+    res,
+    next
+  ) => {
 
     console.error(
       "SERVER ERROR:",
@@ -1947,6 +2558,7 @@ app.use(
             err.message
 
         });
+
     }
 
     return res
@@ -1958,6 +2570,7 @@ app.use(
           "Server error."
 
       });
+
   }
 );
 
@@ -1982,19 +2595,23 @@ app.listen(
     );
 
     console.log(
-      "Groq Whisper: READY"
+      `Groq Whisper: ${GROQ_MODEL}`
     );
 
     console.log(
-      "Gemini Recap: READY"
+      `Gemini Recap: ${GEMINI_MODEL}`
     );
 
     console.log(
-      "Gemini TTS: READY"
+      `Gemini TTS: ${GEMINI_TTS_MODEL}`
     );
 
     console.log(
       "FFmpeg Renderer: READY"
+    );
+
+    console.log(
+      "Gemini Retry System: READY"
     );
 
     console.log(
@@ -2004,5 +2621,6 @@ app.listen(
     console.log(
       "===================================="
     );
+
   }
 );
