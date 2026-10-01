@@ -323,13 +323,23 @@
     }
 
     .download {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       padding: 13px 18px;
       border-radius: 11px;
       color: #050505;
       background: #00ff9d;
       text-decoration: none;
       font-weight: 800;
+      cursor: pointer;
+      border: 0;
+      transition: .2s;
+    }
+
+    .download:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.08);
     }
 
     .error {
@@ -582,18 +592,35 @@ const result =
 const downloadBtn =
   document.getElementById("downloadBtn");
 
+const languageInput =
+  document.getElementById("language");
+
+const styleInput =
+  document.getElementById("style");
+
+const voiceInput =
+  document.getElementById("voice");
+
 let selectedFile = null;
 let currentJobId = null;
 
+
+/* =========================================
+   MOVIE FILE SELECT
+========================================= */
+
 movieInput.addEventListener("change", () => {
 
-  selectedFile = movieInput.files[0];
+  selectedFile =
+    movieInput.files[0];
 
   if (!selectedFile) {
+
     fileName.textContent =
       "No movie selected";
 
-    generateBtn.disabled = true;
+    generateBtn.disabled =
+      true;
 
     return;
   }
@@ -601,14 +628,25 @@ movieInput.addEventListener("change", () => {
   fileName.textContent =
     selectedFile.name;
 
-  generateBtn.disabled = false;
+  generateBtn.disabled =
+    false;
 
 });
+
+
+/* =========================================
+   GENERATE BUTTON
+========================================= */
 
 generateBtn.addEventListener(
   "click",
   generateOneClip
 );
+
+
+/* =========================================
+   MAIN ONE-CLIP PROCESS
+========================================= */
 
 async function generateOneClip() {
 
@@ -616,30 +654,77 @@ async function generateOneClip() {
     return;
   }
 
-  generateBtn.disabled = true;
+  generateBtn.disabled =
+    true;
 
-  pipeline.classList.add("active");
+  pipeline.classList.add(
+    "active"
+  );
 
-  result.classList.remove("active");
+  result.classList.remove(
+    "active"
+  );
 
-  errorBox.textContent = "";
+  errorBox.textContent =
+    "";
 
   resetStages();
 
   message.textContent =
     "Uploading movie...";
 
-  progressBar.style.width = "5%";
+  progressBar.style.width =
+    "5%";
 
   try {
 
     const formData =
       new FormData();
 
+
+    /*
+      MOVIE
+    */
+
     formData.append(
       "movie",
       selectedFile
     );
+
+
+    /*
+      LANGUAGE
+    */
+
+    formData.append(
+      "language",
+      languageInput.value
+    );
+
+
+    /*
+      RECAP STYLE
+    */
+
+    formData.append(
+      "style",
+      styleInput.value
+    );
+
+
+    /*
+      VOICE
+    */
+
+    formData.append(
+      "voice",
+      voiceInput.value
+    );
+
+
+    /*
+      CREATE JOB
+    */
 
     const response =
       await fetch(
@@ -650,36 +735,89 @@ async function generateOneClip() {
         }
       );
 
-    const data =
-      await response.json();
+
+    /*
+      READ RESPONSE SAFELY
+    */
+
+    let data;
+
+    try {
+
+      data =
+        await response.json();
+
+    } catch {
+
+      throw new Error(
+        "Server returned an invalid response."
+      );
+
+    }
+
+
+    /*
+      SERVER ERROR
+    */
 
     if (!response.ok) {
+
       throw new Error(
         data.error ||
+        data.message ||
         "Upload failed."
       );
+
+    }
+
+
+    /*
+      JOB ID
+    */
+
+    if (!data.jobId) {
+
+      throw new Error(
+        "Server did not return a Job ID."
+      );
+
     }
 
     currentJobId =
       data.jobId;
 
+
+    /*
+      START STATUS POLLING
+    */
+
     await pollStatus();
 
   } catch (error) {
 
-    console.error(error);
+    console.error(
+      "Generate error:",
+      error
+    );
 
     errorBox.textContent =
-      error.message;
+      error.message ||
+      "Processing failed.";
 
     message.textContent =
       "Processing failed.";
 
-    generateBtn.disabled = false;
+    generateBtn.disabled =
+      false;
 
   }
 
 }
+
+
+/* =========================================
+   POLL JOB STATUS
+========================================= */
 
 async function pollStatus() {
 
@@ -691,29 +829,73 @@ async function pollStatus() {
 
     const response =
       await fetch(
-        `/api/status/${currentJobId}`
+        `/api/status/${encodeURIComponent(currentJobId)}`
       );
 
-    const job =
-      await response.json();
+
+    let job;
+
+    try {
+
+      job =
+        await response.json();
+
+    } catch {
+
+      throw new Error(
+        "Unable to read server status."
+      );
+
+    }
+
 
     if (!response.ok) {
+
       throw new Error(
         job.error ||
         "Unable to read job status."
       );
+
     }
+
 
     updatePipeline(job);
 
+
+    /*
+      PROCESSING
+    */
+
     if (
-      job.status === "processing" ||
+      job.status === "processing"
+    ) {
+
+      setTimeout(
+        pollStatus,
+        1200
+      );
+
+      return;
+    }
+
+
+    /*
+      READY
+    */
+
+    if (
       job.status === "ready"
     ) {
 
+      /*
+        Some backend versions may use
+        "ready" before "completed".
+        Continue polling until the
+        actual completed state.
+      */
+
       if (
-        job.status === "ready" &&
-        job.stage !== "Ready"
+        job.stage === "Ready"
       ) {
 
         setTimeout(
@@ -721,32 +903,42 @@ async function pollStatus() {
           1000
         );
 
-      } else if (
-        job.status === "processing"
-      ) {
+      } else {
 
         setTimeout(
           pollStatus,
           1200
         );
 
-      } else {
-
-        finishJob(job);
-
       }
 
       return;
     }
 
-    if (job.status === "completed") {
 
-      finishJob(job);
+    /*
+      COMPLETED
+    */
+
+    if (
+      job.status === "completed"
+    ) {
+
+      finishJob(
+        job
+      );
 
       return;
     }
 
-    if (job.status === "error") {
+
+    /*
+      ERROR
+    */
+
+    if (
+      job.status === "error"
+    ) {
 
       throw new Error(
         job.error ||
@@ -756,6 +948,11 @@ async function pollStatus() {
 
     }
 
+
+    /*
+      UNKNOWN / WAITING STATE
+    */
+
     setTimeout(
       pollStatus,
       1200
@@ -763,67 +960,98 @@ async function pollStatus() {
 
   } catch (error) {
 
-    console.error(error);
+    console.error(
+      "Polling error:",
+      error
+    );
 
     errorBox.textContent =
-      error.message;
+      error.message ||
+      "Processing failed.";
 
     message.textContent =
       "Processing failed.";
 
-    generateBtn.disabled = false;
+    generateBtn.disabled =
+      false;
 
   }
 
 }
+
+
+/* =========================================
+   UPDATE PIPELINE UI
+========================================= */
 
 function updatePipeline(job) {
 
   const stage =
     job.stage || "";
 
+  const progress =
+    Number(job.progress) || 0;
+
   progressBar.style.width =
-    `${job.progress || 0}%`;
+    `${Math.min(100, Math.max(0, progress))}%`;
 
   message.textContent =
-    job.message || stage;
+    job.message ||
+    stage ||
+    "Processing...";
+
 
   const stages =
     document.querySelectorAll(
       ".stage"
     );
 
-  let activeFound = false;
+  let activeFound =
+    false;
 
-  stages.forEach((element) => {
 
-    const name =
-      element.dataset.stage;
+  stages.forEach(
+    (element) => {
 
-    element.classList.remove(
-      "active",
-      "done"
-    );
+      const name =
+        element.dataset.stage;
 
-    if (name === stage) {
-
-      element.classList.add(
-        "active"
-      );
-
-      activeFound = true;
-
-    } else if (!activeFound) {
-
-      element.classList.add(
+      element.classList.remove(
+        "active",
         "done"
       );
 
-    }
 
-  });
+      if (
+        name === stage
+      ) {
+
+        element.classList.add(
+          "active"
+        );
+
+        activeFound =
+          true;
+
+      } else if (
+        !activeFound
+      ) {
+
+        element.classList.add(
+          "done"
+        );
+
+      }
+
+    }
+  );
 
 }
+
+
+/* =========================================
+   FINISH JOB
+========================================= */
 
 function finishJob(job) {
 
@@ -833,55 +1061,172 @@ function finishJob(job) {
   message.textContent =
     "Your recap is ready.";
 
+
+  /*
+    MARK ALL STAGES DONE
+  */
+
   document.querySelectorAll(
     ".stage"
-  ).forEach((stage) => {
+  ).forEach(
+    (stage) => {
 
-    stage.classList.remove(
-      "active"
-    );
+      stage.classList.remove(
+        "active"
+      );
 
-    stage.classList.add(
-      "done"
-    );
+      stage.classList.add(
+        "done"
+      );
 
-  });
+    }
+  );
+
+
+  /*
+    SHOW RESULT
+  */
 
   result.classList.add(
     "active"
   );
 
-  if (job.output) {
 
-    downloadBtn.href =
-      job.output;
+  /*
+    IMPORTANT DOWNLOAD FIX
+    ======================
 
-  } else {
+    DO NOT USE:
 
-    downloadBtn.href =
-      `/api/download/${currentJobId}`;
+      downloadBtn.href = job.output;
 
+    because job.output can be an object.
+
+    Always use the backend download
+    endpoint with the Job ID.
+
+    Example:
+
+      /api/download/abc123
+  */
+
+  if (!currentJobId) {
+
+    errorBox.textContent =
+      "Download is unavailable because the Job ID is missing.";
+
+    generateBtn.disabled =
+      false;
+
+    return;
   }
+
+
+  const downloadUrl =
+    `/api/download/${encodeURIComponent(currentJobId)}`;
+
+
+  downloadBtn.href =
+    downloadUrl;
+
+
+  /*
+    Do not set downloadBtn.download
+    to a filename here.
+
+    The server can send the correct
+    Content-Disposition header.
+  */
+
+  downloadBtn.removeAttribute(
+    "download"
+  );
+
+
+  /*
+    Make sure the button is usable.
+  */
+
+  downloadBtn.style.display =
+    "inline-flex";
+
+
+  /*
+    Keep the job ID for debugging
+    without showing it in the UI.
+  */
+
+  downloadBtn.dataset.jobId =
+    currentJobId;
+
 
   generateBtn.disabled =
     false;
 
 }
 
+
+/* =========================================
+   DOWNLOAD BUTTON SAFETY
+========================================= */
+
+downloadBtn.addEventListener(
+  "click",
+  (event) => {
+
+    if (!currentJobId) {
+
+      event.preventDefault();
+
+      errorBox.textContent =
+        "Download is not available.";
+
+      return;
+    }
+
+
+    /*
+      Always force the correct
+      backend download URL.
+
+      This prevents [object Object].
+    */
+
+    downloadBtn.href =
+      `/api/download/${encodeURIComponent(currentJobId)}`;
+
+  }
+);
+
+
+/* =========================================
+   RESET STAGES
+========================================= */
+
 function resetStages() {
 
   document.querySelectorAll(
     ".stage"
-  ).forEach((stage) => {
+  ).forEach(
+    (stage) => {
 
-    stage.classList.remove(
-      "active",
-      "done"
-    );
+      stage.classList.remove(
+        "active",
+        "done"
+      );
 
-  });
+    }
+  );
 
 }
+
+
+/* =========================================
+   INITIAL DOWNLOAD STATE
+========================================= */
+
+downloadBtn.style.display =
+  "inline-flex";
 
 </script>
 
