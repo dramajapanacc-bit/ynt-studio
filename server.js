@@ -59,7 +59,7 @@ const MAX_SCENES = 18;
 const MIN_SCENE_SECONDS = 3;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 
-const GEMINI_MAX_RETRIES = 5;
+const GEMINI_MAX_RETRIES = 0;
 const GEMINI_INITIAL_RETRY_DELAY = 2000;
 
 /* =========================================================
