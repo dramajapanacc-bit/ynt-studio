@@ -1,20 +1,22 @@
 {
   "name": "ynt-one-clips",
-  "version": "2.0.0",
-  "private": true,
+  "version": "1.0.0",
+  "description": "YNT One Clips - AI Movie Recap Generator",
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "dotenv": "^16.6.1",
+    "@google/genai": "^2.24.0",
+    "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "groq-sdk": "^0.37.0",
     "multer": "^1.4.5-lts.1",
-    "pg": "^8.23.1"
+    "pg": "^8.16.3"
   }
 }
