@@ -1,79 +1,1783 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="my">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>YNT One Clips</title>
+
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;500;600;700;800&display=swap');
-:root{--bg:#070914;--panel:#111426;--panel2:#171b33;--line:#2d3455;--text:#f8f9ff;--muted:#a8b0c9;--purple:#8b5cf6;--blue:#38bdf8;--cyan:#22d3ee;--pink:#f472b6;--orange:#fb923c;--green:#34d399;--yellow:#facc15;--red:#fb7185;--shadow:0 22px 70px #0008}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;color:var(--text);font-family:"Noto Sans Myanmar",system-ui,sans-serif;background:radial-gradient(circle at 10% 0%,#39206f 0,transparent 27%),radial-gradient(circle at 90% 8%,#064e6b 0,transparent 24%),radial-gradient(circle at 50% 100%,#3b123d 0,transparent 30%),#070914}.wrap{max-width:940px;margin:auto;padding:18px 14px 55px}.hero{position:relative;overflow:hidden;padding:26px;border:1px solid #ffffff18;border-radius:28px;background:linear-gradient(135deg,#19152fdd,#10182ddd 48%,#10263bdd);box-shadow:var(--shadow);margin-bottom:16px}.hero:before{content:"";position:absolute;width:260px;height:260px;border-radius:50%;right:-100px;top:-130px;background:radial-gradient(circle,#a855f755,transparent 68%);pointer-events:none}.hero:after{content:"";position:absolute;width:220px;height:220px;border-radius:50%;left:-130px;bottom:-150px;background:radial-gradient(circle,#22d3ee44,transparent 68%);pointer-events:none}.brand{position:relative;z-index:1;display:flex;gap:15px;align-items:center}.logo{width:58px;height:58px;flex:0 0 58px;border-radius:19px;display:grid;place-items:center;background:linear-gradient(135deg,var(--purple),var(--pink) 52%,var(--orange));font-size:29px;box-shadow:0 12px 35px #8b5cf655}.hero h1{margin:0;font-size:28px;letter-spacing:-.4px}.hero p{margin:6px 0 0;color:#c1c8df;font-size:13px}.card{position:relative;background:linear-gradient(145deg,#15192bdd,#0d1120ee);border:1px solid #ffffff12;border-radius:23px;padding:18px;margin:14px 0;box-shadow:0 14px 42px #0005;backdrop-filter:blur(14px)}.card:before{content:"";position:absolute;left:0;top:20px;bottom:20px;width:3px;border-radius:9px;background:linear-gradient(180deg,var(--purple),var(--cyan),var(--pink));opacity:.75}.head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:14px;padding-left:7px}.head h2{font-size:17px;margin:0}.head p{color:var(--muted);font-size:12px;margin:5px 0 0}.badge{font-size:10px;color:#fff;border:1px solid #ffffff22;background:linear-gradient(135deg,#8b5cf633,#22d3ee22);padding:6px 9px;border-radius:999px;white-space:nowrap}.drop{border:1px dashed #64709a;border-radius:19px;padding:24px;text-align:center;background:linear-gradient(145deg,#0b1020,#11162a);cursor:pointer;transition:.2s;box-shadow:inset 0 0 35px #7c3aed0b}.drop:hover,.drop.drag{border-color:var(--cyan);background:linear-gradient(145deg,#11152c,#102b38);box-shadow:0 0 0 3px #22d3ee12,0 12px 35px #0004}.dropIcon{font-size:38px;filter:drop-shadow(0 8px 15px #8b5cf666)}.drop strong{display:block;margin-top:8px}.drop small{display:block;color:var(--muted);margin-top:5px}.fileInfo{display:none;margin-top:12px;padding:11px 13px;border:1px solid #22d3ee33;border-radius:13px;background:#0b1c24;color:#dceeff;font-size:12px}.preview{display:none;width:100%;max-height:310px;object-fit:contain;background:#000;border-radius:15px;margin-top:12px;border:1px solid #ffffff12}.styles{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.choice{position:relative}.choice input{position:absolute;opacity:0}.choice label{display:block;border:1px solid #ffffff14;border-radius:17px;padding:14px;background:linear-gradient(145deg,#0c1120,#111629);cursor:pointer;min-height:96px;transition:.2s;position:relative;overflow:hidden}.choice label:after{content:"";position:absolute;inset:auto -30px -55px auto;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,#8b5cf620,transparent 68%)}.choice label:hover{transform:translateY(-1px);border-color:#ffffff30}.choice input:checked+label{border-color:#a78bfa;background:linear-gradient(145deg,#21174b,#11243a);box-shadow:0 0 0 2px #8b5cf633,0 12px 30px #0005}.choice input:checked+label b{color:#fff}.choice b{display:block;font-size:14px;position:relative;z-index:1}.choice span{display:block;color:var(--muted);font-size:11px;line-height:1.55;margin-top:5px;position:relative;z-index:1}.choice:nth-child(1) label{border-left:3px solid var(--green)}.choice:nth-child(2) label{border-left:3px solid var(--red)}.choice:nth-child(3) label{border-left:3px solid var(--pink)}.choice:nth-child(4) label{border-left:3px solid var(--yellow)}.choice:nth-child(5) label{border-left:3px solid var(--blue)}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.row label{display:block;font-size:12px;color:#cbd3e8;margin:0 0 6px}.selectBox{border:1px solid #ffffff18;background:linear-gradient(145deg,#0b1020,#141a2c);color:var(--text);border-radius:13px;padding:12px;width:100%;font:inherit;outline:none}.selectBox:focus{border-color:var(--cyan);box-shadow:0 0 0 3px #22d3ee14}.generate{width:100%;border:0;border-radius:16px;padding:16px;color:white;font:800 15px inherit;background:linear-gradient(110deg,#7c3aed,#ec4899 45%,#f97316 72%,#06b6d4);background-size:220% 100%;cursor:pointer;box-shadow:0 14px 35px #8b5cf633;transition:.25s;animation:shine 5s ease infinite}.generate:hover{transform:translateY(-1px);box-shadow:0 18px 42px #8b5cf655}.generate:disabled{opacity:.5;cursor:not-allowed;transform:none}@keyframes shine{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}.note{color:var(--muted);font-size:11px;line-height:1.65;margin-top:10px;text-align:center}.progressCard{display:none}.progressTop{display:flex;justify-content:space-between;gap:10px;align-items:center}.progressTop strong{font-size:14px}.pct{color:#c4b5fd;font-weight:700}.barTrack{height:10px;background:#080c17;border-radius:99px;overflow:hidden;margin:13px 0;border:1px solid #ffffff0b}.bar{height:100%;width:0;background:linear-gradient(90deg,var(--purple),var(--pink),var(--orange),var(--cyan),var(--green));background-size:220% 100%;animation:shine 3s linear infinite;transition:width .4s}.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:7px}.step{padding:8px 5px;border:1px solid #ffffff12;border-radius:11px;text-align:center;color:#697591;font-size:10px;background:#0b1020}.step.active{color:#fff;border-color:#a78bfa;background:linear-gradient(145deg,#25174c,#152640);box-shadow:0 0 0 2px #8b5cf622}.step.done{color:#8de5d0;border-color:#286c5d;background:#0d2824}.message{margin-top:10px;color:#c1cbe0;font-size:12px}.error{display:none;color:#ffb1bc;background:#32131d;border:1px solid #8f3044;border-radius:12px;padding:11px;margin-top:10px;font-size:12px}.result{display:none}.video{width:100%;max-height:520px;background:#000;border-radius:16px;border:1px solid #ffffff12}.download{display:block;text-align:center;text-decoration:none;color:#fff;background:linear-gradient(110deg,#059669,#06b6d4,#3b82f6);padding:13px;border-radius:13px;margin-top:12px;font-weight:800;box-shadow:0 10px 28px #06b6d433}.summary{color:var(--muted);font-size:12px;margin-top:10px}.footer{text-align:center;color:#68738b;font-size:10px;padding:12px}.footer::first-letter{color:#a78bfa}@media(max-width:620px){.styles{grid-template-columns:1fr}.row{grid-template-columns:1fr}.hero h1{font-size:23px}.card{padding:15px}.steps{grid-template-columns:repeat(5,1fr)}.step{font-size:9px;padding:7px 2px}}
+
+*{
+    box-sizing:border-box;
+    margin:0;
+    padding:0;
+}
+
+:root{
+    --bg:#05060a;
+    --card:#0c0f16;
+    --card2:#11151f;
+    --border:#202633;
+
+    --white:#f7f8fb;
+    --muted:#858d9d;
+
+    --yellow:#ffd84a;
+    --blue:#5aa9ff;
+    --purple:#9b6cff;
+    --green:#42e6a1;
+    --red:#ff536b;
+}
+
+html{
+    scroll-behavior:smooth;
+}
+
+body{
+    min-height:100vh;
+
+    color:var(--white);
+
+    font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        "Noto Sans Myanmar",
+        sans-serif;
+
+    background:
+        radial-gradient(
+            circle at 50% -10%,
+            rgba(155,108,255,.18),
+            transparent 35%
+        ),
+        radial-gradient(
+            circle at 0% 30%,
+            rgba(90,169,255,.10),
+            transparent 30%
+        ),
+        #05060a;
+}
+
+
+/* =========================
+   NAVBAR
+========================= */
+
+.navbar{
+    width:100%;
+
+    height:72px;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    padding:0 34px;
+
+    border-bottom:
+        1px solid rgba(255,255,255,.07);
+
+    background:
+        rgba(5,6,10,.78);
+
+    backdrop-filter:
+        blur(20px);
+
+    position:sticky;
+    top:0;
+    z-index:100;
+}
+
+.brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.brand-mark{
+    width:39px;
+    height:39px;
+
+    display:grid;
+    place-items:center;
+
+    border-radius:11px;
+
+    font-size:20px;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--yellow),
+            var(--red),
+            var(--purple)
+        );
+}
+
+.brand-name{
+    font-size:18px;
+    font-weight:900;
+    letter-spacing:-.5px;
+}
+
+.settings-btn{
+    width:42px;
+    height:42px;
+
+    display:grid;
+    place-items:center;
+
+    border:1px solid var(--border);
+
+    border-radius:11px;
+
+    background:#0d1119;
+
+    color:white;
+
+    font-size:18px;
+
+    cursor:pointer;
+
+    transition:.2s;
+}
+
+.settings-btn:hover{
+    border-color:#4a556d;
+    transform:rotate(20deg);
+}
+
+
+/* =========================
+   MAIN
+========================= */
+
+.container{
+    width:min(1080px,92%);
+
+    margin:auto;
+
+    padding:
+        70px 0
+        90px;
+}
+
+
+/* =========================
+   HERO
+========================= */
+
+.hero{
+    text-align:center;
+
+    margin-bottom:48px;
+}
+
+.hero-label{
+    display:inline-flex;
+
+    align-items:center;
+
+    gap:7px;
+
+    padding:
+        7px 12px;
+
+    border-radius:30px;
+
+    border:
+        1px solid
+        rgba(155,108,255,.25);
+
+    background:
+        rgba(155,108,255,.07);
+
+    color:#bda8ff;
+
+    font-size:11px;
+
+    margin-bottom:20px;
+}
+
+.hero h1{
+    font-size:
+        clamp(42px,7vw,76px);
+
+    line-height:.95;
+
+    letter-spacing:-4px;
+
+    font-weight:950;
+}
+
+.hero h1 span{
+    background:
+        linear-gradient(
+            90deg,
+            var(--yellow),
+            #ff8d61,
+            var(--purple)
+        );
+
+    -webkit-background-clip:text;
+    background-clip:text;
+
+    color:transparent;
+}
+
+.hero p{
+    max-width:600px;
+
+    margin:
+        20px auto 0;
+
+    color:var(--muted);
+
+    font-size:14px;
+
+    line-height:1.7;
+}
+
+
+/* =========================
+   UPLOAD CARD
+========================= */
+
+.upload-card{
+
+    position:relative;
+
+    padding:8px;
+
+    border-radius:25px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255,216,74,.5),
+            rgba(255,83,107,.25),
+            rgba(155,108,255,.45),
+            rgba(90,169,255,.3)
+        );
+
+    box-shadow:
+        0 30px 100px
+        rgba(0,0,0,.45);
+}
+
+.upload-inner{
+
+    min-height:350px;
+
+    display:grid;
+
+    place-items:center;
+
+    text-align:center;
+
+    border-radius:19px;
+
+    background:
+        radial-gradient(
+            circle at center,
+            rgba(155,108,255,.09),
+            transparent 55%
+        ),
+        #080b12;
+
+    border:
+        1px dashed
+        #30394c;
+
+    padding:35px;
+}
+
+.upload-icon{
+    width:76px;
+    height:76px;
+
+    display:grid;
+    place-items:center;
+
+    margin:auto;
+
+    border-radius:22px;
+
+    font-size:35px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(255,216,74,.15),
+            rgba(155,108,255,.15)
+        );
+
+    border:
+        1px solid
+        rgba(255,255,255,.08);
+}
+
+.upload-title{
+    margin-top:20px;
+
+    font-size:22px;
+
+    font-weight:850;
+}
+
+.upload-sub{
+    margin-top:8px;
+
+    color:var(--muted);
+
+    font-size:12px;
+}
+
+.choose-btn{
+
+    display:inline-block;
+
+    margin-top:22px;
+
+    padding:
+        13px 22px;
+
+    border-radius:12px;
+
+    color:#090a0d;
+
+    font-weight:900;
+
+    font-size:13px;
+
+    cursor:pointer;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--yellow),
+            #ff9d55
+        );
+
+    transition:.2s;
+}
+
+.choose-btn:hover{
+    transform:translateY(-2px);
+    box-shadow:
+        0 12px 30px
+        rgba(255,216,74,.15);
+}
+
+input[type=file]{
+    display:none;
+}
+
+
+/* =========================
+   PREVIEW
+========================= */
+
+.preview{
+    display:none;
+
+    margin-top:18px;
+}
+
+.preview video{
+    width:100%;
+
+    max-height:420px;
+
+    border-radius:15px;
+
+    background:#000;
+}
+
+
+/* =========================
+   SETTINGS
+========================= */
+
+.settings-card{
+
+    margin-top:18px;
+
+    padding:20px;
+
+    border:
+        1px solid var(--border);
+
+    border-radius:18px;
+
+    background:
+        rgba(12,15,22,.85);
+}
+
+.settings-title{
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    margin-bottom:17px;
+}
+
+.settings-title h2{
+    font-size:15px;
+}
+
+.settings-title span{
+    color:var(--muted);
+    font-size:11px;
+}
+
+.settings-grid{
+
+    display:grid;
+
+    grid-template-columns:
+        repeat(3,1fr);
+
+    gap:12px;
+}
+
+.setting{
+
+    padding:12px;
+
+    border:
+        1px solid var(--border);
+
+    border-radius:12px;
+
+    background:#090c13;
+}
+
+.setting label{
+
+    display:block;
+
+    margin-bottom:7px;
+
+    color:var(--muted);
+
+    font-size:10px;
+}
+
+.setting select{
+
+    width:100%;
+
+    border:0;
+
+    outline:0;
+
+    background:transparent;
+
+    color:white;
+
+    font-size:12px;
+}
+
+
+/* =========================
+   GENERATE
+========================= */
+
+.generate-wrap{
+
+    margin-top:20px;
+
+    text-align:center;
+}
+
+.generate{
+
+    width:100%;
+
+    padding:17px;
+
+    border:0;
+
+    border-radius:14px;
+
+    color:white;
+
+    font-size:15px;
+
+    font-weight:950;
+
+    letter-spacing:.2px;
+
+    cursor:pointer;
+
+    background:
+        linear-gradient(
+            100deg,
+            #4d9fff,
+            #816cff,
+            #bd63ff,
+            #ff5268
+        );
+
+    box-shadow:
+        0 18px 50px
+        rgba(128,108,255,.18);
+
+    transition:.25s;
+}
+
+.generate:hover{
+    transform:translateY(-2px);
+
+    box-shadow:
+        0 22px 60px
+        rgba(128,108,255,.28);
+}
+
+.generate:disabled{
+    opacity:.55;
+    cursor:not-allowed;
+}
+
+.generate-note{
+
+    margin-top:10px;
+
+    color:#687184;
+
+    font-size:10px;
+}
+
+
+/* =========================
+   PROCESS
+========================= */
+
+.process{
+
+    display:none;
+
+    margin-top:35px;
+
+    padding:25px;
+
+    border:
+        1px solid var(--border);
+
+    border-radius:20px;
+
+    background:
+        linear-gradient(
+            180deg,
+            #0d111a,
+            #090c13
+        );
+}
+
+.process-head{
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:space-between;
+
+    margin-bottom:24px;
+}
+
+.process-head h2{
+    font-size:17px;
+}
+
+.process-status{
+    color:var(--yellow);
+    font-size:11px;
+}
+
+.pipeline{
+
+    display:grid;
+
+    grid-template-columns:
+        repeat(8,1fr);
+
+    gap:7px;
+}
+
+.pipeline-item{
+
+    padding:13px 5px;
+
+    text-align:center;
+
+    border:
+        1px solid var(--border);
+
+    border-radius:11px;
+
+    background:#090c13;
+
+    transition:.25s;
+}
+
+.pipeline-item .pi{
+    font-size:19px;
+}
+
+.pipeline-item small{
+
+    display:block;
+
+    margin-top:5px;
+
+    color:#777f91;
+
+    font-size:9px;
+}
+
+.pipeline-item.active{
+
+    border-color:
+        rgba(90,169,255,.65);
+
+    background:
+        rgba(90,169,255,.07);
+
+    box-shadow:
+        0 0 25px
+        rgba(90,169,255,.08);
+}
+
+.pipeline-item.done{
+
+    border-color:
+        rgba(66,230,161,.4);
+
+    background:
+        rgba(66,230,161,.05);
+}
+
+
+/* =========================
+   RESULT
+========================= */
+
+.result{
+
+    display:none;
+
+    margin-top:20px;
+
+    padding:8px;
+
+    border-radius:22px;
+
+    background:
+        linear-gradient(
+            135deg,
+            var(--green),
+            var(--blue),
+            var(--purple)
+        );
+}
+
+.result-inner{
+
+    padding:28px;
+
+    border-radius:16px;
+
+    text-align:center;
+
+    background:#080b11;
+}
+
+.result-icon{
+    font-size:45px;
+}
+
+.result h2{
+    margin-top:10px;
+
+    font-size:21px;
+}
+
+.result p{
+
+    margin-top:7px;
+
+    color:var(--muted);
+
+    font-size:12px;
+}
+
+.result video{
+
+    display:none;
+
+    width:100%;
+
+    max-height:500px;
+
+    margin-top:20px;
+
+    border-radius:13px;
+
+    background:#000;
+}
+
+.download{
+
+    display:inline-block;
+
+    margin-top:18px;
+
+    padding:
+        12px 20px;
+
+    border:0;
+
+    border-radius:11px;
+
+    color:#07100c;
+
+    font-weight:900;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--green),
+            #9dffcf
+        );
+
+    cursor:pointer;
+}
+
+.download:disabled{
+    opacity:.4;
+    cursor:not-allowed;
+}
+
+
+/* =========================
+   SETTINGS MODAL
+========================= */
+
+.modal{
+
+    display:none;
+
+    position:fixed;
+
+    inset:0;
+
+    z-index:500;
+
+    align-items:center;
+    justify-content:center;
+
+    padding:20px;
+
+    background:
+        rgba(0,0,0,.72);
+
+    backdrop-filter:
+        blur(12px);
+}
+
+.modal-box{
+
+    width:min(450px,100%);
+
+    padding:23px;
+
+    border:
+        1px solid #293247;
+
+    border-radius:19px;
+
+    background:
+        #0d111a;
+
+    box-shadow:
+        0 30px 100px
+        rgba(0,0,0,.6);
+}
+
+.modal-head{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    margin-bottom:20px;
+}
+
+.modal-head h2{
+    font-size:17px;
+}
+
+.close{
+
+    width:32px;
+    height:32px;
+
+    border:1px solid var(--border);
+
+    border-radius:9px;
+
+    background:#111620;
+
+    color:white;
+
+    cursor:pointer;
+}
+
+.key-group{
+    margin-bottom:14px;
+}
+
+.key-group label{
+
+    display:block;
+
+    margin-bottom:6px;
+
+    color:var(--muted);
+
+    font-size:11px;
+}
+
+.key-group input{
+
+    width:100%;
+
+    padding:11px;
+
+    color:white;
+
+    background:#080b11;
+
+    border:
+        1px solid var(--border);
+
+    border-radius:10px;
+
+    outline:0;
+}
+
+.save-keys{
+
+    width:100%;
+
+    padding:11px;
+
+    border:0;
+
+    border-radius:10px;
+
+    color:#07100c;
+
+    font-weight:900;
+
+    background:
+        linear-gradient(
+            90deg,
+            var(--green),
+            #8effc9
+        );
+
+    cursor:pointer;
+}
+
+.key-status{
+
+    margin-top:9px;
+
+    color:var(--muted);
+
+    font-size:10px;
+
+    text-align:center;
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:900px){
+
+    .pipeline{
+        grid-template-columns:
+            repeat(4,1fr);
+    }
+
+    .settings-grid{
+        grid-template-columns:
+            1fr 1fr;
+    }
+}
+
+@media(max-width:600px){
+
+    .navbar{
+        padding:0 16px;
+    }
+
+    .container{
+        width:94%;
+        padding-top:45px;
+    }
+
+    .hero h1{
+        letter-spacing:-2px;
+    }
+
+    .settings-grid{
+        grid-template-columns:1fr;
+    }
+
+    .pipeline{
+        grid-template-columns:
+            repeat(2,1fr);
+    }
+
+    .upload-inner{
+        min-height:300px;
+    }
+}
+
 </style>
 </head>
+
+
 <body>
-<main class="wrap">
-<section class="hero"><div class="brand"><div class="logo">🎬</div><div><h1>YNT One Clips</h1><p>Movie → မြန်မာလို သဘာဝကျကျ Recap → Myanmar Voice → Final Video</p></div></div></section>
 
-<section class="card">
-  <div class="head"><div><h2>🎬 01 · Movie ရွေးပါ</h2><p>Movie file တစ်ခုရွေးပြီး စတင်ပါ။</p></div><span class="badge">UPLOAD</span></div>
-  <div class="drop" id="drop"><div class="dropIcon">📁</div><strong id="dropTitle">Movie ကို ဒီမှာရွေးပါ</strong><small>MP4, MOV, MKV, WEBM • အများဆုံး 500MB</small><input id="movie" type="file" accept="video/*,.mp4,.mov,.mkv,.webm,.avi" hidden></div>
-  <div class="fileInfo" id="fileInfo"></div>
-  <video class="preview" id="preview" controls></video>
+
+<!-- =========================
+     NAVBAR
+========================= -->
+
+<header class="navbar">
+
+    <div class="brand">
+
+        <div class="brand-mark">
+            Y
+        </div>
+
+        <div class="brand-name">
+            YNT One Clips
+        </div>
+
+    </div>
+
+
+    <button
+        class="settings-btn"
+        id="openSettings"
+        title="Settings"
+    >
+        ⚙️
+    </button>
+
+</header>
+
+
+
+<main class="container">
+
+
+<!-- =========================
+     HERO
+========================= -->
+
+<section class="hero">
+
+    <div class="hero-label">
+        ✦ AI MOVIE RECAP
+    </div>
+
+
+    <h1>
+        One Movie.
+        <br>
+        <span>One Clip.</span>
+    </h1>
+
+
+    <p>
+        Upload your movie and let YNT One Clips
+        automatically create a Myanmar movie recap.
+    </p>
+
 </section>
 
-<section class="card">
-  <div class="head"><div><h2>📝 02 · Recap ပုံစံရွေးပါ</h2><p>မသိရင် <b>သဘာဝကျကျ ဇာတ်လမ်းပြော</b> ကိုပဲထားပါ။</p></div><span class="badge">STYLE</span></div>
-  <div class="styles">
-    <div class="choice"><input checked type="radio" name="style" id="natural" value="natural"><label for="natural"><b>🗣️ သဘာဝကျကျ ဇာတ်လမ်းပြော</b><span>မြန်မာလူတစ်ယောက်က Movie ကို သူငယ်ချင်းကို ပြန်ပြောသလို။ အကောင်းဆုံး Default.</span></label></div>
-    <div class="choice"><input type="radio" name="style" id="suspense" value="suspense"><label for="suspense"><b>😮 Suspense</b><span>အရေးကြီးတဲ့ လျှို့ဝှက်ချက်နဲ့ အလှည့်အပြောင်းတွေကို စိတ်ဝင်စားအောင် ပြောမယ်။</span></label></div>
-    <div class="choice"><input type="radio" name="style" id="emotional" value="emotional"><label for="emotional"><b>❤️ Emotional</b><span>ဝမ်းနည်းမှု၊ ပျော်ရွှင်မှု၊ တင်းမာမှုတွေကို သဘာဝကျကျ အလေးပေးပြောမယ်။</span></label></div>
-    <div class="choice"><input type="radio" name="style" id="fast" value="fast"><label for="fast"><b>⚡ Fast Recap</b><span>မြန်မြန်ဆန်ဆန်နဲ့ အရေးကြီးတဲ့ ဇာတ်လမ်းအချက်တွေကိုပဲ ထိထိမိမိ ပြောမယ်။</span></label></div>
-    <div class="choice"><input type="radio" name="style" id="detailed" value="detailed"><label for="detailed"><b>🎞️ Detailed Story</b><span>ဇာတ်ကောင်ရဲ့ ရည်ရွယ်ချက်နဲ့ ဖြစ်ရပ်အကြောင်းအကျိုးကို ပိုရှင်းပြမယ်။</span></label></div>
-  </div>
+
+
+<!-- =========================
+     UPLOAD
+========================= -->
+
+<section class="upload-card">
+
+    <div class="upload-inner">
+
+        <div>
+
+            <div class="upload-icon">
+                🎬
+            </div>
+
+
+            <div class="upload-title"
+                 id="fileName">
+
+                Drop your movie here
+
+            </div>
+
+
+            <div class="upload-sub">
+
+                MP4 · MOV · MKV · WEBM
+
+            </div>
+
+
+            <label
+                for="movieFile"
+                class="choose-btn"
+            >
+
+                Choose Movie
+
+            </label>
+
+
+            <input
+                id="movieFile"
+                type="file"
+                accept="video/*"
+            >
+
+        </div>
+
+    </div>
+
 </section>
 
-<section class="card">
-  <div class="head"><div><h2>🎙️ 03 · Narrator</h2><p>အသံကောင်းပြီးသား Voice system ကို ဆက်သုံးထားပါတယ်။</p></div><span class="badge">VOICE</span></div>
-  <div class="row">
-    <div><label for="voice">အသံ</label><select id="voice" class="selectBox"><option value="female" selected>👩 Female — နူးညံ့ပြီး သဘာဝကျ</option><option value="male">👨 Male — တည်ငြိမ်ပြီး ရှင်းလင်း</option></select></div>
-    <div><label for="language">ဘာသာစကား</label><select id="language" class="selectBox"><option value="my" selected>🇲🇲 မြန်မာ</option><option value="en">🇬🇧 English</option></select></div>
-  </div>
+
+
+<!-- =========================
+     PREVIEW
+========================= -->
+
+<div
+    class="preview"
+    id="preview"
+>
+
+    <video
+        id="moviePreview"
+        controls
+    ></video>
+
+</div>
+
+
+
+<!-- =========================
+     RECAP SETTINGS
+========================= -->
+
+<section class="settings-card">
+
+    <div class="settings-title">
+
+        <h2>
+            ⚙️ Recap Settings
+        </h2>
+
+        <span>
+            Set once · Auto process
+        </span>
+
+    </div>
+
+
+    <div class="settings-grid">
+
+
+        <div class="setting">
+
+            <label>
+                LANGUAGE
+            </label>
+
+            <select
+                id="language"
+            >
+
+                <option>
+                    🇲🇲 Myanmar
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="setting">
+
+            <label>
+                STYLE
+            </label>
+
+            <select
+                id="style"
+            >
+
+                <option>
+                    Cinematic
+                </option>
+
+                <option>
+                    Fast Recap
+                </option>
+
+                <option>
+                    Detailed
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="setting">
+
+            <label>
+                VOICE
+            </label>
+
+            <select
+                id="voice"
+            >
+
+                <option>
+                    Myanmar Female
+                </option>
+
+                <option>
+                    Myanmar Male
+                </option>
+
+            </select>
+
+        </div>
+
+    </div>
+
 </section>
 
-<section class="card">
-  <button class="generate" id="generate">🎬 GENERATE ONE CLIP</button>
-  <div class="note">Story Event + Movie Shot ကို အစဉ်လိုက်ချိတ်ပြီး narration နဲ့ မူရင်း footage ကို synchronize လုပ်ပါတယ်။</div>
+
+
+<!-- =========================
+     GENERATE
+========================= -->
+
+<div class="generate-wrap">
+
+    <button
+        class="generate"
+        id="generate"
+    >
+
+        ✨ GENERATE ONE CLIP
+
+    </button>
+
+
+    <div class="generate-note">
+
+        Movie → Whisper → Gemini → Myanmar Voice → FFmpeg
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================
+     PROCESSING
+========================= -->
+
+<section
+    class="process"
+    id="process"
+>
+
+    <div class="process-head">
+
+        <h2>
+            Creating your One Clip
+        </h2>
+
+        <div
+            class="process-status"
+            id="processStatus"
+        >
+            Starting...
+        </div>
+
+    </div>
+
+
+    <div class="pipeline">
+
+
+        <div class="pipeline-item">
+            <div class="pi">🎬</div>
+            <small>Upload</small>
+        </div>
+
+
+        <div class="pipeline-item">
+            <div class="pi">🎙️</div>
+            <small>Whisper</small>
+        </div>
+
+
+        <div class="pipeline-item">
+            <div class="pi">📝</div>
+            <small>Transcript</small>
+        </div>
+
+
+        <div class="pipeline-item">
+            <div class="pi">🤖</div>
+            <small>Gemini</small>
+        </div>
+
+
+        <div class="pipeline-item">
+            <div class="pi">🇲🇲</div>
+            <small>Recap</small>
+        </div>
+
+
+        <div class="pipeline-item">
+            <div class="pi">🔊</div>
+            <small>Voice</small>
+        </div>
+
+
+        <div class="pipeline-item">
+            <div class="pi">🎥</div>
+            <small>FFmpeg</small>
+        </div>
+
+
+        <div class="pipeline-item">
+            <div class="pi">✓</div>
+            <small>Ready</small>
+        </div>
+
+
+    </div>
+
 </section>
 
-<section class="card progressCard" id="progressCard">
-  <div class="progressTop"><strong id="stageTitle">Processing...</strong><span class="pct" id="pct">0%</span></div>
-  <div class="barTrack"><div class="bar" id="bar"></div></div>
-  <div class="steps"><div class="step" data-stage="Upload">Upload</div><div class="step" data-stage="Transcript">Whisper</div><div class="step" data-stage="Recap">Recap</div><div class="step" data-stage="Voice">Voice</div><div class="step" data-stage="FFmpeg">Render</div></div>
-  <div class="message" id="message">စတင်ရန် ပြင်ဆင်နေပါတယ်...</div>
-  <div class="error" id="error"></div>
+
+
+<!-- =========================
+     RESULT
+========================= -->
+
+<section
+    class="result"
+    id="result"
+>
+
+    <div class="result-inner">
+
+        <div class="result-icon">
+            🎬
+        </div>
+
+
+        <h2>
+            Your One Clip is Ready
+        </h2>
+
+
+        <p>
+            Myanmar Movie Recap completed successfully.
+        </p>
+
+
+        <video
+            id="finalVideo"
+            controls
+        ></video>
+
+
+        <br>
+
+
+        <button
+            class="download"
+            id="download"
+            disabled
+        >
+
+            ⬇️ Download One Clip
+
+        </button>
+
+    </div>
+
 </section>
 
-<section class="card result" id="result">
-  <div class="head"><div><h2>🎉 Final Myanmar Movie Recap</h2><p>ပြီးပါပြီ။ Video ကို ကြည့်ပြီး Download လုပ်နိုင်ပါတယ်။</p></div><span class="badge">READY</span></div>
-  <video class="video" id="finalVideo" controls></video>
-  <a class="download" id="download" href="#">⬇️ Download Final Video</a>
-  <div class="summary" id="summary"></div>
-</section>
-<div class="footer">YNT One Clips • Whisper Timeline Sync • Groq Recap • Gemini TTS • FFmpeg</div>
+
 </main>
+
+
+
+<!-- =========================
+     SETTINGS MODAL
+========================= -->
+
+<div
+    class="modal"
+    id="settingsModal"
+>
+
+    <div class="modal-box">
+
+
+        <div class="modal-head">
+
+            <h2>
+                ⚙️ YNT One Clips Settings
+            </h2>
+
+
+            <button
+                class="close"
+                id="closeSettings"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="key-group">
+
+            <label>
+                GROQ API KEY
+            </label>
+
+            <input
+                id="groqKey"
+                type="password"
+                placeholder="gsk_..."
+            >
+
+        </div>
+
+
+        <div class="key-group">
+
+            <label>
+                GEMINI API KEY
+            </label>
+
+            <input
+                id="geminiKey"
+                type="password"
+                placeholder="AIza..."
+            >
+
+        </div>
+
+
+        <button
+            class="save-keys"
+            id="saveKeys"
+        >
+            Save API Keys
+        </button>
+
+
+        <div
+            class="key-status"
+            id="keyStatus"
+        >
+            API keys are stored locally in this browser.
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
 <script>
-const $=id=>document.getElementById(id);let selectedFile=null,jobId=null,pollTimer=null;
-const drop=$('drop'),movie=$('movie');
-drop.onclick=()=>movie.click();
-['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('drag')}));
-['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('drag')}));
-drop.addEventListener('drop',ev=>{const f=ev.dataTransfer.files?.[0];if(f){selectedFile=f;showFile()}});
-movie.onchange=()=>{selectedFile=movie.files?.[0]||null;showFile()};
-function showFile(){if(!selectedFile)return;$('dropTitle').textContent='Movie ရွေးပြီးပါပြီ';$('fileInfo').style.display='block';$('fileInfo').textContent=`🎥 ${selectedFile.name} • ${(selectedFile.size/1024/1024).toFixed(1)} MB`;$('preview').style.display='block';$('preview').src=URL.createObjectURL(selectedFile)}
-function getStyle(){return document.querySelector('input[name="style"]:checked')?.value||'natural'}
-function stageRank(s){return {Upload:1,Transcript:2,Recap:3,Voice:4,FFmpeg:5,Ready:6}[s]||0}
-function renderStatus(d){const p=Math.max(0,Math.min(100,Number(d.progress)||0));$('progressCard').style.display='block';$('pct').textContent=p+'%';$('bar').style.width=p+'%';$('stageTitle').textContent=d.stage==='Ready'?'ပြီးပါပြီ 🎉':(d.stage||'Processing');$('message').textContent=d.message||'';document.querySelectorAll('.step').forEach(el=>{el.classList.remove('active','done');const r=stageRank(el.dataset.stage),cur=stageRank(d.stage);if(r<cur)el.classList.add('done');else if(r===cur)el.classList.add('active')});if(d.error){$('error').style.display='block';$('error').textContent='❌ '+d.error} }
-async function poll(){if(!jobId)return;try{const r=await fetch('/api/status/'+encodeURIComponent(jobId),{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d?.error||'Status မဖတ်နိုင်ပါ');renderStatus(d);if(d.status==='completed'){clearInterval(pollTimer);$('result').style.display='block';$('finalVideo').src='/api/download/'+encodeURIComponent(jobId);$('download').href='/api/download/'+encodeURIComponent(jobId);$('summary').textContent=`Recap style: ${getStyle()} • ${d.scenePlan?.scenes||0} event-synchronized scenes`;$('result').scrollIntoView({behavior:'smooth',block:'start'});$('generate').disabled=false} else if(d.status==='error'){clearInterval(pollTimer);$('generate').disabled=false}}catch(e){clearInterval(pollTimer);$('error').style.display='block';$('error').textContent='❌ '+e.message;$('generate').disabled=false}}
-$('generate').onclick=async()=>{if(!selectedFile){$('progressCard').style.display='block';$('error').style.display='block';$('error').textContent='❌ အရင် Movie ရွေးပါ';return}if(selectedFile.size>500*1024*1024){$('progressCard').style.display='block';$('error').style.display='block';$('error').textContent='❌ Video က 500MB ထက် မကျော်ရပါ';return}$('generate').disabled=true;$('result').style.display='none';$('error').style.display='none';$('progressCard').style.display='block';renderStatus({stage:'Upload',progress:5,message:'Movie upload စတင်နေပါတယ်...'});const fd=new FormData();fd.append('movie',selectedFile);fd.append('language',$('language').value);fd.append('style',getStyle());fd.append('voice',$('voice').value);try{const r=await fetch('/api/one-clip',{method:'POST',body:fd});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error||'Movie processing မစနိုင်ပါ');jobId=d.jobId;if(!jobId)throw new Error('Job ID မရပါ');clearInterval(pollTimer);pollTimer=setInterval(poll,1800);await poll()}catch(e){$('error').style.display='block';$('error').textContent='❌ '+e.message;$('generate').disabled=false}};
+
+
+/* =========================
+   ELEMENTS
+========================= */
+
+const movieFile =
+    document.getElementById(
+        "movieFile"
+    );
+
+const fileName =
+    document.getElementById(
+        "fileName"
+    );
+
+const preview =
+    document.getElementById(
+        "preview"
+    );
+
+const moviePreview =
+    document.getElementById(
+        "moviePreview"
+    );
+
+const generate =
+    document.getElementById(
+        "generate"
+    );
+
+const processBox =
+    document.getElementById(
+        "process"
+    );
+
+const processStatus =
+    document.getElementById(
+        "processStatus"
+    );
+
+const pipeline =
+    [
+        ...document.querySelectorAll(
+            ".pipeline-item"
+        )
+    ];
+
+
+
+/* =========================
+   MOVIE SELECT
+========================= */
+
+movieFile.addEventListener(
+    "change",
+    function(){
+
+        const file =
+            this.files[0];
+
+        if(!file){
+            return;
+        }
+
+
+        fileName.textContent =
+            file.name;
+
+
+        moviePreview.src =
+            URL.createObjectURL(
+                file
+            );
+
+
+        preview.style.display =
+            "block";
+
+    }
+);
+
+
+
+/* =========================
+   SETTINGS MODAL
+========================= */
+
+const modal =
+    document.getElementById(
+        "settingsModal"
+    );
+
+
+document.getElementById(
+    "openSettings"
+).onclick =
+function(){
+
+    modal.style.display =
+        "flex";
+
+};
+
+
+document.getElementById(
+    "closeSettings"
+).onclick =
+function(){
+
+    modal.style.display =
+        "none";
+
+};
+
+
+modal.addEventListener(
+    "click",
+    function(e){
+
+        if(e.target === modal){
+
+            modal.style.display =
+                "none";
+
+        }
+
+    }
+);
+
+
+
+/* =========================
+   API KEYS
+========================= */
+
+const groqKey =
+    document.getElementById(
+        "groqKey"
+    );
+
+const geminiKey =
+    document.getElementById(
+        "geminiKey"
+    );
+
+
+groqKey.value =
+    localStorage.getItem(
+        "ynt_groq_key"
+    ) || "";
+
+
+geminiKey.value =
+    localStorage.getItem(
+        "ynt_gemini_key"
+    ) || "";
+
+
+if(
+    groqKey.value ||
+    geminiKey.value
+){
+
+    document.getElementById(
+        "keyStatus"
+    ).textContent =
+        "✓ Saved API keys loaded";
+
+}
+
+
+document.getElementById(
+    "saveKeys"
+).onclick =
+function(){
+
+    localStorage.setItem(
+        "ynt_groq_key",
+        groqKey.value
+    );
+
+
+    localStorage.setItem(
+        "ynt_gemini_key",
+        geminiKey.value
+    );
+
+
+    document.getElementById(
+        "keyStatus"
+    ).textContent =
+        "✓ API keys saved";
+
+};
+
+
+
+/* =========================
+   ONE CLICK WORKFLOW UI
+========================= */
+
+generate.onclick =
+function(){
+
+    if(!movieFile.files[0]){
+
+        alert(
+            "Please choose a movie first."
+        );
+
+        return;
+
+    }
+
+
+    generate.disabled =
+        true;
+
+
+    processBox.style.display =
+        "block";
+
+
+    processBox.scrollIntoView({
+        behavior:"smooth",
+        block:"center"
+    });
+
+
+    let current = 0;
+
+
+    const names =
+    [
+        "Uploading movie...",
+        "Groq Whisper...",
+        "Creating transcript...",
+        "Gemini is writing...",
+        "Myanmar recap script...",
+        "Generating Myanmar voice...",
+        "Rendering with FFmpeg...",
+        "One Clip ready!"
+    ];
+
+
+    const timer =
+        setInterval(
+        function(){
+
+            pipeline.forEach(
+                (item,index)=>{
+
+                    item.classList.remove(
+                        "active",
+                        "done"
+                    );
+
+
+                    if(index < current){
+
+                        item.classList.add(
+                            "done"
+                        );
+
+                    }
+
+
+                    if(index === current){
+
+                        item.classList.add(
+                            "active"
+                        );
+
+                    }
+
+                }
+            );
+
+
+            processStatus.textContent =
+                names[current];
+
+
+            if(current >= 7){
+
+                clearInterval(timer);
+
+
+                pipeline.forEach(
+                    item=>{
+
+                        item.classList.remove(
+                            "active"
+                        );
+
+                        item.classList.add(
+                            "done"
+                        );
+
+                    }
+                );
+
+
+                processStatus.textContent =
+                    "✓ Complete";
+
+
+                document.getElementById(
+                    "result"
+                ).style.display =
+                    "block";
+
+
+                document.getElementById(
+                    "result"
+                ).scrollIntoView({
+                    behavior:"smooth"
+                });
+
+
+                generate.disabled =
+                    false;
+
+
+                return;
+
+            }
+
+
+            current++;
+
+        },
+        800
+        );
+
+};
+
+
 </script>
-</body></html>
+
+</body>
+</html>
