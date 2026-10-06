@@ -9,6 +9,7 @@ import { promisify } from "util";
 import Groq from "groq-sdk";
 import { GoogleGenAI } from "@google/genai";
 import pg from "pg";
+import { EdgeTTS } from "node-edge-tts";
 
 const { Pool } = pg;
 
@@ -56,7 +57,13 @@ for (const dir of [
 
 const GROQ_MODEL = "whisper-large-v3-turbo";
 const GEMINI_MODEL = "gemini-3.8-flash";
-const GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts";
+const EDGE_TTS_DEFAULT_VOICE = "my-MM-NilarNeural";
+const EDGE_TTS_VOICES = {
+  female: "my-MM-NilarNeural",
+  male: "my-MM-ThihaNeural",
+  nilar: "my-MM-NilarNeural",
+  thiha: "my-MM-ThihaNeural"
+};
 
 /* =========================================================
    SETTINGS
@@ -1499,69 +1506,27 @@ ${timeline}
 }
 
 /* =========================================================
-   TTS VOICE
+   MICROSOFT EDGE TTS VOICE
 ========================================================= */
 
-function resolveVoice(voice) {
-  if (voice === "male") {
-    return "Puck";
-  }
+function resolveEdgeVoice(voice) {
+  const key = String(voice || "female").trim().toLowerCase();
+  return EDGE_TTS_VOICES[key] || EDGE_TTS_DEFAULT_VOICE;
+}
 
-  if (voice === "female") {
-    return "Kore";
-  }
-
-  const allowed = [
-    "Zephyr",
-    "Puck",
-    "Charon",
-    "Kore",
-    "Fenrir",
-    "Leda",
-    "Orus",
-    "Aoede",
-    "Callirrhoe",
-    "Autonoe",
-    "Enceladus",
-    "Iapetus",
-    "Umbriel",
-    "Algieba",
-    "Despina",
-    "Erinome",
-    "Algenib",
-    "Rasalgethi",
-    "Laomedeia",
-    "Achernar",
-    "Alnilam",
-    "Schedar",
-    "Gacrux",
-    "Pulcherrima",
-    "Achird",
-    "Zubenelgenubi",
-    "Vindemiatrix",
-    "Sadachbia",
-    "Sadaltager",
-    "Sulafat"
-  ];
-
-  if (allowed.includes(voice)) {
-    return voice;
-  }
-
-  return "Kore";
+function resolveEdgeRate(rate) {
+  const value = Number(rate);
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(0.7, Math.min(1.3, value));
 }
 
 /* =========================================================
-   TTS
+   MICROSOFT EDGE TTS
 ========================================================= */
 
-async function generateFullTTS(
-  ai,
-  scenes,
-  outputPath,
-  voice
-) {
-  const actualVoice = resolveVoice(voice);
+async function generateFullTTS(scenes, outputPath, voice, rate = 1) {
+  const actualVoice = resolveEdgeVoice(voice);
+  const actualRate = resolveEdgeRate(rate);
   const narrations = scenes.map(scene => String(scene.narration || "").trim());
 
   if (narrations.some(text => !text)) {
@@ -1572,31 +1537,29 @@ async function generateFullTTS(
   const fullText = narrations.join(" ").trim();
   if (!fullText) throw new Error("No narration text was available for TTS.");
 
-  const response = await callGeminiWithRetry(
-    "Full Recap TTS",
-    () => ai.models.generateContent({
-      model: GEMINI_TTS_MODEL,
-      contents: [{
-        role: "user",
-        parts: [{
-          text: fullText,
-          speech_metadata: {
-            style: "Natural cinematic movie recap narration. Clear Burmese pronunciation, smooth natural pacing, emotional but controlled storyteller voice. Speak continuously as one natural movie recap."
-          }
-        }]
-      }],
-      config: {
-        responseModalities: ["AUDIO"],
-        speechConfig: { voiceConfig: { voice: actualVoice } }
-      }
-    })
-  );
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 
-  const base64 = response?.candidates?.[0]?.content?.parts?.find(part => part?.inlineData?.data)?.inlineData?.data;
-  if (!base64) throw new Error("Gemini returned no full narration audio.");
+  const ratePercent = Math.round((actualRate - 1) * 100);
+  const tts = new EdgeTTS({
+    voice: actualVoice,
+    lang: "my-MM",
+    outputFormat: "audio-24khz-48kbitrate-mono-mp3",
+    saveSubtitles: false,
+    rate: `${ratePercent >= 0 ? "+" : ""}${ratePercent}%`,
+    timeout: 30000
+  });
 
-  fs.writeFileSync(outputPath, Buffer.from(base64, "base64"));
-  if (fs.statSync(outputPath).size < 100) throw new Error("Generated full narration audio is invalid.");
+  await tts.ttsPromise(fullText, outputPath);
+
+  if (!fs.existsSync(outputPath)) {
+    throw new Error("Microsoft Edge TTS did not return an audio file.");
+  }
+
+  if (fs.statSync(outputPath).size < 100) {
+    throw new Error("Generated Edge TTS audio is invalid.");
+  }
+
+  console.log(`[EDGE TTS] voice=${actualVoice} rate=${actualRate}`);
   return outputPath;
 }
 
@@ -1917,18 +1880,18 @@ async function renderSceneSyncVideo(
   moviePath,
   scenePlan,
   voice,
-  jobFolder
+  jobFolder,
+  voiceRate = 1
 ) {
-  const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
   const sceneDir = path.join(jobFolder, "scenes");
   fs.mkdirSync(sceneDir, { recursive: true });
 
-  const fullTTS = path.join(sceneDir, "full-narration.wav");
+  const fullTTS = path.join(sceneDir, "full-narration.mp3");
 
-  updateJob(jobId, { stage: "Voice", progress: 65, message: "Generating one continuous narration voice..." });
+  updateJob(jobId, { stage: "Voice", progress: 65, message: "Microsoft Edge TTS နဲ့ Myanmar narration ထုတ်နေပါတယ်..." });
 
-  // ONE Gemini TTS request for the entire recap.
-  await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice);
+  // ONE continuous Edge TTS request for the entire recap. Gemini TTS is not used.
+  await generateFullTTS(scenePlan.scenes, fullTTS, voice, voiceRate);
 
   const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
   const renderedScenes = [];
@@ -1976,7 +1939,8 @@ async function processOneClip(
   moviePath,
   language,
   style,
-  voice
+  voice,
+  voiceRate = 1
 ) {
   try {
     const jobFolder =
@@ -2151,7 +2115,8 @@ async function processOneClip(
         moviePath,
         scenePlan,
         voice,
-        jobFolder
+        jobFolder,
+        voiceRate
       );
 
     /* -----------------------------------------
@@ -2237,7 +2202,7 @@ app.get(
       models: {
         whisper: GROQ_MODEL,
         recap: GEMINI_MODEL,
-        tts: GEMINI_TTS_MODEL
+        tts: "Microsoft Edge TTS"
       },
 
       sceneSync: true,
@@ -2408,6 +2373,9 @@ app.post(
         req.body?.voice ||
         "female";
 
+      const voiceRate =
+        Number(req.body?.voiceRate || 1);
+
 
       updateJob(job.id, {
         originalFilename: originalName,
@@ -2466,7 +2434,8 @@ app.post(
           moviePath,
           language,
           style,
-          voice
+          voice,
+          voiceRate
         ).catch(error => {
           console.error(
             `[JOB ${job.id}] UNHANDLED ERROR:`,
@@ -2593,7 +2562,7 @@ async function startServer() {
         );
 
         console.log(
-          `Gemini TTS: ${GEMINI_TTS_MODEL}`
+          "Microsoft Edge TTS: my-MM-NilarNeural / my-MM-ThihaNeural"
         );
 
         console.log(
