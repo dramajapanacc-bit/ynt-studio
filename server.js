@@ -7,7 +7,6 @@ import crypto from "crypto";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import Groq from "groq-sdk";
-import { GoogleGenAI } from "@google/genai";
 import pg from "pg";
 import { EdgeTTS } from "node-edge-tts";
 
@@ -56,7 +55,8 @@ for (const dir of [
 ========================================================= */
 
 const GROQ_MODEL = "whisper-large-v3-turbo";
-const GEMINI_MODEL = "gemini-3.8-flash";
+const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "qwen/qwen3.6-27b";
+const GROQ_SCRIPT_MODEL = process.env.GROQ_SCRIPT_MODEL || "qwen/qwen3.6-27b";
 const EDGE_TTS_DEFAULT_VOICE = "my-MM-NilarNeural";
 const EDGE_TTS_VOICES = {
   female: "my-MM-NilarNeural",
@@ -75,11 +75,10 @@ const MAX_SCENES = 18;
 const MIN_SCENE_SECONDS = 3;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 
-const GEMINI_MAX_RETRIES = 0;
-const GEMINI_INITIAL_RETRY_DELAY = 0;
-const GEMINI_PROCESSING_MODE = "agentic";
+const GROQ_AI_MAX_RETRIES = 1;
+const GROQ_AI_INITIAL_RETRY_DELAY = 1000;
 const LOCAL_SCENE_THRESHOLD = 0.30;
-const VISUAL_FRAMES_PER_SCENE = 2;
+const VISUAL_FRAMES_PER_SCENE = 1;
 const VISUAL_FRAME_WIDTH = 384;
 const VISUAL_FRAME_QUALITY = 7;
 
@@ -443,463 +442,6 @@ function sleep(ms) {
 }
 
 /* =========================================================
-   GEMINI RETRY
-========================================================= */
-
-function getGeminiErrorStatus(error) {
-  const values = [
-    error?.status,
-    error?.code,
-    error?.response?.status,
-    error?.error?.status,
-    error?.error?.code,
-    error?.cause?.status,
-    error?.cause?.code
-  ];
-
-  for (const value of values) {
-    const number = Number(value);
-
-    if (Number.isFinite(number)) {
-      return number;
-    }
-  }
-
-  const message = String(
-    error?.message ||
-    error ||
-    ""
-  );
-
-  const match = message.match(
-    /\b(429|500|502|503|504)\b/
-  );
-
-  return match ? Number(match[1]) : null;
-}
-
-function isRetryableGeminiError(error) {
-  const status = getGeminiErrorStatus(error);
-
-  return [
-    429,
-    500,
-    502,
-    503,
-    504
-  ].includes(status);
-}
-
-async function callGeminiWithRetry(
-  operationName,
-  operation
-) {
-  let lastError = null;
-
-  for (
-    let attempt = 0;
-    attempt <= GEMINI_MAX_RETRIES;
-    attempt++
-  ) {
-    try {
-      if (attempt > 0) {
-        const baseDelay =
-          GEMINI_INITIAL_RETRY_DELAY *
-          Math.pow(2, attempt - 1);
-
-        const jitter =
-          Math.floor(Math.random() * 1000);
-
-        const wait = Math.min(
-          baseDelay + jitter,
-          30000
-        );
-
-        console.log(
-          `[GEMINI RETRY] ${operationName} ${attempt}/${GEMINI_MAX_RETRIES} waiting ${wait}ms`
-        );
-
-        await sleep(wait);
-      }
-
-      console.log(
-        `[GEMINI] ${operationName} attempt ${
-          attempt + 1
-        }/${GEMINI_MAX_RETRIES + 1}`
-      );
-
-      return await operation();
-
-    } catch (error) {
-      lastError = error;
-
-      const status =
-        getGeminiErrorStatus(error);
-
-      console.error(
-        `[GEMINI ERROR] ${operationName}`,
-        status || "",
-        error?.message || error
-      );
-
-      if (!isRetryableGeminiError(error)) {
-        throw error;
-      }
-
-      if (attempt >= GEMINI_MAX_RETRIES) {
-        break;
-      }
-    }
-  }
-
-  const status =
-    getGeminiErrorStatus(lastError);
-
-  throw new Error(
-    `Gemini ${operationName} failed after ${
-      GEMINI_MAX_RETRIES + 1
-    } attempts${
-      status ? ` (HTTP ${status})` : ""
-    }. ${
-      lastError?.message ||
-      "Temporary Gemini API error."
-    }`
-  );
-}
-
-/* =========================================================
-   VIDEO DURATION
-========================================================= */
-
-async function getVideoDuration(videoPath) {
-  const result = await runCommand(
-    "ffprobe",
-    [
-      "-v",
-      "error",
-      "-show_entries",
-      "format=duration",
-      "-of",
-      "default=noprint_wrappers=1:nokey=1",
-      videoPath
-    ]
-  );
-
-  const duration = Number(
-    result.stdout.trim()
-  );
-
-  if (!Number.isFinite(duration)) {
-    throw new Error(
-      "Unable to read video duration."
-    );
-  }
-
-  return duration;
-}
-
-/* =========================================================
-   EXTRACT AUDIO
-========================================================= */
-
-async function extractAudio(
-  videoPath,
-  outputPath
-) {
-  await runCommand(
-    "ffmpeg",
-    [
-      "-y",
-      "-i",
-      videoPath,
-      "-vn",
-      "-map",
-      "0:a:0",
-      "-ac",
-      "1",
-      "-ar",
-      "16000",
-      "-b:a",
-      "64k",
-      "-c:a",
-      "libmp3lame",
-      outputPath
-    ]
-  );
-}
-
-/* =========================================================
-   SPLIT AUDIO
-========================================================= */
-
-async function splitAudio(
-  audioPath,
-  outputDir
-) {
-  fs.mkdirSync(outputDir, {
-    recursive: true
-  });
-
-  await runCommand(
-    "ffmpeg",
-    [
-      "-y",
-      "-i",
-      audioPath,
-      "-f",
-      "segment",
-      "-segment_time",
-      String(AUDIO_CHUNK_SECONDS),
-      "-reset_timestamps",
-      "1",
-      "-c",
-      "copy",
-      path.join(
-        outputDir,
-        "chunk-%04d.mp3"
-      )
-    ]
-  );
-
-  const files = fs
-    .readdirSync(outputDir)
-    .filter(
-      file =>
-        file.startsWith("chunk-") &&
-        file.endsWith(".mp3")
-    )
-    .sort();
-
-  if (!files.length) {
-    throw new Error(
-      "FFmpeg could not create audio chunks."
-    );
-  }
-
-  return files.map(file =>
-    path.join(outputDir, file)
-  );
-}
-
-/* =========================================================
-   GROQ WHISPER
-========================================================= */
-
-async function transcribeChunk(
-  groq,
-  audioPath,
-  chunkIndex
-) {
-  const file =
-    fs.createReadStream(audioPath);
-
-  const response =
-    await groq.audio.transcriptions.create({
-      file,
-      model: GROQ_MODEL,
-      response_format: "verbose_json",
-      timestamp_granularities: [
-        "segment"
-      ],
-      temperature: 0
-    });
-
-  const offset =
-    chunkIndex *
-    AUDIO_CHUNK_SECONDS;
-
-  const segments =
-    Array.isArray(response.segments)
-      ? response.segments
-      : [];
-
-  return {
-    text: response.text || "",
-
-    segments: segments.map(segment => ({
-      start:
-        Number(segment.start || 0) +
-        offset,
-
-      end:
-        Number(segment.end || 0) +
-        offset,
-
-      text: String(
-        segment.text || ""
-      ).trim()
-    }))
-  };
-}
-
-async function transcribeMovie(
-  jobId,
-  audioChunks
-) {
-  const groq = new Groq({
-    apiKey: requireEnv(
-      "GROQ_API_KEY"
-    )
-  });
-
-  const allSegments = [];
-  const allTexts = [];
-
-  for (
-    let i = 0;
-    i < audioChunks.length;
-    i++
-  ) {
-    const progress =
-      15 +
-      Math.round(
-        (i / audioChunks.length) *
-        35
-      );
-
-    updateJob(jobId, {
-      stage: "Whisper",
-      progress,
-      message:
-        `Groq Whisper: ${
-          i + 1
-        } / ${
-          audioChunks.length
-        }`
-    });
-
-    const result =
-      await transcribeChunk(
-        groq,
-        audioChunks[i],
-        i
-      );
-
-    if (result.text) {
-      allTexts.push(result.text);
-    }
-
-    allSegments.push(
-      ...result.segments
-    );
-  }
-
-  allSegments.sort(
-    (a, b) =>
-      a.start - b.start
-  );
-
-  return {
-    text: allTexts
-      .join(" ")
-      .trim(),
-
-    segments: allSegments
-  };
-}
-
-/* =========================================================
-   TRANSCRIPT TIMELINE
-========================================================= */
-
-function buildTranscriptTimeline(
-  segments
-) {
-  if (!Array.isArray(segments)) {
-    return "";
-  }
-
-  return segments
-    .map(
-      (segment, index) =>
-        `SEGMENT ${index}: [${
-          segment.start.toFixed(2)
-        }s - ${
-          segment.end.toFixed(2)
-        }s] ${segment.text}`
-    )
-    .join("\n");
-}
-
-/* =========================================================
-   GEMINI VIDEO UPLOAD
-========================================================= */
-
-async function uploadVideoToGemini(
-  ai,
-  videoPath
-) {
-  const extension =
-    path.extname(videoPath)
-      .toLowerCase();
-
-  let mimeType = "video/mp4";
-
-  if (extension === ".webm") {
-    mimeType = "video/webm";
-  } else if (extension === ".mov") {
-    mimeType = "video/mov";
-  } else if (extension === ".avi") {
-    mimeType = "video/avi";
-  } else if (extension === ".mkv") {
-    mimeType = "video/x-matroska";
-  }
-
-  console.log(
-    `[GEMINI VIDEO] Uploading ${videoPath}`
-  );
-
-  const file =
-    await ai.files.upload({
-      file: videoPath,
-      config: {
-        mimeType
-      }
-    });
-
-  let current = file;
-
-  while (
-    current?.state === "PROCESSING"
-  ) {
-    console.log(
-      "[GEMINI VIDEO] Processing..."
-    );
-
-    await sleep(3000);
-
-    current =
-      await ai.files.get({
-        name: file.name
-      });
-  }
-
-  if (
-    current?.state === "FAILED"
-  ) {
-    throw new Error(
-      "Gemini failed to process the movie video."
-    );
-  }
-
-  if (
-    current?.state !== "ACTIVE"
-  ) {
-    throw new Error(
-      `Gemini video is not ready. State: ${
-        current?.state || "unknown"
-      }`
-    );
-  }
-
-  console.log(
-    "[GEMINI VIDEO] ACTIVE"
-  );
-
-  return current;
-}
-
-/* =========================================================
    SCENE SCHEMA
 ========================================================= */
 
@@ -955,52 +497,6 @@ const scenePlanSchema = {
    JSON PARSER
 ========================================================= */
 
-function parseGeminiJSON(text) {
-  let clean =
-    String(text || "").trim();
-
-  clean = clean.replace(
-    /^```json\s*/i,
-    ""
-  );
-
-  clean = clean.replace(
-    /^```\s*/i,
-    ""
-  );
-
-  clean = clean.replace(
-    /\s*```$/i,
-    ""
-  );
-
-  try {
-    return JSON.parse(clean);
-  } catch {
-    const first =
-      clean.indexOf("{");
-
-    const last =
-      clean.lastIndexOf("}");
-
-    if (
-      first >= 0 &&
-      last > first
-    ) {
-      return JSON.parse(
-        clean.slice(
-          first,
-          last + 1
-        )
-      );
-    }
-
-    throw new Error(
-      "Gemini returned invalid scene JSON."
-    );
-  }
-}
-
 /* =========================================================
    NORMALIZE SCENES
 ========================================================= */
@@ -1011,7 +507,7 @@ function normalizeScenes(
 ) {
   if (!Array.isArray(rawScenes)) {
     throw new Error(
-      "Gemini did not return a scene list."
+      "AI did not return a scene list."
     );
   }
 
@@ -1053,7 +549,7 @@ function normalizeScenes(
 
   if (!scenes.length) {
     throw new Error(
-      "No usable scenes were returned by Gemini."
+      "No usable scenes were returned by Groq AI."
     );
   }
 
@@ -1308,8 +804,8 @@ function normalizeScenes(
 /* =========================================================
    LOCAL SCENE DETECTION
 
-   FFmpeg detects candidate visual cuts locally. This does NOT call Gemini.
-   Gemini receives these candidates as guidance and performs the actual
+   FFmpeg detects candidate visual cuts locally. This does NOT call Groq AI.
+   Groq AI receives these candidates as guidance and performs the actual
    story/visual understanding in ONE interaction per movie.
 ========================================================= */
 
@@ -1387,7 +883,7 @@ async function detectLocalSceneBoundaries(moviePath, duration) {
    LOCAL VISUAL FRAME EXTRACTION
 
    Two representative JPEG frames are extracted locally for each
-   scene interval. Gemini receives these frames + Whisper timestamps
+   scene interval. Groq AI receives these frames + Whisper timestamps
    in ONE multimodal request, instead of receiving the full movie.
 ========================================================= */
 
@@ -1466,213 +962,190 @@ async function extractSceneFrames(moviePath, sceneCandidates, jobFolder) {
 }
 
 /* =========================================================
-   GEMINI SCENE PLAN
+   GROQ AI HELPERS
 ========================================================= */
 
-async function generateScenePlan(
-  jobId,
-  moviePath,
-  duration,
-  transcript,
-  language = "my",
-  style = "cinematic"
-) {
-  const ai = new GoogleGenAI({
-    apiKey: requireEnv("GEMINI_API_KEY")
-  });
-
-  updateJob(jobId, {
-    stage: "Visual + Recap",
-    progress: 55,
-    message:
-      "Local scene detection + visual frames are being prepared..."
-  });
-
-  const timeline = buildTranscriptTimeline(
-    transcript.segments
-  );
-
-  const localSceneCandidates = await detectLocalSceneBoundaries(
-    moviePath,
-    duration
-  );
-
-  const visualSceneData = await extractSceneFrames(
-    moviePath,
-    localSceneCandidates,
-    path.dirname(moviePath)
-  );
-
-  updateJob(jobId, {
-    stage: "Visual + Recap",
-    progress: 58,
-    message:
-      `Sending ${visualSceneData.length} scenes + visual frames + Whisper timeline to Gemini...`
-  });
-
-  const candidateTimeline = visualSceneData
-    .map(scene =>
-      `${scene.index}. ${scene.start_sec.toFixed(2)}s - ${scene.end_sec.toFixed(2)}s | frames: ${scene.frames.map(frame => frame.offset_sec.toFixed(2) + "s").join(", ")}`
-    )
-    .join("\n");
-
-  let languageInstruction =
-    "Write natural spoken Myanmar (Burmese).";
-
-  if (language === "en") {
-    languageInstruction =
-      "Write natural spoken English.";
+function getGroqErrorStatus(error) {
+  const values = [
+    error?.status, error?.code, error?.response?.status,
+    error?.error?.status, error?.error?.code, error?.cause?.status
+  ];
+  for (const value of values) {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
   }
-
-  let styleInstruction =
-    "Use cinematic movie recap narration.";
-
-  if (style === "fast" || style === "short") {
-    styleInstruction =
-      "Use concise and fast-paced movie recap narration.";
-  }
-
-  if (style === "suspense" || style === "storytelling") {
-    styleInstruction =
-      "Use smooth storytelling with suspense, mystery, reveals, and emotional flow.";
-  }
-
-  if (style === "detailed") {
-    styleInstruction =
-      "Use detailed but natural movie recap narration with clear cause-and-effect.";
-  }
-
-  const prompt = `
-You are the RECAP SCRIPT WRITER for a movie recap system.
-
-IMPORTANT ARCHITECTURE:
-- Scene boundaries are detected locally by FFmpeg.
-- Two representative frames are extracted locally from each scene interval.
-- The original dialogue/transcript comes from Groq Whisper with timestamps.
-- You CAN see the supplied scene frames in this request.
-- Your job is to combine visual evidence + dialogue evidence into a synchronized recap script.
-- You do NOT need the full movie file because the scene frames represent the local timeline.
-
-The final video renderer will place each narration over the corresponding
-locally detected scene interval.
-
-RULES:
-1. Use the supplied scene frames as visual evidence for what is happening on screen.
-2. Use the supplied Whisper timeline as dialogue/audio evidence.
-3. Do not invent events, characters, dialogue, locations, or actions that are unsupported by either source.
-4. When visual and transcript evidence disagree, prefer what can be directly supported and keep the narration general.
-5. Keep the narration synchronized with the supplied scene time ranges.
-6. Keep scenes chronological.
-7. Do not overlap scenes.
-8. Do not create timestamps outside 0 to ${duration.toFixed(2)} seconds.
-9. Prefer the supplied local scene boundaries exactly.
-10. Create approximately 8 to ${MAX_SCENES} recap scenes when enough candidates exist.
-11. Keep the most important visual events, dialogue-driven events, major reveals, and ending.
-12. Remove meaningless filler and repetitive dialogue.
-13. Make the narration natural when spoken aloud.
-14. Narration length must be reasonable for its scene duration.
-15. Do not use Markdown.
-16. Do not use headings inside narration.
-17. Do not mention AI, Gemini, Whisper, FFmpeg, frames, or this instruction.
-18. The narration should explain the movie clearly, not simply repeat every line of dialogue.
-19. Return ONLY JSON.
-
-LANGUAGE:
-${languageInstruction}
-
-STYLE:
-${styleInstruction}
-
-JSON FORMAT:
-{
-  "scenes": [
-    {
-      "start_sec": 0,
-      "end_sec": 8,
-      "visual_summary": "Local scene interval used for the recap.",
-      "event_summary": "Story event supported by the transcript.",
-      "narration": "Natural recap narration."
-    }
-  ]
+  const match = String(error?.message || error || "").match(/\b(400|401|403|408|409|429|500|502|503|504)\b/);
+  return match ? Number(match[1]) : null;
 }
 
-LOCAL SCENE TIMELINE:
+function isRetryableGroqError(error) {
+  return [408, 409, 429, 500, 502, 503, 504].includes(getGroqErrorStatus(error));
+}
+
+async function callGroqWithRetry(operationName, operation) {
+  let lastError;
+  for (let attempt = 0; attempt <= GROQ_AI_MAX_RETRIES; attempt++) {
+    try {
+      if (attempt > 0) {
+        const wait = GROQ_AI_INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
+        console.log(`[GROQ AI RETRY] ${operationName} waiting ${wait}ms`);
+        await sleep(wait);
+      }
+      console.log(`[GROQ AI] ${operationName} attempt ${attempt + 1}/${GROQ_AI_MAX_RETRIES + 1}`);
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      console.error(`[GROQ AI ERROR] ${operationName}`, getGroqErrorStatus(error) || "", error?.message || error);
+      if (!isRetryableGroqError(error) || attempt >= GROQ_AI_MAX_RETRIES) break;
+    }
+  }
+  const status = getGroqErrorStatus(lastError);
+  throw new Error(`Groq ${operationName} failed after ${GROQ_AI_MAX_RETRIES + 1} attempts${status ? ` (HTTP ${status})` : ""}. ${lastError?.message || "Groq API error."}`);
+}
+
+function parseAIJSON(text) {
+  let clean = String(text || "").trim();
+  clean = clean.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
+  try { return JSON.parse(clean); } catch {
+    const first = clean.indexOf("{");
+    const last = clean.lastIndexOf("}");
+    if (first >= 0 && last > first) return JSON.parse(clean.slice(first, last + 1));
+    throw new Error("Groq AI returned invalid JSON.");
+  }
+}
+
+/* =========================================================
+   GROQ VISUAL + AUDIO SCENE PLAN
+
+   FFmpeg finds local scene boundaries. Groq Whisper provides
+   timestamped dialogue. Groq Qwen vision reads representative
+   frames (max 5 images/request) and a final text request writes
+   the synchronized Myanmar recap script. Groq AI is not used.
+========================================================= */
+
+async function analyzeVisualBatches(jobId, visualSceneData, groq) {
+  const evidence = new Map();
+  const batchSize = 5;
+
+  for (let offset = 0; offset < visualSceneData.length; offset += batchSize) {
+    const batch = visualSceneData.slice(offset, offset + batchSize);
+    const content = [{
+      type: "text",
+      text: `Analyze these movie scene frames. Each image is labeled with a scene number and timestamp. Return ONLY JSON in this exact shape: {"scenes":[{"index":1,"visual_summary":"...","important_event":"..."}]}. Use only visible evidence. Do not invent dialogue, identities, motives, or events. Keep each summary concise and factual.\n\nSCENES:\n${batch.map(s => `Scene ${s.index}: ${s.start_sec.toFixed(2)}-${s.end_sec.toFixed(2)} seconds`).join("\n")}`
+    }];
+
+    for (const scene of batch) {
+      const frame = scene.frames[0];
+      content.push({ type: "image_url", image_url: { url: `data:${frame.mime_type};base64,${frame.data}` } });
+    }
+
+    updateJob(jobId, {
+      stage: "Visual Analysis",
+      progress: 55 + Math.round((offset / Math.max(1, visualSceneData.length)) * 8),
+      message: `Groq visual analysis: scenes ${batch[0].index}-${batch[batch.length - 1].index}...`
+    });
+
+    const response = await callGroqWithRetry(`Visual Analysis ${batch[0].index}-${batch[batch.length - 1].index}`, () =>
+      groq.chat.completions.create({
+        model: GROQ_VISION_MODEL,
+        messages: [{ role: "user", content }],
+        temperature: 0.2,
+        max_completion_tokens: 1600,
+        response_format: { type: "json_object" }
+      })
+    );
+
+    const parsed = parseAIJSON(response.choices?.[0]?.message?.content || "");
+    for (const item of (parsed.scenes || [])) {
+      const index = Number(item.index);
+      if (Number.isFinite(index)) {
+        evidence.set(index, {
+          visual_summary: String(item.visual_summary || "").trim(),
+          important_event: String(item.important_event || "").trim()
+        });
+      }
+    }
+  }
+
+  return evidence;
+}
+
+async function generateScenePlan(jobId, moviePath, duration, transcript, language = "my", style = "natural") {
+  const groq = new Groq({ apiKey: requireEnv("GROQ_API_KEY") });
+
+  updateJob(jobId, { stage: "Visual Analysis", progress: 54, message: "FFmpeg scene detection + visual frames are being prepared..." });
+
+  const timeline = buildTranscriptTimeline(transcript.segments);
+  const localSceneCandidates = await detectLocalSceneBoundaries(moviePath, duration);
+  const visualSceneData = await extractSceneFrames(moviePath, localSceneCandidates, path.dirname(moviePath));
+  const visualEvidence = await analyzeVisualBatches(jobId, visualSceneData, groq);
+
+  const candidateTimeline = visualSceneData.map(scene => {
+    const ev = visualEvidence.get(scene.index) || {};
+    return `${scene.index}. ${scene.start_sec.toFixed(2)}s - ${scene.end_sec.toFixed(2)}s | visual: ${ev.visual_summary || "No reliable visual description"} | visible_event: ${ev.important_event || "No reliable event description"}`;
+  }).join("\n");
+
+  let languageInstruction = language === "en" ? "Write natural spoken English." : "Write natural spoken Myanmar (Burmese).";
+  let styleInstruction = "Use cinematic movie recap narration.";
+  if (style === "fast" || style === "short") styleInstruction = "Use concise and fast-paced movie recap narration.";
+  if (style === "suspense" || style === "storytelling") styleInstruction = "Use smooth storytelling with suspense, mystery, reveals, and emotional flow.";
+  if (style === "detailed") styleInstruction = "Use detailed but natural movie recap narration with clear cause-and-effect.";
+
+  const prompt = `You are the final movie recap script writer. Groq AI is NOT available and must not be mentioned.
+
+SOURCE EVIDENCE:
+- FFmpeg supplied chronological scene boundaries.
+- Groq Whisper supplied timestamped dialogue/audio transcript.
+- Groq vision supplied visual descriptions for representative frames.
+
+RULES:
+1. Combine visual evidence and dialogue evidence.
+2. Never invent unsupported events, characters, locations, actions, or dialogue.
+3. If visual and dialogue evidence conflict, use cautious wording rather than inventing facts.
+4. Keep scenes chronological and inside their supplied time ranges.
+5. Use the supplied scene boundaries; do not create new timestamps.
+6. Create 8-${MAX_SCENES} recap scenes when enough candidates exist; otherwise use the useful candidates.
+7. Preserve important visual events, dialogue-driven events, major reveals, cause/effect, and the ending.
+8. Narration must be natural when spoken aloud and short enough to fit its scene.
+9. Do not repeat every line of dialogue. Summarize the story clearly.
+10. Return ONLY valid JSON. No Markdown.
+
+LANGUAGE: ${languageInstruction}
+STYLE: ${styleInstruction}
+
+JSON SHAPE:
+{"scenes":[{"start_sec":0,"end_sec":8,"visual_summary":"...","event_summary":"...","narration":"..."}]}
+
+LOCAL VISUAL TIMELINE:
 ${candidateTimeline}
 
 WHISPER TIMELINE:
-${timeline}
-`;
+${timeline}`;
 
-  // Exactly ONE Gemini application request per movie.
-  // The request is multimodal: local scene frames + Whisper timeline.
-  // The full movie is NOT uploaded to Gemini.
-  const geminiInput = [
-    {
-      type: "text",
-      text: prompt
-    }
-  ];
+  updateJob(jobId, { stage: "Recap Script", progress: 64, message: "Groq is combining visual events + dialogue into the recap script..." });
 
-  for (const scene of visualSceneData) {
-    for (let i = 0; i < scene.frames.length; i++) {
-      const frame = scene.frames[i];
-      geminiInput.push({
-        type: "text",
-        text: `SCENE ${scene.index} FRAME ${i + 1} — timestamp ${frame.offset_sec.toFixed(3)}s`
-      });
-      geminiInput.push({
-        type: "image",
-        data: frame.data,
-        mime_type: frame.mime_type
-      });
-    }
-  }
-
-  const response = await callGeminiWithRetry(
-    "Visual + Recap Script Generation",
-    () =>
-      ai.interactions.create({
-        model: GEMINI_MODEL,
-        input: geminiInput,
-        response_format: {
-          type: "text",
-          mime_type: "application/json",
-          schema: scenePlanSchema
-        }
-      })
+  const response = await callGroqWithRetry("Recap Script Generation", () =>
+    groq.chat.completions.create({
+      model: GROQ_SCRIPT_MODEL,
+      messages: [
+        { role: "system", content: "You are a precise movie recap writer. Output only valid JSON." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.35,
+      max_completion_tokens: 12000,
+      response_format: { type: "json_object" }
+    })
   );
 
-  const outputText =
-    response?.output_text ||
-    response?.outputText ||
-    "";
+  const outputText = response.choices?.[0]?.message?.content || "";
+  if (!outputText) throw new Error("Groq returned an empty recap script.");
 
-  if (!outputText) {
-    throw new Error(
-      "Gemini returned an empty recap script."
-    );
-  }
+  const parsed = parseAIJSON(outputText);
+  const scenes = normalizeScenes(parsed.scenes, duration);
+  if (!scenes.length) throw new Error("Groq returned no usable recap scenes.");
 
-  const parsed = parseGeminiJSON(outputText);
-
-  const scenes = normalizeScenes(
-    parsed.scenes,
-    duration
-  );
-
-  if (!scenes.length) {
-    throw new Error(
-      "Gemini returned no usable recap scenes."
-    );
-  }
-
-  console.log(
-    `[VISUAL + RECAP] ${scenes.length} synchronized scenes created from local boundaries + visual frames + Whisper timeline.`
-  );
-
-  return {
-    scenes
-  };
+  console.log(`[GROQ VISUAL + RECAP] ${scenes.length} synchronized scenes created from local boundaries + vision + Whisper.`);
+  return { scenes };
 }
 
 /* =========================================================
@@ -2060,7 +1533,7 @@ async function renderSceneSyncVideo(
 
   updateJob(jobId, { stage: "Voice", progress: 65, message: "Microsoft Edge TTS နဲ့ Myanmar narration ထုတ်နေပါတယ်..." });
 
-  // ONE continuous Edge TTS request for the entire recap. Gemini TTS is not used.
+  // ONE continuous Edge TTS request for the entire recap. Groq AI TTS is not used.
   await generateFullTTS(scenePlan.scenes, fullTTS, voice, voiceRate);
 
   const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
@@ -2231,7 +1704,7 @@ async function processOneClip(
     });
 
     /* -----------------------------------------
-       GEMINI
+       GROQ VISUAL + RECAP
     ----------------------------------------- */
 
     const scenePlan =
@@ -2261,7 +1734,7 @@ async function processOneClip(
     );
 
     updateJob(jobId, {
-      stage: "Visual + Recap",
+      stage: "Visual Analysis",
       progress: 64,
       message:
         `${scenePlan.scenes.length} visual + dialogue synchronized scenes created.`,
@@ -2371,15 +1844,16 @@ app.get(
 
       models: {
         whisper: GROQ_MODEL,
-        recap: GEMINI_MODEL,
+        visual: GROQ_VISION_MODEL,
+        recap: GROQ_SCRIPT_MODEL,
         tts: "Microsoft Edge TTS"
       },
 
       sceneSync: true,
       sceneFPS: SCENE_FPS,
       localVisualFramesPerScene: VISUAL_FRAMES_PER_SCENE,
-      geminiProcessing: "local-scenes + multimodal-frames + whisper-script",
-      geminiModelRequestsPerMovie: 1,
+      groqProcessing: "local-scenes + multimodal-frames + whisper-script",
+      groqVisionBatchesPerMovie: Math.ceil(MAX_SCENES / 5),
       jobStorage: "PostgreSQL",
       dataDir: DATA_DIR
     });
@@ -2731,7 +2205,11 @@ async function startServer() {
         );
 
         console.log(
-          `Gemini Recap: ${GEMINI_MODEL}`
+          `Groq Visual: ${GROQ_VISION_MODEL}`
+        );
+
+        console.log(
+          `Groq Recap: ${GROQ_SCRIPT_MODEL}`
         );
 
         console.log(
@@ -2739,7 +2217,7 @@ async function startServer() {
         );
 
         console.log(
-          "Gemini Input: local scene frames + Groq Whisper timeline (full movie not uploaded)"
+          "Groq Input: local scene frames + Groq Whisper timeline (Gemini not used)"
         );
 
         console.log(
@@ -2747,11 +2225,11 @@ async function startServer() {
         );
 
         console.log(
-          `Maximum Gemini Model Requests/Movie: 1`
+          `Maximum Groq Vision Batches/Movie: ${Math.ceil(MAX_SCENES / 5)}`
         );
 
         console.log(
-          `Gemini Retries: ${GEMINI_MAX_RETRIES} (429 = stop immediately)`
+          `Groq AI Retries: ${GROQ_AI_MAX_RETRIES}`
         );
 
         console.log(
