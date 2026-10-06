@@ -880,7 +880,7 @@ async function extractVisualFrames(moviePath, scenes, jobFolder) {
 
 async function analyzeVisualBatches(jobId, visualSceneData, groq) {
   const evidence = new Map();
-  const batchSize = 5;
+  const batchSize = 3;
 
   for (let start = 0; start < visualSceneData.length; start += batchSize) {
     const batch = visualSceneData.slice(start, start + batchSize);
