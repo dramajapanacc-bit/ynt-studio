@@ -75,8 +75,10 @@ const MAX_SCENES = 18;
 const MIN_SCENE_SECONDS = 3;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 
-const GEMINI_MAX_RETRIES = 4;
-const GEMINI_INITIAL_RETRY_DELAY = 2000;
+const GEMINI_MAX_RETRIES = 0;
+const GEMINI_INITIAL_RETRY_DELAY = 0;
+const GEMINI_PROCESSING_MODE = "agentic";
+const LOCAL_SCENE_THRESHOLD = 0.30;
 
 /* =========================================================
    EXPRESS
@@ -1301,6 +1303,84 @@ function normalizeScenes(
 }
 
 /* =========================================================
+   LOCAL SCENE DETECTION
+
+   FFmpeg detects candidate visual cuts locally. This does NOT call Gemini.
+   Gemini receives these candidates as guidance and performs the actual
+   story/visual understanding in ONE interaction per movie.
+========================================================= */
+
+async function detectLocalSceneBoundaries(moviePath, duration) {
+  const threshold = LOCAL_SCENE_THRESHOLD;
+
+  try {
+    const result = await runCommand("ffmpeg", [
+      "-hide_banner",
+      "-i", moviePath,
+      "-vf", `select='gt(scene,${threshold})',showinfo`,
+      "-an",
+      "-f", "null",
+      "-"
+    ]);
+
+    const combined = `${result.stdout || ""}\n${result.stderr || ""}`;
+    const matches = [...combined.matchAll(/pts_time:([0-9]+(?:\.[0-9]+)?)/g)];
+    const rawCuts = matches
+      .map(m => Number(m[1]))
+      .filter(t => Number.isFinite(t) && t > 0.5 && t < duration - 0.5);
+
+    const cuts = [];
+    for (const t of rawCuts) {
+      if (!cuts.length || t - cuts[cuts.length - 1] >= MIN_SCENE_SECONDS) {
+        cuts.push(t);
+      }
+    }
+
+    // Keep the number of candidate cuts bounded so the prompt stays small.
+    let selected = cuts;
+    if (selected.length > MAX_SCENES - 1) {
+      const stride = Math.ceil(selected.length / (MAX_SCENES - 1));
+      selected = selected.filter((_t, i) => i % stride === stride - 1).slice(0, MAX_SCENES - 1);
+    }
+
+    const boundaries = [0, ...selected, duration];
+    const candidates = [];
+
+    for (let i = 0; i < boundaries.length - 1; i++) {
+      const start = boundaries[i];
+      const end = boundaries[i + 1];
+      if (end - start < MIN_SCENE_SECONDS && candidates.length) {
+        candidates[candidates.length - 1].end_sec = Number(end.toFixed(3));
+      } else {
+        candidates.push({
+          index: candidates.length + 1,
+          start_sec: Number(start.toFixed(3)),
+          end_sec: Number(end.toFixed(3))
+        });
+      }
+    }
+
+    if (candidates.length) {
+      candidates[0].start_sec = 0;
+      candidates[candidates.length - 1].end_sec = Number(duration.toFixed(3));
+    }
+
+    console.log(`[LOCAL SCENE] ${candidates.length} candidate intervals detected.`);
+    return candidates;
+  } catch (error) {
+    console.warn(`[LOCAL SCENE] Detection failed; using fallback intervals: ${error?.message || error}`);
+
+    const count = Math.min(MAX_SCENES, Math.max(1, Math.ceil(duration / 12)));
+    const step = duration / count;
+    return Array.from({ length: count }, (_v, i) => ({
+      index: i + 1,
+      start_sec: Number((i * step).toFixed(3)),
+      end_sec: Number(((i + 1) * step).toFixed(3))
+    }));
+  }
+}
+
+/* =========================================================
    GEMINI SCENE PLAN
 ========================================================= */
 
@@ -1336,6 +1416,18 @@ async function generateScenePlan(
     buildTranscriptTimeline(
       transcript.segments
     );
+
+  const localSceneCandidates =
+    await detectLocalSceneBoundaries(
+      moviePath,
+      duration
+    );
+
+  const candidateTimeline = localSceneCandidates
+    .map(scene =>
+      `${scene.index}. ${scene.start_sec.toFixed(2)}s - ${scene.end_sec.toFixed(2)}s`
+    )
+    .join("\n");
 
   let languageInstruction =
     "Write natural spoken Myanmar (Burmese).";
@@ -1380,7 +1472,7 @@ SYNCHRONIZATION IS EXTREMELY IMPORTANT.
 RULES:
 
 1. Analyze the actual movie video.
-2. Identify meaningful visual scene changes.
+2. Use the LOCAL SCENE CANDIDATES below as preferred visual cut boundaries.
 3. Every scene needs start_sec and end_sec.
 4. Use real timestamps from the movie.
 5. Keep scenes chronological.
@@ -1403,7 +1495,8 @@ RULES:
 22. Do not use Markdown.
 23. Do not use headings in narration.
 24. Do not mention AI.
-25. Return ONLY JSON.
+25. Prefer the supplied local scene candidates when they match the visible story; only adjust a boundary when the actual video clearly requires it.
+26. Return ONLY JSON.
 
 LANGUAGE:
 ${languageInstruction}
@@ -1424,6 +1517,10 @@ JSON FORMAT:
     }
   ]
 }
+
+LOCAL SCENE CANDIDATES:
+
+${candidateTimeline}
 
 WHISPER TIMELINE:
 
@@ -1446,10 +1543,7 @@ ${timeline}
               mime_type:
                 videoFile.mimeType,
 
-              processing: {
-                type: "static",
-                fps: SCENE_FPS
-              }
+              processing: GEMINI_PROCESSING_MODE
             },
 
             {
@@ -2207,6 +2301,8 @@ app.get(
 
       sceneSync: true,
       sceneFPS: SCENE_FPS,
+      geminiProcessing: GEMINI_PROCESSING_MODE,
+      geminiModelRequestsPerMovie: 1,
       jobStorage: "PostgreSQL",
       dataDir: DATA_DIR
     });
@@ -2566,7 +2662,7 @@ async function startServer() {
         );
 
         console.log(
-          `Scene Analysis FPS: ${SCENE_FPS}`
+          `Gemini Video Processing: ${GEMINI_PROCESSING_MODE}`
         );
 
         console.log(
@@ -2574,11 +2670,11 @@ async function startServer() {
         );
 
         console.log(
-          `Maximum Gemini Requests/Movie: 7`
+          `Maximum Gemini Model Requests/Movie: 1`
         );
 
         console.log(
-          `Gemini Retries: ${GEMINI_MAX_RETRIES}`
+          `Gemini Retries: ${GEMINI_MAX_RETRIES} (429 = stop immediately)`
         );
 
         console.log(
