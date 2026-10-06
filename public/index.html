@@ -32,9 +32,9 @@ button,input,select{font:inherit}.wrap{max-width:1420px;margin:auto;padding:16px
     <div class="heroContent">
       <div class="eyebrow">✦ MOVIE RECAP STUDIO</div>
       <h1>Turn Movies Into <span>Great Recaps.</span></h1>
-      <p>Movie ကို upload လုပ်ပါ။ AI က scene + dialogue timeline ကို analyze လုပ်ပြီး မြန်မာလို recap script၊ Myanmar voice နဲ့ final video အဖြစ် ပြန်တည်ဆောက်ပေးပါမယ်။</p>
+      <p>Movie ကို upload လုပ်ပါ။ FFmpeg က scene timeline ခွဲပြီး frame တွေထုတ်ပေးမယ်၊ Groq Whisper က dialogue timestamp ထုတ်မယ်၊ Gemini က visual + dialogue နှစ်ခုကိုပေါင်းပြီး မြန်မာလို recap script ရေးပေးပါမယ်။</p>
     </div>
-    <div class="heroBadge">● Scene Sync Ready</div>
+    <div class="heroBadge">● Visual + Audio Sync Ready</div>
   </section>
 
   <section class="dashboard">
@@ -69,7 +69,7 @@ button,input,select{font:inherit}.wrap{max-width:1420px;margin:auto;padding:16px
         <div class="voiceChoice active" data-voice="female"><span class="voiceIcon">👩</span><div><b>Nilar</b><small>my-MM-NilarNeural</small></div></div>
         <div class="voiceChoice" data-voice="male"><span class="voiceIcon">👨</span><div><b>Thiha</b><small>my-MM-ThihaNeural</small></div></div>
       </div>
-      <div class="edgeNote"><span>⚡</span><div><b>Myanmar Voice · Microsoft Edge TTS</b><small>Gemini TTS quota မသုံးပါ။ Recap analysis အတွက် Gemini ကိုပဲ အသုံးပြုပါတယ်။</small></div></div>
+      <div class="edgeNote"><span>⚡</span><div><b>Myanmar Voice · Microsoft Edge TTS</b><small>Gemini TTS မသုံးပါ။ Gemini ကို local scene frames + Whisper dialogue ကိုပေါင်းပြီး recap script အတွက် တစ်ကြိမ်ပဲ အသုံးပြုပါတယ်။</small></div></div>
       <button class="generate" id="generate">✦ Generate Movie Recap</button>
     </div>
 
@@ -84,7 +84,7 @@ button,input,select{font:inherit}.wrap{max-width:1420px;margin:auto;padding:16px
   </section>
 
   <section class="steps">
-    <div class="stepCard"><div class="stepNum">1</div><div><b>AI Scene Analysis</b><small>Video + Whisper transcript → scene detection + story understanding</small></div><span class="arrow">→</span></div>
+    <div class="stepCard"><div class="stepNum">1</div><div><b>Visual + Audio Sync</b><small>FFmpeg scene frames + Groq Whisper timestamps → Gemini story understanding</small></div><span class="arrow">→</span></div>
     <div class="stepCard"><div class="stepNum">2</div><div><b>Myanmar Voice</b><small>Natural Myanmar narration with Microsoft Edge TTS</small></div><span class="arrow">→</span></div>
     <div class="stepCard"><div class="stepNum">3</div><div><b>Final Recap Video</b><small>Scene Sync + FFmpeg render → final MP4</small></div></div>
   </section>
@@ -92,7 +92,7 @@ button,input,select{font:inherit}.wrap{max-width:1420px;margin:auto;padding:16px
   <section class="card progressCard" id="progressCard">
     <div class="progressTop"><strong id="stageTitle">Processing...</strong><span class="pct" id="pct">0%</span></div>
     <div class="barTrack"><div class="bar" id="bar"></div></div>
-    <div class="stageSteps"><div class="stage" data-stage="Upload">Upload</div><div class="stage" data-stage="Transcript">Whisper</div><div class="stage" data-stage="Gemini">Recap</div><div class="stage" data-stage="Voice">Voice</div><div class="stage" data-stage="FFmpeg">Render</div></div>
+    <div class="stageSteps"><div class="stage" data-stage="Upload">Upload</div><div class="stage" data-stage="Transcript">Whisper</div><div class="stage" data-stage="Visual + Recap">Visual + Recap</div><div class="stage" data-stage="Voice">Voice</div><div class="stage" data-stage="FFmpeg">Render</div></div>
     <div class="message" id="message">စတင်ရန် ပြင်ဆင်နေပါတယ်...</div><div class="error" id="error"></div>
   </section>
 
@@ -101,7 +101,7 @@ button,input,select{font:inherit}.wrap{max-width:1420px;margin:auto;padding:16px
     <video class="video" id="finalVideo" controls></video><a class="download" id="download" href="#">⬇️ Download Final Recap Video</a><div class="summary" id="summary"></div>
   </section>
 
-  <div class="footer">YNT Studio · Groq Whisper · Gemini Scene Analysis · Microsoft Edge TTS · FFmpeg</div>
+  <div class="footer">YNT Studio · Groq Whisper · Local Scene Frames · Gemini Visual + Recap · Microsoft Edge TTS · FFmpeg</div>
 </main>
 <script>
 const $=id=>document.getElementById(id);let selectedFile=null,jobId=null,pollTimer=null;
@@ -116,8 +116,8 @@ function showFile(){if(!selectedFile)return;$('dropTitle').textContent='Movie �
 function getStyle(){return document.querySelector('input[name="style"]:checked')?.value||'natural'}
 function syncVoiceCard(){document.querySelectorAll('.voiceChoice').forEach(card=>card.classList.toggle('active',card.dataset.voice===$('voice').value))}
 document.querySelectorAll('.voiceChoice').forEach(card=>card.onclick=()=>{$('voice').value=card.dataset.voice;syncVoiceCard()});$('voice').onchange=syncVoiceCard;syncVoiceCard();
-function stageRank(s){return {Upload:1,Transcript:2,Gemini:3,Voice:4,FFmpeg:5,Ready:6}[s]||0}
-function renderStatus(d){const p=Math.max(0,Math.min(100,Number(d.progress)||0));$('progressCard').style.display='block';$('pct').textContent=p+'%';$('bar').style.width=p+'%';$('stageTitle').textContent=d.stage==='Ready'?'ပြီးပါပြီ 🎉':(d.stage||'Processing');$('message').textContent=d.message||'';document.querySelectorAll('.stage').forEach(el=>{el.classList.remove('active','done');const r=stageRank(el.dataset.stage),cur=stageRank(d.stage);if(r<cur)el.classList.add('done');else if(r===cur)el.classList.add('active')});if(d.error){$('error').style.display='block';$('error').textContent='❌ '+d.error}}
+function stageRank(s){return {Upload:1,Transcript:2,'Visual + Recap':3,Gemini:3,Voice:4,FFmpeg:5,Ready:6}[s]||0}
+function renderStatus(d){const p=Math.max(0,Math.min(100,Number(d.progress)||0));$('progressCard').style.display='block';$('pct').textContent=p+'%';$('bar').style.width=p+'%';const rawStage=d.stage||'Processing';const uiStage=rawStage==='Gemini'?'Visual + Recap':rawStage;$('stageTitle').textContent=rawStage==='Ready'?'ပြီးပါပြီ 🎉':(rawStage==='Visual + Recap'?'Visual + Audio Recap':rawStage);$('message').textContent=d.message||'';document.querySelectorAll('.stage').forEach(el=>{el.classList.remove('active','done');const r=stageRank(el.dataset.stage),cur=stageRank(uiStage);if(r<cur)el.classList.add('done');else if(r===cur)el.classList.add('active')});if(d.error){$('error').style.display='block';$('error').textContent='❌ '+d.error}}
 async function poll(){if(!jobId)return;try{const r=await fetch('/api/status/'+encodeURIComponent(jobId),{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d?.error||'Status မဖတ်နိုင်ပါ');renderStatus(d);if(d.status==='completed'){clearInterval(pollTimer);$('result').style.display='block';$('finalVideo').src='/api/download/'+encodeURIComponent(jobId);$('download').href='/api/download/'+encodeURIComponent(jobId);$('summary').textContent=`Recap style: ${getStyle()} • Voice: ${$('voice').value==='female'?'Nilar':'Thiha'} • ${d.scenePlan?.scenes||0} synchronized scenes`;$('result').scrollIntoView({behavior:'smooth',block:'start'});$('generate').disabled=false}else if(d.status==='error'){clearInterval(pollTimer);$('generate').disabled=false}}catch(e){clearInterval(pollTimer);$('error').style.display='block';$('error').textContent='❌ '+e.message;$('generate').disabled=false}}
 $('generate').onclick=async()=>{if(!selectedFile){$('progressCard').style.display='block';$('error').style.display='block';$('error').textContent='❌ အရင် Movie ရွေးပါ';return}if(selectedFile.size>500*1024*1024){$('progressCard').style.display='block';$('error').style.display='block';$('error').textContent='❌ Video က 500MB ထက် မကျော်ရပါ';return}$('generate').disabled=true;$('result').style.display='none';$('error').style.display='none';$('progressCard').style.display='block';renderStatus({stage:'Upload',progress:5,message:'Movie upload စတင်နေပါတယ်...'});const fd=new FormData();fd.append('movie',selectedFile);fd.append('language',$('language').value);fd.append('style',getStyle());fd.append('voice',$('voice').value);fd.append('voiceRate',$('voiceRate').value);try{const r=await fetch('/api/one-clip',{method:'POST',body:fd});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error||'Movie processing မစနိုင်ပါ');jobId=d.jobId;if(!jobId)throw new Error('Job ID မရပါ');clearInterval(pollTimer);pollTimer=setInterval(poll,1800);await poll()}catch(e){$('error').style.display='block';$('error').textContent='❌ '+e.message;$('generate').disabled=false}};
 </script>
