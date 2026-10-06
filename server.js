@@ -79,6 +79,9 @@ const GEMINI_MAX_RETRIES = 0;
 const GEMINI_INITIAL_RETRY_DELAY = 0;
 const GEMINI_PROCESSING_MODE = "agentic";
 const LOCAL_SCENE_THRESHOLD = 0.30;
+const VISUAL_FRAMES_PER_SCENE = 2;
+const VISUAL_FRAME_WIDTH = 384;
+const VISUAL_FRAME_QUALITY = 7;
 
 /* =========================================================
    EXPRESS
@@ -1381,6 +1384,88 @@ async function detectLocalSceneBoundaries(moviePath, duration) {
 }
 
 /* =========================================================
+   LOCAL VISUAL FRAME EXTRACTION
+
+   Two representative JPEG frames are extracted locally for each
+   scene interval. Gemini receives these frames + Whisper timestamps
+   in ONE multimodal request, instead of receiving the full movie.
+========================================================= */
+
+async function extractSceneFrames(moviePath, sceneCandidates, jobFolder) {
+  const frameDir = path.join(jobFolder, "visual-frames");
+  fs.mkdirSync(frameDir, { recursive: true });
+
+  const scenes = [];
+  let totalBytes = 0;
+
+  for (const scene of sceneCandidates) {
+    const start = Number(scene.start_sec);
+    const end = Number(scene.end_sec);
+    const duration = Math.max(0.1, end - start);
+
+    const offsets = VISUAL_FRAMES_PER_SCENE === 1
+      ? [0.5]
+      : [0.25, 0.75];
+
+    const frames = [];
+
+    for (let i = 0; i < offsets.length; i++) {
+      const timestamp = Math.min(
+        Math.max(start + duration * offsets[i], start + 0.05),
+        Math.max(start + 0.05, end - 0.05)
+      );
+
+      const outputPath = path.join(
+        frameDir,
+        `scene-${String(scene.index).padStart(2, "0")}-frame-${i + 1}.jpg`
+      );
+
+      await runCommand("ffmpeg", [
+        "-hide_banner",
+        "-loglevel", "error",
+        "-ss", timestamp.toFixed(3),
+        "-i", moviePath,
+        "-frames:v", "1",
+        "-vf", `scale=${VISUAL_FRAME_WIDTH}:-2:force_original_aspect_ratio=decrease`,
+        "-q:v", String(VISUAL_FRAME_QUALITY),
+        "-y",
+        outputPath
+      ]);
+
+      if (!fs.existsSync(outputPath)) {
+        throw new Error(`Could not extract visual frame for scene ${scene.index}.`);
+      }
+
+      const buffer = fs.readFileSync(outputPath);
+      if (!buffer.length) {
+        throw new Error(`Visual frame ${scene.index}-${i + 1} is empty.`);
+      }
+
+      totalBytes += buffer.length;
+      frames.push({
+        offset_sec: Number(timestamp.toFixed(3)),
+        path: outputPath,
+        mime_type: "image/jpeg",
+        data: buffer.toString("base64")
+      });
+    }
+
+    scenes.push({
+      index: scene.index,
+      start_sec: start,
+      end_sec: end,
+      frames
+    });
+  }
+
+  console.log(
+    `[LOCAL VISUAL] Extracted ${scenes.length * VISUAL_FRAMES_PER_SCENE} frames from ${scenes.length} scene intervals (${(totalBytes / 1024 / 1024).toFixed(2)} MB).`
+  );
+
+  return scenes;
+}
+
+/* =========================================================
    GEMINI SCENE PLAN
 ========================================================= */
 
@@ -1392,40 +1477,42 @@ async function generateScenePlan(
   language = "my",
   style = "cinematic"
 ) {
-  const ai =
-    new GoogleGenAI({
-      apiKey: requireEnv(
-        "GEMINI_API_KEY"
-      )
-    });
-
-  updateJob(jobId, {
-    stage: "Gemini",
-    progress: 55,
-    message:
-      "Gemini is analyzing the movie and matching scenes..."
+  const ai = new GoogleGenAI({
+    apiKey: requireEnv("GEMINI_API_KEY")
   });
 
-  const videoFile =
-    await uploadVideoToGemini(
-      ai,
-      moviePath
-    );
+  updateJob(jobId, {
+    stage: "Visual + Recap",
+    progress: 55,
+    message:
+      "Local scene detection + visual frames are being prepared..."
+  });
 
-  const timeline =
-    buildTranscriptTimeline(
-      transcript.segments
-    );
+  const timeline = buildTranscriptTimeline(
+    transcript.segments
+  );
 
-  const localSceneCandidates =
-    await detectLocalSceneBoundaries(
-      moviePath,
-      duration
-    );
+  const localSceneCandidates = await detectLocalSceneBoundaries(
+    moviePath,
+    duration
+  );
 
-  const candidateTimeline = localSceneCandidates
+  const visualSceneData = await extractSceneFrames(
+    moviePath,
+    localSceneCandidates,
+    path.dirname(moviePath)
+  );
+
+  updateJob(jobId, {
+    stage: "Visual + Recap",
+    progress: 58,
+    message:
+      `Sending ${visualSceneData.length} scenes + visual frames + Whisper timeline to Gemini...`
+  });
+
+  const candidateTimeline = visualSceneData
     .map(scene =>
-      `${scene.index}. ${scene.start_sec.toFixed(2)}s - ${scene.end_sec.toFixed(2)}s`
+      `${scene.index}. ${scene.start_sec.toFixed(2)}s - ${scene.end_sec.toFixed(2)}s | frames: ${scene.frames.map(frame => frame.offset_sec.toFixed(2) + "s").join(", ")}`
     )
     .join("\n");
 
@@ -1440,63 +1527,55 @@ async function generateScenePlan(
   let styleInstruction =
     "Use cinematic movie recap narration.";
 
-  if (style === "short") {
+  if (style === "fast" || style === "short") {
     styleInstruction =
       "Use concise and fast-paced movie recap narration.";
   }
 
-  if (style === "storytelling") {
+  if (style === "suspense" || style === "storytelling") {
     styleInstruction =
-      "Use smooth storytelling with suspense and emotional flow.";
+      "Use smooth storytelling with suspense, mystery, reveals, and emotional flow.";
   }
 
   if (style === "detailed") {
     styleInstruction =
-      "Use detailed but natural movie recap narration.";
+      "Use detailed but natural movie recap narration with clear cause-and-effect.";
   }
 
   const prompt = `
-You are creating a PROFESSIONAL SYNCHRONIZED MOVIE RECAP.
+You are the RECAP SCRIPT WRITER for a movie recap system.
 
-You have access to the actual movie video.
+IMPORTANT ARCHITECTURE:
+- Scene boundaries are detected locally by FFmpeg.
+- Two representative frames are extracted locally from each scene interval.
+- The original dialogue/transcript comes from Groq Whisper with timestamps.
+- You CAN see the supplied scene frames in this request.
+- Your job is to combine visual evidence + dialogue evidence into a synchronized recap script.
+- You do NOT need the full movie file because the scene frames represent the local timeline.
 
-You MUST analyze what is visibly happening.
-
-You also have the original Whisper transcript with timestamps.
-
-Your output will be used to create a final video where each narration
-is placed directly over its selected video scene.
-
-SYNCHRONIZATION IS EXTREMELY IMPORTANT.
+The final video renderer will place each narration over the corresponding
+locally detected scene interval.
 
 RULES:
-
-1. Analyze the actual movie video.
-2. Use the LOCAL SCENE CANDIDATES below as preferred visual cut boundaries.
-3. Every scene needs start_sec and end_sec.
-4. Use real timestamps from the movie.
-5. Keep scenes chronological.
-6. Do not overlap scenes.
-7. Do not leave gaps.
-8. Cover the complete movie from 0 to ${duration.toFixed(2)} seconds.
-9. Prefer scenes around 6 to 14 seconds.
-10. Create approximately 8 to ${MAX_SCENES} scenes.
-11. Match narration to what is actually visible.
-12. Use Whisper transcript as supporting information.
-13. Do not invent events.
-14. Do not invent characters.
-15. Do not invent dialogue.
-16. Do not move events to incorrect timestamps.
-17. Keep important story events.
-18. Keep the ending.
-19. Avoid meaningless filler.
-20. Narration must sound natural when spoken.
-21. Narration length must be reasonable for its scene.
-22. Do not use Markdown.
-23. Do not use headings in narration.
-24. Do not mention AI.
-25. Prefer the supplied local scene candidates when they match the visible story; only adjust a boundary when the actual video clearly requires it.
-26. Return ONLY JSON.
+1. Use the supplied scene frames as visual evidence for what is happening on screen.
+2. Use the supplied Whisper timeline as dialogue/audio evidence.
+3. Do not invent events, characters, dialogue, locations, or actions that are unsupported by either source.
+4. When visual and transcript evidence disagree, prefer what can be directly supported and keep the narration general.
+5. Keep the narration synchronized with the supplied scene time ranges.
+6. Keep scenes chronological.
+7. Do not overlap scenes.
+8. Do not create timestamps outside 0 to ${duration.toFixed(2)} seconds.
+9. Prefer the supplied local scene boundaries exactly.
+10. Create approximately 8 to ${MAX_SCENES} recap scenes when enough candidates exist.
+11. Keep the most important visual events, dialogue-driven events, major reveals, and ending.
+12. Remove meaningless filler and repetitive dialogue.
+13. Make the narration natural when spoken aloud.
+14. Narration length must be reasonable for its scene duration.
+15. Do not use Markdown.
+16. Do not use headings inside narration.
+17. Do not mention AI, Gemini, Whisper, FFmpeg, frames, or this instruction.
+18. The narration should explain the movie clearly, not simply repeat every line of dialogue.
+19. Return ONLY JSON.
 
 LANGUAGE:
 ${languageInstruction}
@@ -1505,62 +1584,63 @@ STYLE:
 ${styleInstruction}
 
 JSON FORMAT:
-
 {
   "scenes": [
     {
       "start_sec": 0,
       "end_sec": 8,
-      "visual_summary": "What is visibly happening.",
-      "event_summary": "Important story event.",
+      "visual_summary": "Local scene interval used for the recap.",
+      "event_summary": "Story event supported by the transcript.",
       "narration": "Natural recap narration."
     }
   ]
 }
 
-LOCAL SCENE CANDIDATES:
-
+LOCAL SCENE TIMELINE:
 ${candidateTimeline}
 
 WHISPER TIMELINE:
-
 ${timeline}
 `;
 
-  const response =
-    await callGeminiWithRetry(
-      "Scene-Synchronized Movie Analysis",
-      () =>
-        ai.interactions.create({
-          model: GEMINI_MODEL,
+  // Exactly ONE Gemini application request per movie.
+  // The request is multimodal: local scene frames + Whisper timeline.
+  // The full movie is NOT uploaded to Gemini.
+  const geminiInput = [
+    {
+      type: "text",
+      text: prompt
+    }
+  ];
 
-          input: [
-            {
-              type: "video",
+  for (const scene of visualSceneData) {
+    for (let i = 0; i < scene.frames.length; i++) {
+      const frame = scene.frames[i];
+      geminiInput.push({
+        type: "text",
+        text: `SCENE ${scene.index} FRAME ${i + 1} — timestamp ${frame.offset_sec.toFixed(3)}s`
+      });
+      geminiInput.push({
+        type: "image",
+        data: frame.data,
+        mime_type: frame.mime_type
+      });
+    }
+  }
 
-              uri: videoFile.uri,
-
-              mime_type:
-                videoFile.mimeType,
-
-              processing: GEMINI_PROCESSING_MODE
-            },
-
-            {
-              type: "text",
-              text: prompt
-            }
-          ],
-
-          response_format: {
-            type: "text",
-            mime_type:
-              "application/json",
-            schema:
-              scenePlanSchema
-          }
-        })
-    );
+  const response = await callGeminiWithRetry(
+    "Visual + Recap Script Generation",
+    () =>
+      ai.interactions.create({
+        model: GEMINI_MODEL,
+        input: geminiInput,
+        response_format: {
+          type: "text",
+          mime_type: "application/json",
+          schema: scenePlanSchema
+        }
+      })
+  );
 
   const outputText =
     response?.output_text ||
@@ -1569,29 +1649,25 @@ ${timeline}
 
   if (!outputText) {
     throw new Error(
-      "Gemini returned an empty scene plan."
+      "Gemini returned an empty recap script."
     );
   }
 
-  const parsed =
-    parseGeminiJSON(
-      outputText
-    );
+  const parsed = parseGeminiJSON(outputText);
 
-  const scenes =
-    normalizeScenes(
-      parsed.scenes,
-      duration
-    );
+  const scenes = normalizeScenes(
+    parsed.scenes,
+    duration
+  );
 
   if (!scenes.length) {
     throw new Error(
-      "Gemini returned no usable scenes."
+      "Gemini returned no usable recap scenes."
     );
   }
 
   console.log(
-    `[SCENE SYNC] ${scenes.length} scenes created`
+    `[VISUAL + RECAP] ${scenes.length} synchronized scenes created from local boundaries + visual frames + Whisper timeline.`
   );
 
   return {
@@ -2185,10 +2261,10 @@ async function processOneClip(
     );
 
     updateJob(jobId, {
-      stage: "Gemini",
-      progress: 62,
+      stage: "Visual + Recap",
+      progress: 64,
       message:
-        `${scenePlan.scenes.length} synchronized scenes created.`,
+        `${scenePlan.scenes.length} visual + dialogue synchronized scenes created.`,
 
       scenePlan: {
         scenes:
@@ -2301,7 +2377,8 @@ app.get(
 
       sceneSync: true,
       sceneFPS: SCENE_FPS,
-      geminiProcessing: GEMINI_PROCESSING_MODE,
+      localVisualFramesPerScene: VISUAL_FRAMES_PER_SCENE,
+      geminiProcessing: "local-scenes + multimodal-frames + whisper-script",
       geminiModelRequestsPerMovie: 1,
       jobStorage: "PostgreSQL",
       dataDir: DATA_DIR
@@ -2662,7 +2739,7 @@ async function startServer() {
         );
 
         console.log(
-          `Gemini Video Processing: ${GEMINI_PROCESSING_MODE}`
+          "Gemini Input: local scene frames + Groq Whisper timeline (full movie not uploaded)"
         );
 
         console.log(
