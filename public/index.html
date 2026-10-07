@@ -32,7 +32,7 @@ button,input,select{font:inherit}.wrap{max-width:1420px;margin:auto;padding:16px
     <div class="heroContent">
       <div class="eyebrow">✦ MOVIE RECAP STUDIO</div>
       <h1>Turn Movies Into <span>Great Recaps.</span></h1>
-      <p>Movie ကို upload လုပ်ပါ။ AI က scene + dialogue timeline ကို local + Groq AI နဲ့ analyze လုပ်ပြီး မြန်မာလို recap script၊ Myanmar voice နဲ့ final video အဖြစ် ပြန်တည်ဆောက်ပေးပါမယ်။</p>
+      <p>Movie ကို upload လုပ်ပါ။ Groq က scene + dialogue timeline ကို analyze လုပ်ပြီး Gemini က recap script ကိုရေးပေးပါတယ်။ Gemini quota မရရင် Groq script fallback သုံးပြီး Myanmar Voice ကို Edge TTS နဲ့ final video ပြန်တည်ဆောက်ပေးပါမယ်။</p>
     </div>
     <div class="heroBadge">● Scene Sync Ready</div>
   </section>
@@ -69,7 +69,7 @@ button,input,select{font:inherit}.wrap{max-width:1420px;margin:auto;padding:16px
         <div class="voiceChoice active" data-voice="female"><span class="voiceIcon">👩</span><div><b>Nilar</b><small>my-MM-NilarNeural</small></div></div>
         <div class="voiceChoice" data-voice="male"><span class="voiceIcon">👨</span><div><b>Thiha</b><small>my-MM-ThihaNeural</small></div></div>
       </div>
-      <div class="edgeNote"><span>⚡</span><div><b>Myanmar Voice · Microsoft Edge TTS</b><small>Groq နဲ့ Scene + Dialogue Analysis လုပ်ပြီး Gemini ကို Recap Script အတွက်သာ သုံးပါတယ်။ Gemini quota မရရင် Groq Script fallback အလိုအလျောက်သုံးပါတယ်။</small></div></div>
+      <div class="edgeNote"><span>⚡</span><div><b>Myanmar Voice · Microsoft Edge TTS</b><small>Groq နဲ့ Scene + Dialogue Analysis လုပ်ပြီး Gemini ကို Recap Script အတွက်သာ သုံးပါတယ်။ Gemini quota မရရင် Groq Script fallback သုံးပါတယ်။</small></div></div>
       <button class="generate" id="generate">✦ Generate Movie Recap</button>
     </div>
 
@@ -84,7 +84,7 @@ button,input,select{font:inherit}.wrap{max-width:1420px;margin:auto;padding:16px
   </section>
 
   <section class="steps">
-    <div class="stepCard"><div class="stepNum">1</div><div><b>AI Visual + Audio Analysis</b><small>FFmpeg scenes + Whisper dialogue + Groq Vision → story evidence</small></div><span class="arrow">→</span></div>
+    <div class="stepCard"><div class="stepNum">1</div><div><b>AI Visual + Audio Analysis</b><small>FFmpeg scenes + Whisper dialogue + Groq Vision → story understanding</small></div><span class="arrow">→</span></div>
     <div class="stepCard"><div class="stepNum">2</div><div><b>Myanmar Voice</b><small>Natural Myanmar narration with Microsoft Edge TTS</small></div><span class="arrow">→</span></div>
     <div class="stepCard"><div class="stepNum">3</div><div><b>Final Recap Video</b><small>Scene Sync + FFmpeg render → final MP4</small></div></div>
   </section>
@@ -101,7 +101,7 @@ button,input,select{font:inherit}.wrap{max-width:1420px;margin:auto;padding:16px
     <video class="video" id="finalVideo" controls></video><a class="download" id="download" href="#">⬇️ Download Final Recap Video</a><div class="summary" id="summary"></div>
   </section>
 
-  <div class="footer">YNT Studio · Groq Whisper · Groq Visual + Audio Analysis · Microsoft Edge TTS · FFmpeg</div>
+  <div class="footer">YNT Studio · Groq Whisper · Groq Scene Analysis · Gemini Script + Groq Fallback · Microsoft Edge TTS · FFmpeg</div>
 </main>
 <script>
 const $=id=>document.getElementById(id);let selectedFile=null,jobId=null,pollTimer=null;
