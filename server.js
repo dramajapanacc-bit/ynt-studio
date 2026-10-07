@@ -914,7 +914,7 @@ async function analyzeVisualBatches(jobId, visualSceneData, groq) {
         model: GROQ_VISION_MODEL,
         messages: [{ role: "user", content }],
         temperature: 0.2,
-        max_completion_tokens: 1600,
+        max_completion_tokens: 800,
         response_format: { type: "json_object" }
       })
     );
@@ -1317,7 +1317,7 @@ ${timeline}`;
       model: GROQ_SCRIPT_MODEL,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.35,
-      max_completion_tokens: 12000,
+      max_completion_tokens: 900,
       response_format: { type: "json_object" }
     })
   );
