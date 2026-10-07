@@ -9,7 +9,6 @@ import { promisify } from "util";
 import Groq from "groq-sdk";
 import { EdgeTTS } from "node-edge-tts";
 import pg from "pg";
-import { GoogleGenAI } from "@google/genai";
 
 const { Pool } = pg;
 
@@ -58,7 +57,7 @@ for (const dir of [
 const GROQ_MODEL = "whisper-large-v3-turbo";
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "qwen/qwen3.8-27b";
 const GROQ_SCRIPT_MODEL = process.env.GROQ_SCRIPT_MODEL || "qwen/qwen3.8-27b";
-const GEMINI_SCRIPT_MODEL = process.env.GEMINI_SCRIPT_MODEL || "gemini-3.8-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 const EDGE_TTS_DEFAULT_VOICE = "my-MM-NilarNeural";
 const EDGE_TTS_VOICES = {
@@ -1241,171 +1240,108 @@ function normalizeScenes(
 }
 
 /* =========================================================
-   DIALOGUE-ACTIVE SCENE FILTER
+   GROQ SCENE PLAN
 ========================================================= */
 
-function getDialogueActiveScenes(localScenes, segments) {
-  const dialogue = Array.isArray(segments) ? segments : [];
-
-  return localScenes.map(scene => {
-    const overlaps = dialogue.filter(item => {
-      const start = Number(item?.start);
-      const end = Number(item?.end);
-      return Number.isFinite(start) && Number.isFinite(end) &&
-        end > scene.start_sec && start < scene.end_sec;
-    });
-
-    return {
-      ...scene,
-      dialogue: overlaps,
-      dialogue_start: overlaps.length
-        ? Math.max(scene.start_sec, Math.min(...overlaps.map(x => Number(x.start))))
-        : null,
-      dialogue_end: overlaps.length
-        ? Math.min(scene.end_sec, Math.max(...overlaps.map(x => Number(x.end))))
-        : null
-    };
-  }).filter(scene => scene.dialogue.length > 0);
-}
-
-function buildGeminiScriptTimeline(dialogueScenes, evidence) {
-  return dialogueScenes.map(scene => {
-    const item = evidence.get(scene.index) || {};
-    const dialogueText = scene.dialogue
-      .map(d => `[${Number(d.start).toFixed(2)}-${Number(d.end).toFixed(2)}] ${d.text}`)
-      .join(" ");
-
-    return [
-      `SCENE ${scene.index}: ${scene.start_sec.toFixed(2)}s-${scene.end_sec.toFixed(2)}s`,
-      `DIALOGUE WINDOW: ${Number(scene.dialogue_start).toFixed(2)}s-${Number(scene.dialogue_end).toFixed(2)}s`,
-      `VISUAL: ${item.visual_summary || "No visual summary available."}`,
-      `IMPORTANT EVENT: ${item.important_event || "No important event identified."}`,
-      `WHISPER DIALOGUE: ${dialogueText || "No dialogue text."}`
-    ].join("\n");
-  }).join("\n\n");
-}
-
-/* =========================================================
-   GEMINI SCRIPT ONLY
-
-   Gemini receives TEXT evidence only. The movie/video is never sent
-   to Gemini and Gemini does not perform scene analysis.
-========================================================= */
-
-async function generateGeminiRecapScript(jobId, duration, dialogueScenes, evidence, language, style) {
-  const apiKey = requireEnv("GEMINI_API_KEY");
-  const ai = new GoogleGenAI({ apiKey });
-
-  let styleInstruction = "cinematic movie recap narration with a strong hook, clear story flow, important reveals, and a satisfying ending";
-  if (style === "fast" || style === "short") {
-    styleInstruction = "fast, concise movie recap narration focused only on the most important events";
-  } else if (style === "detailed") {
-    styleInstruction = "detailed but natural movie recap narration with clear cause and effect";
-  } else if (style === "suspense" || style === "storytelling") {
-    styleInstruction = "suspenseful storytelling with emotional flow, mystery, reveals, and strong tension";
+async function callGeminiScript(prompt) {
+  const apiKey = String(process.env.GEMINI_API_KEY || "").trim();
+  if (!apiKey) {
+    const error = new Error("GEMINI_API_KEY is not configured.");
+    error.code = "GEMINI_NOT_CONFIGURED";
+    throw error;
   }
 
-  const timeline = buildGeminiScriptTimeline(dialogueScenes, evidence);
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.35,
+        responseMimeType: "application/json",
+        maxOutputTokens: 900
+      }
+    })
+  });
 
-  const prompt = `You are a professional movie recap SCRIPT WRITER.
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = String(data?.error?.message || `Gemini HTTP ${response.status}`);
+    const error = new Error(message);
+    error.status = response.status;
+    error.code = data?.error?.status || "GEMINI_ERROR";
+    error.isQuota = response.status === 429 || /quota|rate.?limit|resource.?exhausted/i.test(message);
+    throw error;
+  }
 
-IMPORTANT ROLE SEPARATION:
-- Groq already analyzed the movie's representative scene frames.
-- Groq Whisper already produced timestamped dialogue.
-- You ONLY write the Myanmar recap script from the supplied evidence.
-- You cannot see the movie yourself.
-- Do NOT perform visual analysis.
-- Do NOT invent anything that is not supported by the supplied evidence.
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const text = parts.map(part => String(part?.text || "")).join("\n").trim();
+  if (!text) throw new Error("Gemini returned an empty script.");
+  return text;
+}
 
-VOICE TIMING RULE:
-The final narration will be spoken only during dialogue-active portions of the movie.
-Therefore create narration ONLY for the supplied dialogue-active scenes.
-Do not create narration for silent/action-only scenes.
-Keep each narration short enough to be spoken naturally inside its dialogue window.
-Do not force narration to fill the whole original movie scene.
-
-RECAP RULES:
-1. Keep chronological order.
-2. Use only the supplied scene boundaries and dialogue windows.
-3. Preserve important story events, character actions, cause/effect, reveals and ending when evidence supports them.
-4. Do not repeat the movie dialogue word-for-word. Summarize it naturally.
-5. Do not invent names, actions, locations, emotions, relationships or events.
-6. If evidence is incomplete, use cautious wording.
-7. Myanmar narration must sound like a human casually telling a movie story, not like an essay.
-8. Prefer short conversational Burmese sentences.
-9. Avoid repetitive endings such as "...ပါတယ်" on every sentence.
-10. No headings, bullet points, markdown, or explanations.
-11. Normally use 1-2 short spoken sentences per scene.
-12. Return ONLY valid JSON.
-
-LANGUAGE: Myanmar Burmese
-STYLE: ${styleInstruction}
-MOVIE DURATION: ${duration.toFixed(2)} seconds
-
-JSON SHAPE:
-{"scenes":[{"index":1,"start_sec":0,"end_sec":8,"narration":"မြန်မာ recap စကားပြောပုံစံ"}]}
+function buildRecapPrompt({ timeline, candidateTimeline, languageInstruction, styleInstruction }) {
+  return `You are the final movie recap script writer.
 
 SOURCE EVIDENCE:
-${timeline}`;
+- FFmpeg supplied chronological scene boundaries.
+- Groq Whisper supplied timestamped dialogue/audio transcript.
+- Groq Vision supplied visual descriptions for representative frames.
 
+RULES:
+1. Combine visual evidence and dialogue evidence.
+2. Never invent unsupported events, characters, locations, actions, or dialogue.
+3. If visual and dialogue evidence conflict, use cautious wording rather than inventing facts.
+4. Keep scenes chronological and inside their supplied time ranges.
+5. Use the supplied scene boundaries; do not create new timestamps.
+6. Create 8-${MAX_SCENES} recap scenes when enough candidates exist; otherwise use useful candidates.
+7. Preserve important visual events, dialogue-driven events, major reveals, cause/effect, and the ending.
+8. Narration must be natural when spoken aloud and short enough to fit its scene.
+9. Do not repeat every line of dialogue. Summarize the story clearly.
+10. Narration must sound like a person telling a movie story to a viewer, not like a formal written article.
+11. For Myanmar, use simple conversational Burmese, natural short sentences, and occasional suspenseful pauses. Avoid bookish/formal wording, bullet-like phrasing, and repetitive sentence endings.
+12. Keep each narration compact: normally 1-3 spoken sentences per scene.
+13. Return ONLY valid JSON. No Markdown.
+
+LANGUAGE: ${languageInstruction}
+STYLE: ${styleInstruction}
+
+JSON SHAPE:
+{"scenes":[{"start_sec":0,"end_sec":8,"visual_summary":"...","event_summary":"...","narration":"..."}]}
+
+LOCAL VISUAL TIMELINE:
+${candidateTimeline}
+
+WHISPER TIMELINE:
+${timeline}`;
+}
+
+async function generateGroqScript(jobId, groq, prompt, duration) {
   updateJob(jobId, {
     stage: "Recap",
     progress: 61,
-    message: "Gemini is writing the recap script from Groq scene + dialogue evidence..."
+    message: "Groq Script fallback: generating recap because Gemini is unavailable..."
   });
 
-  let response;
-  try {
-    response = await ai.models.generateContent({
-      model: GEMINI_SCRIPT_MODEL,
-      contents: prompt,
-      config: {
-        temperature: 0.35,
-        maxOutputTokens: 1800,
-        responseMimeType: "application/json"
-      }
-    });
-  } catch (error) {
-    const msg = String(error?.message || error);
-    throw new Error(`Gemini Script Error: ${msg}`);
-  }
+  const response = await callGroqWithRetry("Groq Script fallback", () =>
+    groq.chat.completions.create({
+      model: GROQ_SCRIPT_MODEL,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.35,
+      max_completion_tokens: 900,
+      response_format: { type: "json_object" }
+    })
+  );
 
-  const outputText = response?.text || response?.output_text || response?.outputText || "";
-  if (!outputText) throw new Error("Gemini returned an empty recap script.");
-
+  const outputText = response?.choices?.[0]?.message?.content || "";
+  if (!outputText) throw new Error("Groq Script fallback returned an empty scene plan.");
   const parsed = parseAIJSON(outputText);
-  const raw = Array.isArray(parsed?.scenes) ? parsed.scenes : [];
-  const allowed = new Map(dialogueScenes.map(scene => [scene.index, scene]));
-
-  const scenes = raw.map(item => {
-    const original = allowed.get(Number(item?.index));
-    if (!original) return null;
-
-    const narration = String(item?.narration || "").trim();
-    if (!narration) return null;
-
-    // Voice placement is anchored to the actual Whisper dialogue window.
-    // This is what prevents narration from being generated over silent scenes.
-    return {
-      start_sec: Number(original.dialogue_start),
-      end_sec: Number(original.dialogue_end),
-      visual_summary: String(evidence.get(original.index)?.visual_summary || "").trim(),
-      event_summary: String(evidence.get(original.index)?.important_event || "").trim(),
-      narration
-    };
-  }).filter(Boolean);
-
-  if (!scenes.length) {
-    throw new Error("Gemini returned no usable dialogue-timed recap scenes.");
-  }
-
-  console.log(`[GEMINI SCRIPT] ${scenes.length} dialogue-timed recap scenes created.`);
-  return { scenes };
+  const scenes = normalizeScenes(parsed?.scenes, duration);
+  if (!scenes.length) throw new Error("Groq Script fallback returned no usable scenes.");
+  console.log(`[SCENE SYNC] ${scenes.length} scenes created by Groq Script fallback.`);
+  return { scenes, provider: "groq-fallback" };
 }
-
-/* =========================================================
-   SCENE ANALYSIS + GEMINI SCRIPT
-========================================================= */
 
 async function generateScenePlan(jobId, moviePath, duration, transcript, language = "myanmar", style = "natural") {
   const groq = new Groq({ apiKey: requireEnv("GROQ_API_KEY") });
@@ -1419,28 +1355,51 @@ async function generateScenePlan(jobId, moviePath, duration, transcript, languag
   const localScenes = await detectLocalSceneBoundaries(moviePath, duration);
   const visualSceneData = await extractVisualFrames(moviePath, localScenes, path.dirname(moviePath));
   const evidence = await analyzeVisualBatches(jobId, visualSceneData, groq);
+  const timeline = buildTranscriptTimeline(transcript.segments);
 
-  const dialogueScenes = getDialogueActiveScenes(localScenes, transcript?.segments || []);
-  if (!dialogueScenes.length) {
-    throw new Error("Whisper did not detect any dialogue-active scene windows.");
-  }
+  const candidateTimeline = localScenes.map(scene => {
+    const item = evidence.get(scene.index) || {};
+    return `SCENE ${scene.index}: ${scene.start_sec.toFixed(2)}s - ${scene.end_sec.toFixed(2)}s\nVISUAL: ${item.visual_summary || "No visual summary available."}\nIMPORTANT EVENT: ${item.important_event || "No important event identified."}`;
+  }).join("\n\n");
+
+  let languageInstruction = "Write natural spoken Myanmar (Burmese).";
+  if (language === "en" || language === "english") languageInstruction = "Write natural spoken English.";
+
+  let styleInstruction = "Use cinematic movie recap narration.";
+  if (style === "fast" || style === "short") styleInstruction = "Use concise, fast-paced movie recap narration.";
+  if (style === "suspense" || style === "storytelling") styleInstruction = "Use suspenseful storytelling with emotional flow and strong reveals.";
+  if (style === "detailed") styleInstruction = "Use detailed but natural movie recap narration while keeping every scene speakable.";
+
+  const prompt = buildRecapPrompt({ timeline, candidateTimeline, languageInstruction, styleInstruction });
 
   updateJob(jobId, {
     stage: "Recap",
-    progress: 60,
-    message: `Groq Visual Analysis ပြီးပါပြီ။ Dialogue ရှိတဲ့ scene ${dialogueScenes.length} ခုကို Gemini Script အတွက်ပို့နေပါတယ်...`
+    progress: 61,
+    message: `Gemini Script: generating recap with ${GEMINI_MODEL}...`
   });
 
-  return generateGeminiRecapScript(
-    jobId,
-    duration,
-    dialogueScenes,
-    evidence,
-    language,
-    style
-  );
-}
+  try {
+    const outputText = await callGeminiScript(prompt);
+    const parsed = parseAIJSON(outputText);
+    const scenes = normalizeScenes(parsed?.scenes, duration);
+    if (!scenes.length) throw new Error("Gemini returned no usable scene plan.");
+    console.log(`[SCENE SYNC] ${scenes.length} scenes created by Gemini Script.`);
+    return { scenes, provider: "gemini" };
+  } catch (error) {
+    const reason = error?.isQuota || Number(error?.status) === 429
+      ? "Gemini quota/rate limit reached"
+      : (error?.message || "Gemini Script unavailable");
 
+    console.warn(`[GEMINI SCRIPT] ${reason}. Switching immediately to Groq Script fallback.`);
+    updateJob(jobId, {
+      stage: "Recap",
+      progress: 61,
+      message: `Gemini unavailable (${reason}) — switching to Groq Script fallback...`
+    });
+
+    return await generateGroqScript(jobId, groq, prompt, duration);
+  }
+}
 /* =========================================================
    EDGE TTS VOICE
 ========================================================= */
@@ -2083,8 +2042,7 @@ app.get(
       models: {
         whisper: GROQ_MODEL,
         vision: GROQ_VISION_MODEL,
-        recap: GEMINI_SCRIPT_MODEL,
-        sceneAnalysis: GROQ_VISION_MODEL,
+        recap: `Gemini ${GEMINI_MODEL} → Groq fallback`,
         tts: "Microsoft Edge TTS"
       },
 
