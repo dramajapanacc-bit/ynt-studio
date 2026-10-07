@@ -74,6 +74,8 @@ const EDGE_TTS_VOICES = {
 const AUDIO_CHUNK_SECONDS = 90;
 const SCENE_FPS = 2;
 const MAX_SCENES = 18;
+const MIN_RECAP_SCENES = 10;
+const MAX_SOURCE_SCENE_SECONDS = 12;
 const MIN_SCENE_SECONDS = 3;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 
@@ -770,60 +772,71 @@ function buildTranscriptTimeline(
 
 async function detectLocalSceneBoundaries(moviePath, duration) {
   const threshold = LOCAL_SCENE_THRESHOLD;
+  let rawCuts = [];
 
   try {
     const result = await runCommand("ffmpeg", [
-      "-hide_banner",
-      "-i", moviePath,
+      "-hide_banner", "-i", moviePath,
       "-vf", `select='gt(scene,${threshold})',showinfo`,
-      "-an",
-      "-f",
-      "null",
-      "-"
+      "-an", "-f", "null", "-"
     ]);
-
     const combined = `${result.stdout || ""}\n${result.stderr || ""}`;
-    const matches = [...combined.matchAll(/pts_time:([0-9]+(?:\.[0-9]+)?)/g)];
-    const rawCuts = matches.map(m => Number(m[1])).filter(t => Number.isFinite(t) && t > 0.5 && t < duration - 0.5);
-    const cuts = [];
-
-    for (const t of rawCuts) {
-      if (!cuts.length || t - cuts[cuts.length - 1] >= MIN_SCENE_SECONDS) cuts.push(t);
-    }
-
-    let selected = cuts;
-    if (selected.length > MAX_SCENES - 1) {
-      const stride = Math.ceil(selected.length / (MAX_SCENES - 1));
-      selected = selected.filter((_t, i) => i % stride === stride - 1).slice(0, MAX_SCENES - 1);
-    }
-
-    const boundaries = [0, ...selected, duration];
-    const candidates = [];
-
-    for (let i = 0; i < boundaries.length - 1; i++) {
-      const start = boundaries[i];
-      const end = boundaries[i + 1];
-      if (end - start < MIN_SCENE_SECONDS && candidates.length) {
-        candidates[candidates.length - 1].end_sec = Number(end.toFixed(3));
-      } else {
-        candidates.push({
-          index: candidates.length + 1,
-          start_sec: Number(start.toFixed(3)),
-          end_sec: Number(end.toFixed(3))
-        });
-      }
-    }
-
-    if (candidates.length) {
-      candidates[0].start_sec = 0;
-      candidates[candidates.length - 1].end_sec = Number(duration.toFixed(3));
-    }
-
-    console.log(`[LOCAL SCENE] ${candidates.length} candidate intervals detected.`);
-    return candidates;
+    rawCuts = [...combined.matchAll(/pts_time:([0-9]+(?:\.[0-9]+)?)/g)]
+      .map(m => Number(m[1]))
+      .filter(t => Number.isFinite(t) && t > 0.5 && t < duration - 0.5);
   } catch (error) {
-    console.warn(`[LOCAL SCENE] Detection failed; using fallback intervals: ${error?.message || error}`);
-    const count = Math.min(MAX_SCENES, Math.max(1, Math.ceil(duration / 12)));
+    console.warn(`[LOCAL SCENE] Shot detection failed; using timed coverage: ${error?.message || error}`);
+  }
+
+  // Do not let a small number of FFmpeg cuts collapse the whole movie into
+  // a handful of recap scenes. Split long intervals so the beginning,
+  // middle and ending all remain available to the script writer.
+  const cuts = [];
+  for (const t of rawCuts) {
+    if (!cuts.length || t - cuts[cuts.length - 1] >= MIN_SCENE_SECONDS) cuts.push(t);
+  }
+
+  let boundaries = [0, ...cuts, duration];
+  const expanded = [0];
+  for (let i = 0; i < boundaries.length - 1; i++) {
+    const start = boundaries[i];
+    const end = boundaries[i + 1];
+    const span = end - start;
+    const pieces = Math.max(1, Math.ceil(span / MAX_SOURCE_SCENE_SECONDS));
+    for (let j = 1; j <= pieces; j++) {
+      expanded.push(start + span * (j / pieces));
+    }
+  }
+
+  // Keep at most MAX_SCENES, but sample across the entire timeline rather
+  // than taking only the earliest cuts.
+  let finalBounds = expanded;
+  if (finalBounds.length - 1 > MAX_SCENES) {
+    const step = (finalBounds.length - 1) / MAX_SCENES;
+    finalBounds = [0];
+    for (let i = 1; i < MAX_SCENES; i++) {
+      finalBounds.push(expanded[Math.min(expanded.length - 1, Math.round(i * step))]);
+    }
+    finalBounds.push(duration);
+  }
+
+  const candidates = [];
+  for (let i = 0; i < finalBounds.length - 1; i++) {
+    const start = finalBounds[i];
+    const end = finalBounds[i + 1];
+    if (end - start < MIN_SCENE_SECONDS && candidates.length) {
+      candidates[candidates.length - 1].end_sec = Number(end.toFixed(3));
+    } else {
+      candidates.push({
+        index: candidates.length + 1,
+        start_sec: Number(start.toFixed(3)),
+        end_sec: Number(end.toFixed(3))
+      });
+    }
+  }
+
+  if (!candidates.length) {
+    const count = Math.min(MAX_SCENES, Math.max(MIN_RECAP_SCENES, Math.ceil(duration / 9)));
     const step = duration / count;
     return Array.from({ length: count }, (_v, i) => ({
       index: i + 1,
@@ -831,6 +844,11 @@ async function detectLocalSceneBoundaries(moviePath, duration) {
       end_sec: Number(((i + 1) * step).toFixed(3))
     }));
   }
+
+  candidates[0].start_sec = 0;
+  candidates[candidates.length - 1].end_sec = Number(duration.toFixed(3));
+  console.log(`[LOCAL SCENE] ${candidates.length} full-coverage candidate intervals detected.`);
+  return candidates;
 }
 
 /* =========================================================
@@ -939,317 +957,70 @@ async function analyzeVisualBatches(jobId, visualSceneData, groq) {
    NORMALIZE SCENES
 ========================================================= */
 
-function normalizeScenes(
-  rawScenes,
-  duration
-) {
-  if (!Array.isArray(rawScenes)) {
-    throw new Error(
-      "Groq did not return a scene list."
-    );
-  }
+function normalizeScenes(rawScenes, duration) {
+  if (!Array.isArray(rawScenes)) throw new Error("Script provider did not return a scene list.");
 
-  let scenes = rawScenes
-    .map(scene => ({
-      start: Number(
-        scene.start_sec
-      ),
-
-      end: Number(
-        scene.end_sec
-      ),
-
-      visual: String(
-        scene.visual_summary || ""
-      ).trim(),
-
-      event: String(
-        scene.event_summary || ""
-      ).trim(),
-
-      narration: String(
-        scene.narration || ""
-      ).trim()
-    }))
-
-    .filter(
-      scene =>
-        Number.isFinite(scene.start) &&
-        Number.isFinite(scene.end) &&
-        scene.end > scene.start &&
-        scene.narration
-    )
-
-    .sort(
-      (a, b) =>
-        a.start - b.start
-    );
-
-  if (!scenes.length) {
-    throw new Error(
-      "No usable scenes were returned by Groq."
-    );
-  }
-
-  scenes = scenes.map(scene => ({
+  const scenes = rawScenes.map(scene => ({
+    start: Number(scene.start_sec),
+    end: Number(scene.end_sec),
+    visual: String(scene.visual_summary || "").trim(),
+    event: String(scene.event_summary || "").trim(),
+    narration: String(scene.narration || "").trim()
+  }))
+  .filter(scene =>
+    Number.isFinite(scene.start) && Number.isFinite(scene.end) &&
+    scene.end > scene.start && scene.narration
+  )
+  .map(scene => ({
     ...scene,
-
-    start: Math.max(
-      0,
-      Math.min(
-        duration,
-        scene.start
-      )
-    ),
-
-    end: Math.max(
-      0,
-      Math.min(
-        duration,
-        scene.end
-      )
-    )
-  }));
-
-  scenes = scenes.filter(
-    scene =>
-      scene.end > scene.start
-  );
+    start: Math.max(0, Math.min(duration, scene.start)),
+    end: Math.max(0, Math.min(duration, scene.end))
+  }))
+  .filter(scene => scene.end - scene.start >= 1.5)
+  .sort((a, b) => a.start - b.start);
 
   const normalized = [];
-
   for (const scene of scenes) {
     if (!normalized.length) {
-      normalized.push({
-        ...scene,
-        start: 0
-      });
-
+      normalized.push(scene);
       continue;
     }
-
-    const previous =
-      normalized[
-        normalized.length - 1
-      ];
-
-    if (
-      scene.start >
-      previous.end
-    ) {
-      previous.end =
-        scene.start;
+    const previous = normalized[normalized.length - 1];
+    if (scene.start < previous.end) {
+      scene.start = previous.end;
     }
-
-    if (
-      scene.start <
-      previous.end
-    ) {
-      scene.start =
-        previous.end;
-    }
-
-    if (
-      scene.end >
-      scene.start
-    ) {
-      normalized.push(scene);
-    }
+    if (scene.end > scene.start) normalized.push(scene);
   }
 
-  if (normalized.length) {
-    normalized[
-      normalized.length - 1
-    ].end = duration;
-  }
-
-  let merged = [];
-
-  for (const scene of normalized) {
-    const sceneDuration =
-      scene.end - scene.start;
-
-    if (
-      sceneDuration <
-        MIN_SCENE_SECONDS &&
-      merged.length
-    ) {
-      const previous =
-        merged[
-          merged.length - 1
-        ];
-
-      previous.end =
-        scene.end;
-
-      previous.visual =
-        `${previous.visual} ${scene.visual}`.trim();
-
-      previous.event =
-        `${previous.event} ${scene.event}`.trim();
-
-      previous.narration =
-        `${previous.narration} ${scene.narration}`.trim();
-
-    } else {
-      merged.push({
-        ...scene
-      });
-    }
-  }
-
-  if (
-    merged.length >= 2 &&
-    merged[0].end -
-      merged[0].start <
-      MIN_SCENE_SECONDS
-  ) {
-    const first =
-      merged.shift();
-
-    const second =
-      merged[0];
-
-    second.start =
-      first.start;
-
-    second.visual =
-      `${first.visual} ${second.visual}`.trim();
-
-    second.event =
-      `${first.event} ${second.event}`.trim();
-
-    second.narration =
-      `${first.narration} ${second.narration}`.trim();
-  }
-
-  while (
-    merged.length >
-    MAX_SCENES
-  ) {
-    let smallestIndex = 0;
-    let smallestDuration =
-      Infinity;
-
-    for (
-      let i = 0;
-      i < merged.length;
-      i++
-    ) {
-      const d =
-        merged[i].end -
-        merged[i].start;
-
-      if (
-        d <
-        smallestDuration
-      ) {
-        smallestDuration = d;
-        smallestIndex = i;
-      }
-    }
-
-    if (
-      smallestIndex <
-      merged.length - 1
-    ) {
-      const a =
-        merged[smallestIndex];
-
-      const b =
-        merged[
-          smallestIndex + 1
-        ];
-
-      b.start = a.start;
-
-      b.visual =
-        `${a.visual} ${b.visual}`.trim();
-
-      b.event =
-        `${a.event} ${b.event}`.trim();
-
-      b.narration =
-        `${a.narration} ${b.narration}`.trim();
-
-      merged.splice(
-        smallestIndex,
-        1
-      );
-
-    } else {
-      const a =
-        merged[
-          smallestIndex - 1
-        ];
-
-      const b =
-        merged[
-          smallestIndex
-        ];
-
-      a.end = b.end;
-
-      a.visual =
-        `${a.visual} ${b.visual}`.trim();
-
-      a.event =
-        `${a.event} ${b.event}`.trim();
-
-      a.narration =
-        `${a.narration} ${b.narration}`.trim();
-
-      merged.pop();
-    }
-  }
-
-  if (merged.length) {
-    merged[0].start = 0;
-
-    merged[
-      merged.length - 1
-    ].end = duration;
-  }
-
-  return merged.map(
-    (scene, index) => ({
-      index: index + 1,
-
-      start: Number(
-        scene.start.toFixed(3)
-      ),
-
-      end: Number(
-        scene.end.toFixed(3)
-      ),
-
-      duration: Number(
-        (
-          scene.end -
-          scene.start
-        ).toFixed(3)
-      ),
-
-      visual: scene.visual,
-
-      event: scene.event,
-
-      narration: scene.narration
-    })
-  );
+  // Never force the first scene to 0 or the last scene to the movie ending.
+  // The script provider must explicitly select the evidence windows it needs.
+  const limited = normalized.slice(0, MAX_SCENES);
+  return limited.map((scene, index) => ({
+    index: index + 1,
+    start: Number(scene.start.toFixed(3)),
+    end: Number(scene.end.toFixed(3)),
+    duration: Number((scene.end - scene.start).toFixed(3)),
+    visual: scene.visual,
+    event: scene.event,
+    narration: scene.narration
+  }));
 }
 
 /* =========================================================
    GROQ SCENE PLAN
 ========================================================= */
 
+function dialogueForWindow(segments, start, end) {
+  return (Array.isArray(segments) ? segments : [])
+    .filter(seg => Number(seg.end) > start && Number(seg.start) < end)
+    .map(seg => `[${Number(seg.start).toFixed(1)}-${Number(seg.end).toFixed(1)}s] ${String(seg.text || "").trim()}`)
+    .filter(Boolean)
+    .join(" ");
+}
+
 async function callGeminiScript(prompt) {
   const apiKey = String(process.env.GEMINI_API_KEY || "").trim();
-  if (!apiKey) {
-    const error = new Error("GEMINI_API_KEY is not configured.");
-    error.code = "GEMINI_NOT_CONFIGURED";
-    throw error;
-  }
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured.");
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const response = await fetch(url, {
@@ -1259,50 +1030,53 @@ async function callGeminiScript(prompt) {
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.35,
-        responseMimeType: "application/json",
-        maxOutputTokens: 900
+        maxOutputTokens: 1800,
+        responseMimeType: "application/json"
       }
     })
   });
-
-  const data = await response.json().catch(() => ({}));
+  const body = await response.text();
   if (!response.ok) {
-    const message = String(data?.error?.message || `Gemini HTTP ${response.status}`);
-    const error = new Error(message);
+    const error = new Error(`Gemini HTTP ${response.status}: ${body.slice(0, 900)}`);
     error.status = response.status;
-    error.code = data?.error?.status || "GEMINI_ERROR";
-    error.isQuota = response.status === 429 || /quota|rate.?limit|resource.?exhausted/i.test(message);
     throw error;
   }
-
-  const parts = data?.candidates?.[0]?.content?.parts || [];
-  const text = parts.map(part => String(part?.text || "")).join("\n").trim();
+  const json = JSON.parse(body);
+  const text = json?.candidates?.[0]?.content?.parts?.map(p => p?.text || "").join("").trim();
   if (!text) throw new Error("Gemini returned an empty script.");
   return text;
 }
 
-function buildRecapPrompt({ timeline, candidateTimeline, languageInstruction, styleInstruction }) {
+function buildRecapScriptPrompt({ duration, candidateTimeline, transcriptTimeline, language, style }) {
+  const languageInstruction = (language === "en" || language === "english")
+    ? "Write natural spoken English."
+    : "Write natural spoken Myanmar (Burmese), like a Myanmar movie recap creator speaking to viewers.";
+
+  let styleInstruction = "Cinematic recap: hook → setup → rising events → important scene → twist/reveal → ending.";
+  if (style === "fast" || style === "short") styleInstruction = "Fast but complete recap; compress repetition, not important story events.";
+  if (style === "suspense" || style === "storytelling") styleInstruction = "Suspenseful recap with emotional flow and strong reveals, while still explaining the ending.";
+  if (style === "detailed") styleInstruction = "Full-story recap with clear character, cause/effect, major events and ending.";
+
   return `You are the final movie recap script writer.
 
-SOURCE EVIDENCE:
-- FFmpeg supplied chronological scene boundaries.
-- Groq Whisper supplied timestamped dialogue/audio transcript.
-- Groq Vision supplied visual descriptions for representative frames.
+The source movie is ${duration.toFixed(1)} seconds long.
+Gemini is used ONLY for this script-writing step. The evidence below was produced by Groq Whisper + Groq Vision + FFmpeg. Do not ask for or invent missing video information.
 
-RULES:
-1. Combine visual evidence and dialogue evidence.
-2. Never invent unsupported events, characters, locations, actions, or dialogue.
-3. If visual and dialogue evidence conflict, use cautious wording rather than inventing facts.
-4. Keep scenes chronological and inside their supplied time ranges.
-5. Use the supplied scene boundaries; do not create new timestamps.
-6. Create 8-${MAX_SCENES} recap scenes when enough candidates exist; otherwise use useful candidates.
-7. Preserve important visual events, dialogue-driven events, major reveals, cause/effect, and the ending.
-8. Narration must be natural when spoken aloud and short enough to fit its scene.
-9. Do not repeat every line of dialogue. Summarize the story clearly.
-10. Narration must sound like a person telling a movie story to a viewer, not like a formal written article.
-11. For Myanmar, use simple conversational Burmese, natural short sentences, and occasional suspenseful pauses. Avoid bookish/formal wording, bullet-like phrasing, and repetitive sentence endings.
-12. Keep each narration compact: normally 1-3 spoken sentences per scene.
-13. Return ONLY valid JSON. No Markdown.
+GOAL:
+Create a genuinely complete movie recap, not a 30-second teaser. Cover the beginning, important middle events, major turning point/reveal, and ending in chronological order.
+
+STRICT RULES:
+1. Use ONLY the supplied evidence. Never invent unsupported characters, actions, locations, relationships or dialogue.
+2. Prefer important story events and dialogue-driven moments. An action-only scene should receive narration only when it is important to understanding the story.
+3. Use the supplied scene windows exactly. Do not invent timestamps outside them.
+4. Select ${MIN_RECAP_SCENES}-${MAX_SCENES} useful windows when enough evidence exists. Aim for about 12-16 windows for a 2-3 minute source movie.
+5. You MUST include evidence from the early part, middle part, and final part of the movie. Do not skip the ending.
+6. Do not turn every scene into one tiny sentence. Each selected scene should normally have 2-4 natural spoken sentences when the evidence supports it.
+7. Keep narration conversational and easy for Edge TTS to speak. Avoid bookish Burmese, report-like wording, bullet points, repeated "ထို့နောက်", and robotic sentence patterns.
+8. Do not quote long dialogue. Summarize dialogue naturally, using a short quote only when it is important.
+9. Keep cause/effect clear: explain why the next event happens when the evidence supports it.
+10. Do not mention that you are an AI or that you are reading evidence.
+11. Return ONLY valid JSON. No Markdown.
 
 LANGUAGE: ${languageInstruction}
 STYLE: ${styleInstruction}
@@ -1310,37 +1084,11 @@ STYLE: ${styleInstruction}
 JSON SHAPE:
 {"scenes":[{"start_sec":0,"end_sec":8,"visual_summary":"...","event_summary":"...","narration":"..."}]}
 
-LOCAL VISUAL TIMELINE:
+FULL-COVERAGE VISUAL + DIALOGUE EVIDENCE:
 ${candidateTimeline}
 
-WHISPER TIMELINE:
-${timeline}`;
-}
-
-async function generateGroqScript(jobId, groq, prompt, duration) {
-  updateJob(jobId, {
-    stage: "Recap",
-    progress: 61,
-    message: "Groq Script fallback: generating recap because Gemini is unavailable..."
-  });
-
-  const response = await callGroqWithRetry("Groq Script fallback", () =>
-    groq.chat.completions.create({
-      model: GROQ_SCRIPT_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.35,
-      max_completion_tokens: 900,
-      response_format: { type: "json_object" }
-    })
-  );
-
-  const outputText = response?.choices?.[0]?.message?.content || "";
-  if (!outputText) throw new Error("Groq Script fallback returned an empty scene plan.");
-  const parsed = parseAIJSON(outputText);
-  const scenes = normalizeScenes(parsed?.scenes, duration);
-  if (!scenes.length) throw new Error("Groq Script fallback returned no usable scenes.");
-  console.log(`[SCENE SYNC] ${scenes.length} scenes created by Groq Script fallback.`);
-  return { scenes, provider: "groq-fallback" };
+TIMESTAMPED WHISPER TRANSCRIPT:
+${transcriptTimeline}`;
 }
 
 async function generateScenePlan(jobId, moviePath, duration, transcript, language = "myanmar", style = "natural") {
@@ -1349,7 +1097,7 @@ async function generateScenePlan(jobId, moviePath, duration, transcript, languag
   updateJob(jobId, {
     stage: "Visual Analysis",
     progress: 53,
-    message: "FFmpeg is detecting scenes and Groq is analyzing representative frames..."
+    message: "FFmpeg is building full-timeline scene windows and Groq is analyzing representative frames..."
   });
 
   const localScenes = await detectLocalSceneBoundaries(moviePath, duration);
@@ -1359,47 +1107,65 @@ async function generateScenePlan(jobId, moviePath, duration, transcript, languag
 
   const candidateTimeline = localScenes.map(scene => {
     const item = evidence.get(scene.index) || {};
-    return `SCENE ${scene.index}: ${scene.start_sec.toFixed(2)}s - ${scene.end_sec.toFixed(2)}s\nVISUAL: ${item.visual_summary || "No visual summary available."}\nIMPORTANT EVENT: ${item.important_event || "No important event identified."}`;
+    const dialogue = dialogueForWindow(transcript.segments, scene.start_sec, scene.end_sec);
+    return `SCENE ${scene.index}: ${scene.start_sec.toFixed(2)}s - ${scene.end_sec.toFixed(2)}s
+VISUAL: ${item.visual_summary || "No visual summary available."}
+IMPORTANT EVENT: ${item.important_event || "No important event identified."}
+DIALOGUE IN THIS WINDOW: ${dialogue || "No timestamped dialogue in this window."}`;
   }).join("\n\n");
 
-  let languageInstruction = "Write natural spoken Myanmar (Burmese).";
-  if (language === "en" || language === "english") languageInstruction = "Write natural spoken English.";
-
-  let styleInstruction = "Use cinematic movie recap narration.";
-  if (style === "fast" || style === "short") styleInstruction = "Use concise, fast-paced movie recap narration.";
-  if (style === "suspense" || style === "storytelling") styleInstruction = "Use suspenseful storytelling with emotional flow and strong reveals.";
-  if (style === "detailed") styleInstruction = "Use detailed but natural movie recap narration while keeping every scene speakable.";
-
-  const prompt = buildRecapPrompt({ timeline, candidateTimeline, languageInstruction, styleInstruction });
+  const prompt = buildRecapScriptPrompt({
+    duration,
+    candidateTimeline,
+    transcriptTimeline: timeline,
+    language,
+    style
+  });
 
   updateJob(jobId, {
     stage: "Recap",
     progress: 61,
-    message: `Gemini Script: generating recap with ${GEMINI_MODEL}...`
+    message: process.env.GEMINI_API_KEY
+      ? "Gemini is writing the recap script from Groq evidence..."
+      : "Gemini key မရှိပါ — Groq Script fallback ကို သုံးနေပါတယ်..."
   });
 
+  let outputText = "";
+  let provider = "Gemini";
   try {
-    const outputText = await callGeminiScript(prompt);
-    const parsed = parseAIJSON(outputText);
-    const scenes = normalizeScenes(parsed?.scenes, duration);
-    if (!scenes.length) throw new Error("Gemini returned no usable scene plan.");
-    console.log(`[SCENE SYNC] ${scenes.length} scenes created by Gemini Script.`);
-    return { scenes, provider: "gemini" };
+    outputText = await callGeminiScript(prompt);
+    console.log(`[RECAP SCRIPT] Gemini ${GEMINI_MODEL} succeeded.`);
   } catch (error) {
-    const reason = error?.isQuota || Number(error?.status) === 429
-      ? "Gemini quota/rate limit reached"
-      : (error?.message || "Gemini Script unavailable");
+    provider = "Groq fallback";
+    const is429 = Number(error?.status) === 429 || /429|quota|rate.?limit|resource.?exhausted/i.test(String(error?.message || ""));
+    console.warn(`[RECAP SCRIPT] Gemini failed${is429 ? " (429/quota)" : ""}; switching immediately to Groq: ${error?.message || error}`);
 
-    console.warn(`[GEMINI SCRIPT] ${reason}. Switching immediately to Groq Script fallback.`);
-    updateJob(jobId, {
-      stage: "Recap",
-      progress: 61,
-      message: `Gemini unavailable (${reason}) — switching to Groq Script fallback...`
-    });
-
-    return await generateGroqScript(jobId, groq, prompt, duration);
+    const fallbackPrompt = prompt.replace(
+      "Gemini is used ONLY for this script-writing step.",
+      "Gemini script generation was unavailable, so Groq is writing this script from the same evidence."
+    );
+    const response = await callGroqWithRetry("Recap Script (Groq fallback)", () =>
+      groq.chat.completions.create({
+        model: GROQ_SCRIPT_MODEL,
+        messages: [{ role: "user", content: fallbackPrompt }],
+        temperature: 0.35,
+        max_completion_tokens: 900,
+        response_format: { type: "json_object" }
+      })
+    );
+    outputText = response?.choices?.[0]?.message?.content || "";
   }
+
+  if (!outputText) throw new Error("Script provider returned an empty scene plan.");
+
+  const parsed = parseAIJSON(outputText);
+  const scenes = normalizeScenes(parsed.scenes, duration);
+  if (!scenes.length) throw new Error(`${provider} returned no usable scenes.`);
+
+  console.log(`[SCENE SYNC] ${scenes.length} scenes created by ${provider}.`);
+  return { scenes, scriptProvider: provider };
 }
+
 /* =========================================================
    EDGE TTS VOICE
 ========================================================= */
@@ -1748,7 +1514,7 @@ async function renderSceneSyncVideo(
     updateJob(jobId, {
       stage: "FFmpeg",
       progress: Math.min(93, voiceProgress + 1),
-      message: `Scene ${scene.index} / ${totalScenes} — matching video to narration (${prepared.sourceDuration.toFixed(1)}s)...`
+      message: `Scene ${scene.index} / ${totalScenes} — keeping natural narration timing (${prepared.sourceDuration.toFixed(1)}s)...`
     });
 
     // Final scene duration follows the natural narration duration, not the
@@ -1934,7 +1700,7 @@ async function processOneClip(
       stage: "Recap",
       progress: 64,
       message:
-        `${scenePlan.scenes.length} synchronized scenes created.`,
+        `${scenePlan.scenes.length} synchronized scenes created with ${scenePlan.scriptProvider || "script provider"}.`,
 
       scenePlan: {
         scenes:
@@ -2042,7 +1808,7 @@ app.get(
       models: {
         whisper: GROQ_MODEL,
         vision: GROQ_VISION_MODEL,
-        recap: `Gemini ${GEMINI_MODEL} → Groq fallback`,
+        recap: "Gemini script → Groq fallback",
         tts: "Microsoft Edge TTS"
       },
 
