@@ -1,6 +1,7 @@
 import express from "express";
 import multer from "multer";
 import dotenv from "dotenv";
+import os from "os";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -133,13 +134,13 @@ const upload = multer({
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
-if (!DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL is required. Add a PostgreSQL connection string to the environment."
-  );
+const USE_DB = Boolean(DATABASE_URL);
+
+if (!USE_DB) {
+  console.log("[JOB STORAGE] DATABASE_URL မရှိပါ - memory ထဲမှာပဲ job သိမ်းမည်။");
 }
 
-const db = new Pool({
+const db = !USE_DB ? null : new Pool({
   connectionString: DATABASE_URL,
   ssl:
     process.env.DATABASE_SSL === "false"
@@ -154,6 +155,7 @@ const jobs = new Map();
 const jobWriteQueues = new Map();
 
 async function initDatabase() {
+  if (!USE_DB) return;
   await db.query(`
     CREATE TABLE IF NOT EXISTS jobs (
       id TEXT PRIMARY KEY,
@@ -230,6 +232,7 @@ function dbRowToJob(row) {
 }
 
 async function persistJob(job) {
+  if (!USE_DB) return;
   const row = jobToDbRow(job);
 
   await db.query(
@@ -353,6 +356,10 @@ async function getJob(id) {
 
   if (cached) {
     return cached;
+  }
+
+  if (!USE_DB) {
+    return null;
   }
 
   const result = await db.query(
@@ -1948,7 +1955,15 @@ async function downloadYouTubeVideo(url, jobFolder) {
     throw new Error("YouTube URL မမှန်ပါ။ youtube.com သို့မဟုတ် youtu.be link ကိုသာ ထည့်ပါ။");
   }
   const template = path.join(jobFolder, "source.%(ext)s");
+  const ytExtra = [];
+  const cookieText = process.env.YT_COOKIES_CONTENT;
+  if (cookieText) {
+    const cookiePath = path.join(os.tmpdir(), "yt-cookies.txt");
+    fs.writeFileSync(cookiePath, cookieText);
+    ytExtra.push("--cookies", cookiePath);
+  }
   await runCommand("yt-dlp", [
+    ...ytExtra,
     "--no-playlist",
     "--format", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b",
     "--merge-output-format", "mp4",
@@ -1960,7 +1975,7 @@ async function downloadYouTubeVideo(url, jobFolder) {
   const candidates = fs.readdirSync(jobFolder)
     .filter(name => name.startsWith("source.") && /\.(mp4|mkv|webm|mov)$/i.test(name))
     .map(name => path.join(jobFolder, name));
-  if (!candidates.length) throw new Error("yt-dlp က video ဖိုင်မထုတ်ပေးနိုင်ပါ။ YouTube က video ကို ပိတ်ထားနိုင်ခြင်း၊ login/age restriction သို့မဟုတ် Render network ကန့်သတ်ချက်ကြောင့် ဖြစ်နိုင်ပါတယ်။");
+  if (!candidates.length) throw new Error("yt-dlp က video ဖိုင်မထုတ်ပေးနိုင်ပါ။ YouTube က server IP ကို ပိတ်ထားနိုင်ပါတယ်။ MP4 ဖိုင်ကို တိုက်ရိုက်တင်ပါ၊ ဒါမှမဟုတ် YT_COOKIES_CONTENT ထည့်ပါ။");
   candidates.sort((a,b) => fs.statSync(b).size - fs.statSync(a).size);
   const chosen = candidates[0];
   const finalPath = path.join(jobFolder, "movie.mp4");
@@ -2273,7 +2288,7 @@ app.get(
 
       sceneSync: true,
       sceneFPS: SCENE_FPS,
-      jobStorage: "PostgreSQL",
+      jobStorage: USE_DB ? "PostgreSQL" : "memory",
       dataDir: DATA_DIR
     });
   }
