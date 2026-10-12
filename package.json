@@ -1,21 +1,19 @@
 {
-  "name": "ynt-recap-tool",
-  "version": "1.1.0",
-  "description": "YNT Recap Tool with YouTube ingestion, Myanmar Edge TTS, recap rendering and optional 9:16 Shorts",
+  "name": "ynt-thumbnail-srt",
+  "version": "4.0.0",
+  "private": true,
   "type": "module",
-  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"
   },
-  "engines": { "node": ">=20" },
   "dependencies": {
-    "@google/genai": "^2.24.0",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "groq-sdk": "^0.37.0",
-    "multer": "^1.4.5-lts.1",
-    "pg": "^8.16.3",
-    "node-edge-tts": "^1.2.10"
+    "@google/genai": "latest",
+    "dotenv": "latest",
+    "express": "^5.1.0",
+    "ffmpeg-static": "latest",
+    "ffprobe-static": "latest",
+    "groq-sdk": "latest",
+    "multer": "^2.0.2"
   }
 }
