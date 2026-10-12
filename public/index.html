@@ -44,14 +44,14 @@ button:disabled{opacity:.6;cursor:default}
 <p class="sub">ဗီဒီယို ထည့်ပါ၊ အဆင့် ၆ ဆင့်ကို အလိုအလျောက် run ပေးပါမယ်</p>
 
 <div class="card"><h2>၁။ ဗီဒီယို ထည့်ရန်</h2>
-<label for="url">YouTube Link</label><input id="url" type="text" placeholder="https://www.youtube.com/watch?v=... သို့မဟုတ် youtu.be/...">
+<label for="url">YouTube Link (ကိုယ်ပိုင် သို့မဟုတ် ခွင့်ပြုချက်ရှိသော Video)</label><input id="url" type="text" placeholder="https://www.youtube.com/watch?v=...">
 <label for="f">သို့မဟုတ် MP4 ဖိုင်</label><input id="f" type="file" accept="video/mp4,video/*">
 <label for="v">မြန်မာအသံ</label>
 <select id="v"><option>my-MM-ThihaNeural (ကျား)</option><option>my-MM-NilarNeural (မ)</option><option>Multi-Voice (နှစ်မျိုးလုံး)</option></select>
 <div class="chk"><input id="sh" type="checkbox" checked><label for="sh" style="margin:0;color:inherit">Viral 9:16 Shorts ပါထုတ်မယ်</label></div>
 
 <button id="go">Start</button>
-<p class="note">YouTube URL သို့မဟုတ် Local Video ကို အသုံးပြုနိုင်သည်။ YouTube အတွက် Render မှာ yt-dlp၊ FFmpeg နှင့် API environment variables များ တပ်ဆင်ထားရန်လိုသည်။</p></div>
+<p class="note">P1 Video + Groq Whisper/Vision → P2 Recap Script → P3 Myanmar Translation → P4 Edge TTS + FFmpeg Final Video. Gemini မသုံးပါ။ Render မှာ GROQ_API_KEY, DATABASE_URL, FFmpeg နဲ့ yt-dlp တပ်ဆင်ထားရန်လိုသည်။</p></div>
 
 <div class="card"><h2>၂။ လုပ်ငန်းစဉ်</h2><div class="bar"><i id="p"></i></div>
 <ol class="steps" id="steps"></ol></div>
@@ -60,45 +60,41 @@ button:disabled{opacity:.6;cursor:default}
 <div class="out" id="out" style="margin-top:12px"><div>🎬 Recap Video</div><div id="o2">📱 9:16 Shorts</div></div></div>
 <script>
 const $=id=>document.getElementById(id);
-const S=[["📥","Video Upload","Server သို့ video တင်နေသည်"],["🎙️","Groq Whisper","Dialogue + timestamps ထုတ်နေသည်"],["🧠","Scene Analysis / Recap","Scene timeline နှင့် recap script ပြင်ဆင်နေသည်"],["🗣️","Myanmar Edge TTS","Nilar / Thiha မြန်မာအသံ ထုတ်နေသည်"],["🎬","FFmpeg Render","အသံနှင့် scene များ sync လုပ်နေသည်"],["⬇️","Final Export","ပြီးဆုံးသော MP4 ကို ရယူနိုင်သည်"]];
+const S=[["📥","P1 Video + Transcript","Video ရယူပြီး Whisper timestamps ထုတ်မယ်"],["👁️","P1 Scene Analysis","Groq Vision က frame တွေစစ်မယ်"],["📝","P2 Recap Script","အဖြစ်အပျက်အစဉ်အလိုက် script ရေးမယ်"],["🇲🇲","P3 Myanmar Translation","Script ကို မြန်မာဘာသာပြန်မယ်"],["🗣️","P4 Edge TTS + FFmpeg","အသံနဲ့ video ကို sync လုပ်မယ်"],["📱","P4 Export","Final MP4 နဲ့ 9:16 Shorts ထုတ်မယ်"]];
 const ul=$('steps'),log=$('log'),p=$('p'),go=$('go');
-let busy=false,jobId=null,pollTimer=null,failCount=0;
+let busy=false,jobId=null,pollTimer=null;
 function draw(i){ul.innerHTML=S.map((s,k)=>{let c=k<i?'done':k===i?'run':'';return `<li class="st ${c}"><div class="ic">${k<i?'✓':s[0]}</div><div><b>${k+1}. ${s[1]}</b><span>${s[2]}</span></div><div class="tag">${k<i?'ပြီး':k===i?'လုပ်နေ…':''}</div></li>`}).join('');p.style.width=(Math.max(0,Math.min(6,i))/6*100)+'%'}
 function add(t){if(log.textContent==='စောင့်ဆိုင်းနေသည်…')log.textContent='';log.textContent+=(log.textContent?'\n':'')+t;log.scrollTop=log.scrollHeight}
-function stageIndex(stage){const s=String(stage||'').toLowerCase();if(s.includes('upload')||s.includes('youtube'))return 0;if(s.includes('transcript')||s.includes('whisper'))return 1;if(s.includes('visual')||s.includes('gemini')||s.includes('scene'))return 2;if(s.includes('recap')||s.includes('script'))return 2;if(s.includes('voice')||s.includes('tts'))return 3;if(s.includes('ffmpeg')||s.includes('render'))return 4;if(s.includes('ready')||s.includes('complete'))return 6;return 0}
+function stageIndex(stage){const s=String(stage||'').toLowerCase();if(s.includes('upload'))return 0;if(s.includes('transcript')||s.includes('whisper'))return 1;if(s.includes('visual')||s.includes('scene analysis'))return 1;if(s.includes('p2')||s.includes('recap')||s.includes('script'))return 2;if(s.includes('p3')||s.includes('translation'))return 3;if(s.includes('voice')||s.includes('tts')||s.includes('ffmpeg')||s.includes('render'))return 4;if(s.includes('shorts')||s.includes('ready')||s.includes('complete'))return 6;return 0}
 async function poll(){
  if(!jobId)return;
  try{
   const r=await fetch('/api/status/'+encodeURIComponent(jobId),{cache:'no-store'});
-  const tx=await r.text();let d;try{d=JSON.parse(tx)}catch(_){throw Object.assign(new Error('Server ပြန်မဖြေသေးပါ'),{transient:true})}
-  if(!r.ok)throw new Error(d.error||'Status ဖတ်မရပါ');failCount=0;
+  const d=await r.json();if(!r.ok)throw new Error(d.error||'Status ဖတ်မရပါ');
   draw(d.status==='completed'?6:stageIndex(d.stage));
   if(d.message)add('['+(d.stage||'Processing')+'] '+d.message);
   if(d.error)add('ERROR: '+d.error);
   if(d.status==='completed'){
    clearInterval(pollTimer);busy=false;go.disabled=false;go.textContent='Start Again';
    const url='/api/download/'+encodeURIComponent(jobId);
-   add('✔ ပြီးပါပြီ — Final MP4 ကို အောက်က link မှာ ကြည့်/Download လုပ်နိုင်ပါတယ်။');
+   add('✔ ပြီးပါပြီ — Final MP4 နဲ့ Shorts ကို အောက်က link တွေကနေ Download လုပ်နိုင်ပါတယ်။');
    $('out').classList.add('on');
    const link=document.createElement('a');link.href=url;link.download='YNT-Myanmar-Recap.mp4';link.textContent='⬇️ Final Recap Video ကြည့်ရန် / Download';link.style.cssText='display:block;margin-top:12px;padding:14px;border-radius:12px;background:#7c3aed;color:#fff;text-align:center;font-weight:700;text-decoration:none';
-   const old=document.getElementById('finalLink');if(old)old.remove();link.id='finalLink';$('out').after(link);
-   const oldShort=document.getElementById('shortsLink');if(oldShort)oldShort.remove();
-   if(d.output&&d.output.shorts){const sl=document.createElement('a');sl.id='shortsLink';sl.href='/api/download/'+encodeURIComponent(jobId)+'/shorts';sl.download='YNT-Shorts-9x16.mp4';sl.textContent='📱 9:16 Shorts ကို Download လုပ်ရန်';sl.style.cssText='display:block;margin-top:10px;padding:14px;border-radius:12px;background:#f59e0b;color:#fff;text-align:center;font-weight:700;text-decoration:none';link.after(sl);add('✔ 9:16 Shorts (1080×1920) ကိုလည်း ထုတ်ပြီးပါပြီ။')}else{$('o2').textContent='📱 9:16 Shorts မရွေးထားပါ';}
+   const old=document.getElementById('finalLink');if(old)old.remove();link.id='finalLink';$('out').after(link);const oldShort=document.getElementById('shortLink');if(oldShort)oldShort.remove();if(d.output?.shortsUrl){const sl=document.createElement('a');sl.id='shortLink';sl.href=d.output.shortsUrl;sl.download='YNT-Recap-Shorts-9x16.mp4';sl.textContent='⬇️ 9:16 Shorts Download';sl.style.cssText=link.style.cssText+';background:#0891b2';link.after(sl)}
   } else if(d.status==='error'){
    clearInterval(pollTimer);busy=false;go.disabled=false;go.textContent='Try Again';add('❌ Processing မအောင်မြင်ပါ။ အပေါ်က error နှင့် Render logs ကို စစ်ပါ။');
   }
- }catch(e){if(e.transient||e instanceof TypeError){failCount++;if(failCount<=45){if(failCount===1||failCount%6===0)add('⏳ Server အလုပ်များနေသည်၊ ဆက်စောင့်နေသည်…');return}}clearInterval(pollTimer);busy=false;go.disabled=false;go.textContent='Try Again';add('❌ '+e.message)}
+ }catch(e){clearInterval(pollTimer);busy=false;go.disabled=false;go.textContent='Try Again';add('❌ '+e.message)}
 }
 draw(-1);
 go.onclick=async()=>{
  if(busy)return;
  const f=$('f').files[0],url=$('url').value.trim();
- if(!f&&!url){add('⚠️ YouTube Link ထည့်ပါ သို့မဟုတ် video ဖိုင်ရွေးပါ။');return}
- if(f&&url){add('⚠️ YouTube Link သို့မဟုတ် ဖိုင် — တစ်မျိုးတည်းကိုသာ ရွေးပါ။');return}
- if(url&&!/^https?:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)\//i.test(url)){add('⚠️ YouTube URL မမှန်ပါ။');return}
+ if(!f&&!url){add('⚠️ YouTube Link ထည့်ပါ သို့မဟုတ် Video ဖိုင်ရွေးပါ။');return}
  if(f&&f.size>500*1024*1024){add('⚠️ Video သည် 500MB ထက် မကျော်ရပါ။');return}
- busy=true;go.disabled=true;go.textContent='Uploading…';$('out').classList.remove('on');const old=document.getElementById('finalLink');if(old)old.remove();const oldShort=document.getElementById('shortsLink');if(oldShort)oldShort.remove();log.textContent='';draw(0);add(f?('Input: '+f.name+' ('+(f.size/1048576).toFixed(1)+' MB)'):('YouTube: '+url));
- const fd=new FormData();if(f)fd.append('movie',f);if(url)fd.append('url',url);fd.append('shorts',$('sh').checked?'true':'false');fd.append('language','my');fd.append('style','cinematic');fd.append('voice',$('v').value.includes('Nilar')?'female':'male');fd.append('voiceRate','1');
+ if(url&&!/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(url)){add('⚠️ YouTube URL ပုံစံ မမှန်ပါ။');return}
+ busy=true;go.disabled=true;go.textContent='Uploading…';$('out').classList.remove('on');const old=document.getElementById('finalLink');if(old)old.remove();log.textContent='';draw(0);add(f?'Input: '+f.name+' ('+(f.size/1048576).toFixed(1)+' MB)':'Input: YouTube URL');
+ const fd=new FormData();if(f)fd.append('movie',f);if(url)fd.append('youtubeUrl',url);fd.append('makeShorts',$('sh').checked?'true':'false');fd.append('language','my');fd.append('style','cinematic');fd.append('voice',$('v').value.includes('Nilar')?'female':'male');fd.append('voiceRate','1');
  try{
   const r=await fetch('/api/one-clip',{method:'POST',body:fd});
   const d=await r.json().catch(()=>({}));
