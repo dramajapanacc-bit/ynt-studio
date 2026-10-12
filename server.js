@@ -1,15 +1,12 @@
 import express from "express";
 import multer from "multer";
 import dotenv from "dotenv";
-import os from "os";
-import WebSocket from "ws";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import Groq from "groq-sdk";
-import { GoogleGenAI } from "@google/genai";
 import pg from "pg";
 import { EdgeTTS } from "node-edge-tts";
 
@@ -58,7 +55,9 @@ for (const dir of [
 ========================================================= */
 
 const GROQ_MODEL = "whisper-large-v3-turbo";
-const GEMINI_MODEL = "gemini-3.8-flash";
+const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-20b";
+const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "qwen/qwen3.8-27b";
+const GEMINI_MODEL = "disabled";
 const EDGE_TTS_DEFAULT_VOICE = "my-MM-NilarNeural";
 const EDGE_TTS_VOICES = {
   female: "my-MM-NilarNeural",
@@ -135,13 +134,13 @@ const upload = multer({
 
 const DATABASE_URL = process.env.DATABASE_URL;
 
-const USE_DB = Boolean(DATABASE_URL);
-
-if (!USE_DB) {
-  console.log("[JOB STORAGE] DATABASE_URL မရှိပါ - memory ထဲမှာပဲ job သိမ်းမည်။");
+if (!DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL is required. Add a PostgreSQL connection string to the environment."
+  );
 }
 
-const db = !USE_DB ? null : new Pool({
+const db = new Pool({
   connectionString: DATABASE_URL,
   ssl:
     process.env.DATABASE_SSL === "false"
@@ -156,7 +155,6 @@ const jobs = new Map();
 const jobWriteQueues = new Map();
 
 async function initDatabase() {
-  if (!USE_DB) return;
   await db.query(`
     CREATE TABLE IF NOT EXISTS jobs (
       id TEXT PRIMARY KEY,
@@ -180,12 +178,6 @@ async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_jobs_updated_at
     ON jobs (updated_at DESC)
   `);
-
-  await db.query(
-    `UPDATE jobs SET status = 'error', message = $1, error = $1, updated_at = NOW()
-     WHERE status NOT IN ('completed', 'error')`,
-    ["Server ပြန်စတင်သွားလို့ job ရပ်သွားပါတယ်။ Start ကို ပြန်နှိပ်ပါ။"]
-  );
 
   console.log(
     "[JOB STORAGE] PostgreSQL database ready."
@@ -239,7 +231,6 @@ function dbRowToJob(row) {
 }
 
 async function persistJob(job) {
-  if (!USE_DB) return;
   const row = jobToDbRow(job);
 
   await db.query(
@@ -365,10 +356,6 @@ async function getJob(id) {
     return cached;
   }
 
-  if (!USE_DB) {
-    return null;
-  }
-
   const result = await db.query(
     `SELECT * FROM jobs WHERE id = $1 LIMIT 1`,
     [id]
@@ -397,10 +384,7 @@ async function waitForJobWrites(jobId) {
 ========================================================= */
 
 function requireEnv(name) {
-  const value = String(process.env[name] || "")
-    .replace(/^\s*(export\s+)?[A-Z_]+\s*=\s*/, "")
-    .replace(/^Bearer\s+/i, "")
-    .replace(/["'\s]/g, "");
+  const value = process.env[name];
 
   if (!value) {
     throw new Error(`${name} is not configured.`);
@@ -1318,208 +1302,94 @@ function normalizeScenes(
 }
 
 /* =========================================================
-   GEMINI SCENE PLAN
+   P1-P3: GROQ VISION + GROQ SCRIPT + MYANMAR TRANSLATION
+   Gemini is intentionally not used in this pipeline.
 ========================================================= */
-
-async function generateScenePlan(
-  jobId,
-  moviePath,
-  duration,
-  transcript,
-  language = "my",
-  style = "cinematic"
-) {
-  const ai =
-    new GoogleGenAI({
-      apiKey: requireEnv(
-        "GEMINI_API_KEY"
-      )
-    });
-
-  updateJob(jobId, {
-    stage: "Gemini",
-    progress: 55,
-    message:
-      "Gemini is analyzing the movie and matching scenes..."
-  });
-
-  const videoFile =
-    await uploadVideoToGemini(
-      ai,
-      moviePath
-    );
-
-  const timeline =
-    buildTranscriptTimeline(
-      transcript.segments
-    );
-
-  let languageInstruction =
-    "Write natural spoken Myanmar (Burmese).";
-
-  if (language === "en") {
-    languageInstruction =
-      "Write natural spoken English.";
+async function extractSampleFrames(moviePath, duration, frameDir) {
+  fs.mkdirSync(frameDir, { recursive: true });
+  const count = Math.max(4, Math.min(12, Math.ceil(duration / 45)));
+  const frames = [];
+  for (let i = 0; i < count; i++) {
+    const time = Math.min(Math.max(0, duration - 0.25), (duration * (i + 0.5)) / count);
+    const output = path.join(frameDir, `frame-${String(i + 1).padStart(3, "0")}.jpg`);
+    await runCommand("ffmpeg", ["-y", "-ss", time.toFixed(2), "-i", moviePath, "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "5", output]);
+    if (fs.existsSync(output) && fs.statSync(output).size > 0) frames.push({ time, path: output });
   }
-
-  let styleInstruction =
-    "Use cinematic movie recap narration.";
-
-  if (style === "short") {
-    styleInstruction =
-      "Use concise and fast-paced movie recap narration.";
-  }
-
-  if (style === "storytelling") {
-    styleInstruction =
-      "Use smooth storytelling with suspense and emotional flow.";
-  }
-
-  if (style === "detailed") {
-    styleInstruction =
-      "Use detailed but natural movie recap narration.";
-  }
-
-  const prompt = `
-You are creating a PROFESSIONAL SYNCHRONIZED MOVIE RECAP.
-
-You have access to the actual movie video.
-
-You MUST analyze what is visibly happening.
-
-You also have the original Whisper transcript with timestamps.
-
-Your output will be used to create a final video where each narration
-is placed directly over its selected video scene.
-
-SYNCHRONIZATION IS EXTREMELY IMPORTANT.
-
-RULES:
-
-1. Analyze the actual movie video.
-2. Identify meaningful visual scene changes.
-3. Every scene needs start_sec and end_sec.
-4. Use real timestamps from the movie.
-5. Keep scenes chronological.
-6. Do not overlap scenes.
-7. Do not leave gaps.
-8. Cover the complete movie from 0 to ${duration.toFixed(2)} seconds.
-9. Prefer scenes around 6 to 14 seconds.
-10. Create approximately 8 to ${MAX_SCENES} scenes.
-11. Match narration to what is actually visible.
-12. Use Whisper transcript as supporting information.
-13. Do not invent events.
-14. Do not invent characters.
-15. Do not invent dialogue.
-16. Do not move events to incorrect timestamps.
-17. Keep important story events.
-18. Keep the ending.
-19. Avoid meaningless filler.
-20. Narration must sound natural when spoken.
-21. Narration length must be reasonable for its scene.
-22. Do not use Markdown.
-23. Do not use headings in narration.
-24. Do not mention AI.
-25. Return ONLY JSON.
-
-LANGUAGE:
-${languageInstruction}
-
-STYLE:
-${styleInstruction}
-
-JSON FORMAT:
-
-{
-  "scenes": [
-    {
-      "start_sec": 0,
-      "end_sec": 8,
-      "visual_summary": "What is visibly happening.",
-      "event_summary": "Important story event.",
-      "narration": "Natural recap narration."
-    }
-  ]
+  if (!frames.length) throw new Error("P1: FFmpeg could not extract scene frames.");
+  return frames;
 }
 
-WHISPER TIMELINE:
+function imageDataUrl(imagePath) {
+  const data = fs.readFileSync(imagePath).toString("base64");
+  return `data:image/jpeg;base64,${data}`;
+}
 
-${timeline}
-`;
+async function groqChat(model, messages, extra = {}) {
+  const client = new Groq({ apiKey: requireEnv("GROQ_API_KEY") });
+  const response = await client.chat.completions.create({
+    model,
+    messages,
+    temperature: 0.2,
+    max_completion_tokens: 7000,
+    ...extra
+  });
+  const content = response?.choices?.[0]?.message?.content;
+  if (!content || typeof content !== "string") throw new Error(`Groq model ${model} returned empty text.`);
+  return content;
+}
 
-  const response =
-    await callGeminiWithRetry(
-      "Scene-Synchronized Movie Analysis",
-      () =>
-        ai.interactions.create({
-          model: GEMINI_MODEL,
-
-          input: [
-            {
-              type: "video",
-
-              uri: videoFile.uri,
-
-              mime_type:
-                videoFile.mimeType,
-
-              processing: {
-                type: "static",
-                fps: SCENE_FPS
-              }
-            },
-
-            {
-              type: "text",
-              text: prompt
-            }
-          ],
-
-          response_format: {
-            type: "text",
-            mime_type:
-              "application/json",
-            schema:
-              scenePlanSchema
-          }
-        })
-    );
-
-  const outputText =
-    response?.output_text ||
-    response?.outputText ||
-    "";
-
-  if (!outputText) {
-    throw new Error(
-      "Gemini returned an empty scene plan."
-    );
+async function describeFramesWithGroq(jobId, frames) {
+  const descriptions = [];
+  for (let i = 0; i < frames.length; i += 3) {
+    const batch = frames.slice(i, i + 3);
+    updateJob(jobId, { stage: "P1 Visual Analysis", progress: 30 + Math.round((i / frames.length) * 12), message: `Groq Vision: frame ${i + 1}-${i + batch.length}/${frames.length}` });
+    const content = [{ type: "text", text: "Describe each attached movie frame in order. Do not infer unseen events. Return ONLY JSON: {\"frames\":[{\"index\":1,\"description\":\"visible action, people, setting, emotion\"}]}. The index must match the image order." }];
+    for (let j = 0; j < batch.length; j++) {
+      content.push({ type: "text", text: `Image ${i + j + 1}; timestamp=${batch[j].time.toFixed(2)} seconds` });
+      content.push({ type: "image_url", image_url: { url: imageDataUrl(batch[j].path) } });
+    }
+    let text;
+    try {
+      text = await groqChat(GROQ_VISION_MODEL, [{ role: "user", content }], { response_format: { type: "json_object" } });
+    } catch (e) {
+      throw new Error(`P1 Groq Vision failed (${GROQ_VISION_MODEL}): ${e.message}`);
+    }
+    let parsed;
+    try { parsed = parseGeminiJSON(text); } catch { parsed = { frames: [] }; }
+    const items = Array.isArray(parsed.frames) ? parsed.frames : [];
+    for (let j = 0; j < batch.length; j++) {
+      const item = items.find(x => Number(x.index) === i + j + 1) || items[j];
+      descriptions.push({ time: batch[j].time, description: String(item?.description || item?.summary || "Visual frame sampled; details unavailable.").trim() });
+    }
   }
+  return descriptions;
+}
 
-  const parsed =
-    parseGeminiJSON(
-      outputText
-    );
-
-  const scenes =
-    normalizeScenes(
-      parsed.scenes,
-      duration
-    );
-
-  if (!scenes.length) {
-    throw new Error(
-      "Gemini returned no usable scenes."
-    );
-  }
-
-  console.log(
-    `[SCENE SYNC] ${scenes.length} scenes created`
-  );
-
-  return {
-    scenes
-  };
+async function generateScenePlan(jobId, moviePath, duration, transcript, language = "my", style = "cinematic") {
+  const jobFolder = path.dirname(moviePath);
+  updateJob(jobId, { stage: "P1 Visual Analysis", progress: 25, message: "FFmpeg နဲ့ scene frame တွေထုတ်နေပါတယ်..." });
+  const frames = await extractSampleFrames(moviePath, duration, path.join(jobFolder, "sample-frames"));
+  const visuals = await describeFramesWithGroq(jobId, frames);
+  const timeline = buildTranscriptTimeline(transcript.segments).slice(0, 45000);
+  updateJob(jobId, { stage: "P2 Recap Script", progress: 45, message: "Groq က scene timeline နဲ့ dialogue ကို ပေါင်းပြီး recap script ရေးနေပါတယ်..." });
+  const planPrompt = `You are a careful movie-recap writer. Use ONLY the supplied visual observations and timestamped Whisper transcript. Create 6 to ${MAX_SCENES} chronological, non-overlapping scenes covering 0 to ${duration.toFixed(2)} seconds. Every scene must have start_sec, end_sec, visual_summary, event_summary, narration. Keep narration concise enough to fit the scene. Do not invent events or dialogue; where evidence is unclear, describe only what is supported. Write narration in clear English first. Style: ${style}. Return ONLY JSON {"scenes":[...]}.\nVISUAL OBSERVATIONS:\n${visuals.map(v => `[${v.time.toFixed(2)}s] ${v.description}`).join("\n")}\nTIMESTAMPED TRANSCRIPT:\n${timeline}`;
+  const planText = await groqChat(GROQ_TEXT_MODEL, [{ role: "user", content: planPrompt }], { response_format: { type: "json_object" } });
+  const parsed = parseGeminiJSON(planText);
+  let scenes = normalizeScenes(parsed.scenes, duration);
+  if (!scenes.length) throw new Error("P2: Groq did not return usable scenes.");
+  updateJob(jobId, { stage: "P3 Myanmar Translation", progress: 58, message: "Groq က Recap Script ကို မြန်မာဘာသာပြန်နေပါတယ်..." });
+  const translationPrompt = `Translate the following movie recap narration into natural spoken Myanmar (Burmese). Preserve meaning, character names, scene order, and all array indices. Do not add new events. Return ONLY JSON {"translations":[{"index":1,"text":"Myanmar translation"}]}. Input JSON:\n${JSON.stringify(scenes.map((scene, i) => ({ index: i + 1, text: scene.narration })))} `;
+  const translatedText = await groqChat(GROQ_TEXT_MODEL, [{ role: "user", content: translationPrompt }], { response_format: { type: "json_object" } });
+  const translated = parseGeminiJSON(translatedText);
+  const translations = Array.isArray(translated.translations) ? translated.translations : [];
+  scenes = scenes.map((scene, i) => {
+    const item = translations.find(t => Number(t.index) === i + 1) || translations[i];
+    const narration = String(item?.text || "").trim();
+    if (!narration) throw new Error(`P3: Myanmar translation missing for scene ${i + 1}.`);
+    return { ...scene, narration };
+  });
+  updateJob(jobId, { stage: "P3 Myanmar Translation", progress: 62, message: `မြန်မာ Script ပြီးပါပြီ — ${scenes.length} scenes.` });
+  return { scenes };
 }
 
 /* =========================================================
@@ -1540,185 +1410,6 @@ function resolveEdgeRate(rate) {
 /* =========================================================
    MICROSOFT EDGE TTS
 ========================================================= */
-
-const EDGE_TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
-
-function edgeGec() {
-  let ticks = Math.floor(Date.now() / 1000) + 11644473600;
-  ticks -= ticks % 300;
-  ticks *= 10000000;
-  return crypto.createHash("sha256").update(`${ticks}${EDGE_TOKEN}`).digest("hex").toUpperCase();
-}
-
-function xmlEscape(text) {
-  return String(text)
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-}
-
-function splitForEdge(text, maxBytes = 2500) {
-  const pieces = text.split(/(?<=[။!?.\n])\s*/).filter(Boolean);
-  const parts = [];
-  let current = "";
-  const push = () => { if (current.trim()) parts.push(current.trim()); current = ""; };
-  for (const piece of pieces) {
-    if (Buffer.byteLength(piece) > maxBytes) {
-      push();
-      let chunk = "";
-      for (const ch of piece) {
-        if (Buffer.byteLength(chunk + ch) > maxBytes) { parts.push(chunk); chunk = ""; }
-        chunk += ch;
-      }
-      current = chunk;
-      continue;
-    }
-    if (Buffer.byteLength(current + " " + piece) > maxBytes) push();
-    current = current ? `${current} ${piece}` : piece;
-  }
-  push();
-  return parts;
-}
-
-function edgeChunk(text, voice, ratePercent, version) {
-  return new Promise((resolve, reject) => {
-    const major = version.split(".")[0];
-    const id = crypto.randomUUID().replace(/-/g, "");
-    const url =
-      `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1` +
-      `?TrustedClientToken=${EDGE_TOKEN}&ConnectionId=${id}` +
-      `&Sec-MS-GEC=${edgeGec()}&Sec-MS-GEC-Version=1-${version}`;
-    const ws = new WebSocket(url, {
-      headers: {
-        Pragma: "no-cache",
-        "Cache-Control": "no-cache",
-        Origin: "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
-        "User-Agent": `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${major}.0.0.0 Safari/537.36 Edg/${major}.0.0.0`,
-        "Accept-Language": "en-US,en;q=0.9",
-        Cookie: `muid=${crypto.randomBytes(16).toString("hex").toUpperCase()};`
-      }
-    });
-    const audio = [];
-    let finished = false;
-    const fail = error => {
-      if (finished) return;
-      finished = true;
-      clearTimeout(timer);
-      try { ws.terminate(); } catch {}
-      reject(error);
-    };
-    const timer = setTimeout(() => fail(new Error("Edge TTS timeout")), 45000);
-
-    ws.on("open", () => {
-      const stamp = new Date().toISOString();
-      ws.send(
-        `X-Timestamp:${stamp}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n` +
-        `{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}\r\n`
-      );
-      const rate = `${ratePercent >= 0 ? "+" : ""}${ratePercent}%`;
-      ws.send(
-        `X-RequestId:${id}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${stamp}Z\r\nPath:ssml\r\n\r\n` +
-        `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='${voice}'><prosody pitch='+0Hz' rate='${rate}' volume='+0%'>${xmlEscape(text)}</prosody></voice></speak>`
-      );
-    });
-    ws.on("message", (data, isBinary) => {
-      if (!isBinary) {
-        if (data.toString().includes("Path:turn.end")) {
-          finished = true;
-          clearTimeout(timer);
-          try { ws.close(); } catch {}
-          resolve(Buffer.concat(audio));
-        }
-        return;
-      }
-      const buf = Buffer.from(data);
-      const headLen = buf.readUInt16BE(0);
-      if (buf.subarray(2, 2 + headLen).toString().includes("Path:audio")) {
-        audio.push(buf.subarray(2 + headLen));
-      }
-    });
-    ws.on("unexpected-response", (req, res) => fail(new Error(`Edge TTS HTTP ${res.statusCode}`)));
-    ws.on("error", fail);
-    ws.on("close", () => fail(new Error("Edge TTS connection closed")));
-  });
-}
-
-async function edgeTtsDirect(text, outputPath, voice, ratePercent) {
-  const versions = [process.env.EDGE_CHROMIUM_VERSION, "143.0.3650.75", "130.0.2849.68"].filter(Boolean);
-  const buffers = [];
-  for (const part of splitForEdge(text)) {
-    let result = null;
-    let lastError = null;
-    for (const version of versions) {
-      try {
-        const audio = await edgeChunk(part, voice, ratePercent, version);
-        if (audio.length > 100) { result = audio; break; }
-        lastError = new Error("Edge TTS empty audio");
-      } catch (error) {
-        lastError = error;
-      }
-    }
-    if (!result) throw lastError || new Error("Edge TTS failed");
-    buffers.push(result);
-  }
-  fs.writeFileSync(outputPath, Buffer.concat(buffers));
-}
-
-async function geminiTtsToMp3(text, outputPath, voiceName, ratePercent) {
-  const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
-  const models = [
-    process.env.GEMINI_TTS_MODEL,
-    "gemini-3.1-flash-tts-preview",
-    "gemini-2.5-flash-preview-tts"
-  ].filter(Boolean);
-  const pcmParts = [];
-  let sampleRate = 24000;
-
-  for (const part of splitForEdge(text, 1500)) {
-    let pcm = null;
-    let lastError = null;
-    for (const model of models) {
-      for (let attempt = 0; attempt < 2 && !pcm; attempt++) {
-        try {
-          const res = await ai.models.generateContent({
-            model,
-            contents: [{ role: "user", parts: [{ text: part }] }],
-            config: {
-              responseModalities: ["AUDIO"],
-              speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
-            }
-          });
-          const inline = res?.candidates?.[0]?.content?.parts?.find(p => p?.inlineData?.data)?.inlineData;
-          if (inline?.data) {
-            pcm = Buffer.from(inline.data, "base64");
-            const m = String(inline.mimeType || "").match(/rate=(\d+)/);
-            if (m) sampleRate = Number(m[1]);
-          } else {
-            lastError = new Error("Gemini TTS audio မပါလာပါ");
-          }
-        } catch (error) {
-          lastError = error;
-          await new Promise(r => setTimeout(r, 1500));
-        }
-      }
-      if (pcm) break;
-    }
-    if (!pcm) throw lastError || new Error("Gemini TTS failed");
-    pcmParts.push(pcm);
-  }
-
-  const pcmPath = `${outputPath}.pcm`;
-  fs.writeFileSync(pcmPath, Buffer.concat(pcmParts));
-  const tempo = Math.min(2, Math.max(0.5, 1 + ratePercent / 100));
-  try {
-    await runCommand("ffmpeg", [
-      "-y", "-f", "s16le", "-ar", String(sampleRate), "-ac", "1", "-i", pcmPath,
-      ...(Math.abs(tempo - 1) > 0.01 ? ["-filter:a", `atempo=${tempo.toFixed(3)}`] : []),
-      "-codec:a", "libmp3lame", "-b:a", "64k", outputPath
-    ]);
-  } finally {
-    try { fs.unlinkSync(pcmPath); } catch {}
-  }
-}
 
 async function generateFullTTS(scenes, outputPath, voice, rate = 1) {
   const actualVoice = resolveEdgeVoice(voice);
@@ -1745,37 +1436,7 @@ async function generateFullTTS(scenes, outputPath, voice, rate = 1) {
     timeout: 30000
   });
 
-  const geminiVoice = /Nilar/i.test(actualVoice) ? "Kore" : "Charon";
-  const errors = [];
-  let done = false;
-
-  try {
-    await geminiTtsToMp3(fullText, outputPath, geminiVoice, ratePercent);
-    done = fs.existsSync(outputPath) && fs.statSync(outputPath).size > 100;
-    if (done) console.log(`[GEMINI TTS] voice=${geminiVoice}`);
-  } catch (error) {
-    errors.push(`gemini: ${String(error?.message || error).slice(0, 200)}`);
-    console.error("[GEMINI TTS] failed:", String(error?.message || error).slice(0, 300));
-  }
-
-  if (!done) {
-    try {
-      await edgeTtsDirect(fullText, outputPath, actualVoice, ratePercent);
-      done = true;
-    } catch (error) {
-      errors.push(`edge: ${String(error?.message || error).slice(0, 120)}`);
-      try {
-        await tts.ttsPromise(fullText, outputPath);
-        done = true;
-      } catch (oldError) {
-        errors.push(`edge-old: ${oldError?.message || oldError}`);
-      }
-    }
-  }
-
-  if (!done) {
-    throw new Error(`အသံထုတ်လို့မရပါ။ ${errors.join(" | ")}`);
-  }
+  await tts.ttsPromise(fullText, outputPath);
 
   if (!fs.existsSync(outputPath)) {
     throw new Error("Microsoft Edge TTS did not return an audio file.");
@@ -1963,14 +1624,9 @@ async function renderSceneVideo(
 ) {
   const duration = Math.max(0.05, scene.end - scene.start);
 
-  const maxHeight = Number(process.env.RENDER_MAX_HEIGHT || 720);
-
   await runCommand(
-    "nice",
+    "ffmpeg",
     [
-      "-n",
-      "10",
-      "ffmpeg",
       "-y",
       "-ss",
       scene.start.toFixed(3),
@@ -1979,14 +1635,12 @@ async function renderSceneVideo(
       "-t",
       duration.toFixed(3),
       "-an",
-      "-vf",
-      `scale=-2:'min(${maxHeight},ih)'`,
       "-c:v",
       "libx264",
       "-preset",
-      "ultrafast",
+      "veryfast",
       "-crf",
-      "26",
+      "23",
       "-pix_fmt",
       "yuv420p",
       "-movflags",
@@ -2114,7 +1768,8 @@ async function renderSceneSyncVideo(
   scenePlan,
   voice,
   jobFolder,
-  voiceRate = 1
+  voiceRate = 1,
+  makeShorts = true
 ) {
   const sceneDir = path.join(jobFolder, "scenes");
   fs.mkdirSync(sceneDir, { recursive: true });
@@ -2164,67 +1819,6 @@ async function renderSceneSyncVideo(
 }
 
 /* =========================================================
-   YOUTUBE INGESTION + SHORTS EXPORT
-========================================================= */
-
-function isAllowedVideoUrl(value) {
-  try {
-    const u = new URL(value);
-    return ["youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "youtube-nocookie.com", "www.youtube-nocookie.com"].includes(u.hostname.toLowerCase());
-  } catch {
-    return false;
-  }
-}
-
-async function downloadYouTubeVideo(url, jobFolder) {
-  if (!isAllowedVideoUrl(url)) {
-    throw new Error("YouTube URL မမှန်ပါ။ youtube.com သို့မဟုတ် youtu.be link ကိုသာ ထည့်ပါ။");
-  }
-  const template = path.join(jobFolder, "source.%(ext)s");
-  const ytExtra = [];
-  const cookieText = process.env.YT_COOKIES_CONTENT;
-  if (cookieText) {
-    const cookiePath = path.join(os.tmpdir(), "yt-cookies.txt");
-    fs.writeFileSync(cookiePath, cookieText);
-    ytExtra.push("--cookies", cookiePath);
-  }
-  await runCommand("yt-dlp", [
-    ...ytExtra,
-    "--no-playlist",
-    "--format", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/b",
-    "--merge-output-format", "mp4",
-    "--max-filesize", "500M",
-    "--no-warnings",
-    "--output", template,
-    url
-  ]);
-  const candidates = fs.readdirSync(jobFolder)
-    .filter(name => name.startsWith("source.") && /\.(mp4|mkv|webm|mov)$/i.test(name))
-    .map(name => path.join(jobFolder, name));
-  if (!candidates.length) throw new Error("yt-dlp က video ဖိုင်မထုတ်ပေးနိုင်ပါ။ YouTube က server IP ကို ပိတ်ထားနိုင်ပါတယ်။ MP4 ဖိုင်ကို တိုက်ရိုက်တင်ပါ၊ ဒါမှမဟုတ် YT_COOKIES_CONTENT ထည့်ပါ။");
-  candidates.sort((a,b) => fs.statSync(b).size - fs.statSync(a).size);
-  const chosen = candidates[0];
-  const finalPath = path.join(jobFolder, "movie.mp4");
-  if (chosen !== finalPath) fs.renameSync(chosen, finalPath);
-  const size = fs.statSync(finalPath).size;
-  if (!size || size > MAX_VIDEO_SIZE) throw new Error("YouTube video သည် 500 MB limit ထက် ကျော်နေသည် သို့မဟုတ် ဖိုင်အလွတ်ဖြစ်နေသည်။");
-  return finalPath;
-}
-
-async function renderVerticalShorts(jobId, inputPath, outputPath) {
-  updateJob(jobId, { stage: "Shorts Render", progress: 94, message: "9:16 vertical Shorts ကို 1080×1920 အဖြစ် render လုပ်နေသည်..." });
-  await runCommand("ffmpeg", [
-    "-y", "-i", inputPath,
-    "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1",
-    "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
-    "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart",
-    outputPath
-  ]);
-  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size <= 0) throw new Error("9:16 Shorts MP4 ကို FFmpeg က မထုတ်နိုင်ပါ။");
-  return outputPath;
-}
-
-/* =========================================================
    PROCESS JOB
 ========================================================= */
 
@@ -2235,7 +1829,7 @@ async function processOneClip(
   style,
   voice,
   voiceRate = 1,
-  generateShorts = true
+  makeShorts = true
 ) {
   try {
     const jobFolder =
@@ -2386,7 +1980,7 @@ async function processOneClip(
     );
 
     updateJob(jobId, {
-      stage: "Gemini",
+      stage: "P2 Recap Script",
       progress: 62,
       message:
         `${scenePlan.scenes.length} synchronized scenes created.`,
@@ -2411,7 +2005,8 @@ async function processOneClip(
         scenePlan,
         voice,
         jobFolder,
-        voiceRate
+        voiceRate,
+        makeShorts
       );
 
     /* -----------------------------------------
@@ -2428,6 +2023,14 @@ async function processOneClip(
       );
     }
 
+    let shortsPath = null;
+    if (makeShorts) {
+      updateJob(jobId, { stage: "P4 Shorts Export", progress: 97, message: "9:16 vertical Shorts ထုတ်နေပါတယ်..." });
+      shortsPath = path.join(jobFolder, "YNT-Recap-Shorts-9x16.mp4");
+      await runCommand("ffmpeg", ["-y", "-i", outputPath, "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", shortsPath]);
+      if (!fs.existsSync(shortsPath) || fs.statSync(shortsPath).size <= 0) throw new Error("P4: FFmpeg could not create 9:16 Shorts.");
+    }
+
     const stats =
       fs.statSync(
         outputPath
@@ -2442,18 +2045,6 @@ async function processOneClip(
     const filename =
       `YNT-One-Clips-${jobId}.mp4`;
 
-    let shortsOutput = null;
-    if (generateShorts) {
-      const shortsPath = path.join(jobFolder, `YNT-Shorts-${jobId}-9x16.mp4`);
-      await renderVerticalShorts(jobId, outputPath, shortsPath);
-      shortsOutput = {
-        path: shortsPath,
-        filename: `YNT-Shorts-${jobId}-9x16.mp4`,
-        size: fs.statSync(shortsPath).size,
-        url: `/api/download/${jobId}/shorts`
-      };
-    }
-
     updateJob(jobId, {
       status: "completed",
       stage: "Ready",
@@ -2466,7 +2057,9 @@ async function processOneClip(
         filename,
         size: stats.size,
         url: `/api/download/${jobId}`,
-        shorts: shortsOutput
+        shortsPath,
+        shortsFilename: shortsPath ? `YNT-Recap-Shorts-${jobId}.mp4` : null,
+        shortsUrl: shortsPath ? `/api/download/${jobId}?type=shorts` : null
       }
     });
 
@@ -2494,15 +2087,6 @@ async function processOneClip(
   }
 }
 
-function maskKey(name) {
-  try {
-    const v = requireEnv(name);
-    return `${v.slice(0, 4)}...${v.slice(-3)} (${v.length} chars)`;
-  } catch {
-    return "NOT SET";
-  }
-}
-
 /* =========================================================
    HEALTH
 ========================================================= */
@@ -2517,17 +2101,15 @@ app.get(
 
       models: {
         whisper: GROQ_MODEL,
-        recap: GEMINI_MODEL,
+        recap: GROQ_TEXT_MODEL,
+        vision: GROQ_VISION_MODEL,
         tts: "Microsoft Edge TTS"
       },
 
       sceneSync: true,
+      geminiUsed: false,
       sceneFPS: SCENE_FPS,
-      jobStorage: USE_DB ? "PostgreSQL" : "memory",
-      keys: {
-        groq: maskKey("GROQ_API_KEY"),
-        gemini: maskKey("GEMINI_API_KEY")
-      },
+      jobStorage: "PostgreSQL",
       dataDir: DATA_DIR
     });
   }
@@ -2597,20 +2179,13 @@ app.get(
           });
       }
 
-      if (
-        !fs.existsSync(job.output.path)
-      ) {
-        return res
-          .status(404)
-          .json({
-            error: "Output video file no longer exists."
-          });
+      const isShorts = req.query.type === "shorts";
+      const targetPath = isShorts ? job.output.shortsPath : job.output.path;
+      const targetName = isShorts ? job.output.shortsFilename : job.output.filename;
+      if (!targetPath || !fs.existsSync(targetPath)) {
+        return res.status(404).json({ error: isShorts ? "9:16 Shorts file is not available." : "Output video file no longer exists." });
       }
-
-      return res.download(
-        job.output.path,
-        job.output.filename
-      );
+      return res.download(targetPath, targetName);
     } catch (error) {
       console.error(
         "DOWNLOAD ERROR:",
@@ -2627,25 +2202,6 @@ app.get(
 );
 
 /* =========================================================
-   DOWNLOAD 9:16 SHORTS
-========================================================= */
-app.get("/api/download/:id/shorts", async (req, res) => {
-  try {
-    await waitForJobWrites(req.params.id);
-    const job = await getJob(req.params.id);
-    const shorts = job?.output?.shorts;
-    if (!job || job.status !== "completed" || !shorts) {
-      return res.status(404).json({ error: "9:16 Shorts မထုတ်ရသေးပါ။" });
-    }
-    if (!fs.existsSync(shorts.path)) return res.status(404).json({ error: "Shorts ဖိုင်မတွေ့ပါ။ Render storage ပျောက်သွားနိုင်ပါတယ်။" });
-    return res.download(shorts.path, shorts.filename);
-  } catch (error) {
-    console.error("SHORTS DOWNLOAD ERROR:", error);
-    return res.status(500).json({ error: "Shorts ကို download မလုပ်နိုင်ပါ။" });
-  }
-});
-
-/* =========================================================
    ONE CLIP
 ========================================================= */
 
@@ -2655,12 +2211,12 @@ app.post(
 
   async (req, res) => {
     try {
-      const youtubeUrl = String(req.body?.url || req.body?.youtubeUrl || "").trim();
+      const youtubeUrl = String(req.body?.youtubeUrl || "").trim();
       if (!req.file && !youtubeUrl) {
         return res.status(400).json({ error: "MP4 ဖိုင်တင်ပါ သို့မဟုတ် YouTube URL ထည့်ပါ။" });
       }
-      if (!req.file && !isAllowedVideoUrl(youtubeUrl)) {
-        return res.status(400).json({ error: "YouTube URL မမှန်ပါ။ youtube.com သို့မဟုတ် youtu.be link ကိုသာ ထည့်ပါ။" });
+      if (youtubeUrl && !/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl)) {
+        return res.status(400).json({ error: "YouTube URL ပုံစံ မမှန်ပါ။" });
       }
 
       const job =
@@ -2679,12 +2235,26 @@ app.post(
         }
       );
 
-      const originalName = req.file?.originalname || (youtubeUrl ? "YouTube-video.mp4" : "movie.mp4");
-      let moviePath = null;
+      let originalName = req.file?.originalname || "youtube-video.mp4";
+      let extension = path.extname(originalName) || ".mp4";
+      const moviePath = path.join(jobFolder, `movie${extension}`);
       if (req.file) {
-        const extension = path.extname(originalName) || ".mp4";
-        moviePath = path.join(jobFolder, `movie${extension}`);
         fs.renameSync(req.file.path, moviePath);
+      } else {
+        updateJob(job.id, { stage: "YouTube Download", progress: 4, message: "yt-dlp နဲ့ ခွင့်ပြုထားတဲ့ YouTube video ကို ရယူနေပါတယ်..." });
+        try {
+          const downloadTemplate = path.join(jobFolder, "download.%(ext)s");
+          await execFileAsync("yt-dlp", ["--no-playlist", "--no-warnings", "-f", "bv*+ba/b", "--merge-output-format", "mp4", "-o", downloadTemplate, youtubeUrl], { timeout: 15 * 60 * 1000, maxBuffer: 4 * 1024 * 1024 });
+        } catch (e) {
+          throw new Error(`YouTube download မအောင်မြင်ပါ။ yt-dlp/FFmpeg သို့မဟုတ် video access ပြဿနာဖြစ်နိုင်သည်: ${e.message}`);
+        }
+        if (!fs.existsSync(moviePath) || fs.statSync(moviePath).size <= 0) {
+          const candidates = fs.readdirSync(jobFolder).filter(n => n.startsWith("download.") && !n.endsWith(".part"));
+          const foundName = candidates.find(n => /\.(mp4|mkv|mov|webm)$/i.test(n)) || candidates[0];
+          if (foundName) fs.renameSync(path.join(jobFolder, foundName), moviePath);
+        }
+        if (!fs.existsSync(moviePath) || fs.statSync(moviePath).size <= 0) throw new Error("yt-dlp က video file မထုတ်ပေးနိုင်ပါ။");
+        originalName = "youtube-video.mp4";
       }
 
       const language =
@@ -2699,8 +2269,9 @@ app.post(
         req.body?.voice ||
         "female";
 
-      const voiceRate = Number(req.body?.voiceRate || 1);
-      const generateShorts = !["false", "0", "off", "no"].includes(String(req.body?.shorts ?? "true").toLowerCase());
+      const voiceRate =
+        Number(req.body?.voiceRate || 1);
+      const makeShorts = String(req.body?.makeShorts ?? "true") !== "false";
 
 
       updateJob(job.id, {
@@ -2708,7 +2279,8 @@ app.post(
         status: "processing",
         stage: "Upload",
         progress: 5,
-        message: youtubeUrl ? "YouTube link လက်ခံပြီး video download စတင်ပါမည်။" : "Movie uploaded. Processing started."
+        message:
+          "Movie uploaded. Processing started."
       });
 
       console.log(
@@ -2753,21 +2325,34 @@ app.post(
             `/api/download/${job.id}`
         });
 
-      setImmediate(async () => {
-        try {
-          if (!moviePath && youtubeUrl) {
-            updateJob(job.id, { stage: "YouTube Download", progress: 3, message: "YouTube မှ video ကို download လုပ်နေသည်..." });
-            moviePath = await downloadYouTubeVideo(youtubeUrl, jobFolder);
-          }
-          await processOneClip(job.id, moviePath, language, style, voice, voiceRate, generateShorts);
-        } catch (error) {
-          console.error(`[JOB ${job.id}] UNHANDLED ERROR:`, error);
-          updateJob(job.id, { status: "error", stage: "Error", progress: 0, message: error.message || "Movie processing failed.", error: error.message || "Movie processing failed." });
-        }
+      setImmediate(() => {
+        processOneClip(
+          job.id,
+          moviePath,
+          language,
+          style,
+          voice,
+          voiceRate,
+          makeShorts
+        ).catch(error => {
+          console.error(
+            `[JOB ${job.id}] UNHANDLED ERROR:`,
+            error
+          );
+
+          updateJob(job.id, {
+            status: "error",
+            stage: "Error",
+            progress: 0,
+            message:
+              error.message ||
+              "Movie processing failed.",
+            error:
+              error.message ||
+              "Movie processing failed."
+          });
+        });
       });
-/* old async handler removed */
-/*
-*/
 
     } catch (error) {
       console.error(
