@@ -1559,7 +1559,32 @@ async function generateFullTTS(scenes, outputPath, voice, rate = 1) {
     timeout: 30000
   });
 
-  await tts.ttsPromise(fullText, outputPath);
+  try {
+    const textPath = `${outputPath}.txt`;
+    fs.writeFileSync(textPath, fullText);
+    try {
+      await runCommand("edge-tts", [
+        "--voice", actualVoice,
+        "--file", textPath,
+        `--rate=${ratePercent >= 0 ? "+" : ""}${ratePercent}%`,
+        "--write-media", outputPath
+      ]);
+    } finally {
+      try { fs.unlinkSync(textPath); } catch {}
+    }
+    if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 100) {
+      throw new Error("edge-tts (python) က audio မထုတ်ပေးပါ။");
+    }
+  } catch (pyError) {
+    console.error("[EDGE TTS] python failed, node fallback:", String(pyError?.message || pyError).slice(0, 300));
+    try {
+      await tts.ttsPromise(fullText, outputPath);
+    } catch (nodeError) {
+      throw new Error(
+        `Edge TTS မအောင်မြင်ပါ။ python: ${String(pyError?.message || pyError).slice(0, 200)} | node: ${nodeError?.message || nodeError}`
+      );
+    }
+  }
 
   if (!fs.existsSync(outputPath)) {
     throw new Error("Microsoft Edge TTS did not return an audio file.");
