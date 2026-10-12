@@ -62,7 +62,7 @@ button:disabled{opacity:.6;cursor:default}
 const $=id=>document.getElementById(id);
 const S=[["📥","Video Upload","Server သို့ video တင်နေသည်"],["🎙️","Groq Whisper","Dialogue + timestamps ထုတ်နေသည်"],["🧠","Scene Analysis / Recap","Scene timeline နှင့် recap script ပြင်ဆင်နေသည်"],["🗣️","Myanmar Edge TTS","Nilar / Thiha မြန်မာအသံ ထုတ်နေသည်"],["🎬","FFmpeg Render","အသံနှင့် scene များ sync လုပ်နေသည်"],["⬇️","Final Export","ပြီးဆုံးသော MP4 ကို ရယူနိုင်သည်"]];
 const ul=$('steps'),log=$('log'),p=$('p'),go=$('go');
-let busy=false,jobId=null,pollTimer=null;
+let busy=false,jobId=null,pollTimer=null,failCount=0;
 function draw(i){ul.innerHTML=S.map((s,k)=>{let c=k<i?'done':k===i?'run':'';return `<li class="st ${c}"><div class="ic">${k<i?'✓':s[0]}</div><div><b>${k+1}. ${s[1]}</b><span>${s[2]}</span></div><div class="tag">${k<i?'ပြီး':k===i?'လုပ်နေ…':''}</div></li>`}).join('');p.style.width=(Math.max(0,Math.min(6,i))/6*100)+'%'}
 function add(t){if(log.textContent==='စောင့်ဆိုင်းနေသည်…')log.textContent='';log.textContent+=(log.textContent?'\n':'')+t;log.scrollTop=log.scrollHeight}
 function stageIndex(stage){const s=String(stage||'').toLowerCase();if(s.includes('upload')||s.includes('youtube'))return 0;if(s.includes('transcript')||s.includes('whisper'))return 1;if(s.includes('visual')||s.includes('gemini')||s.includes('scene'))return 2;if(s.includes('recap')||s.includes('script'))return 2;if(s.includes('voice')||s.includes('tts'))return 3;if(s.includes('ffmpeg')||s.includes('render'))return 4;if(s.includes('ready')||s.includes('complete'))return 6;return 0}
@@ -70,7 +70,8 @@ async function poll(){
  if(!jobId)return;
  try{
   const r=await fetch('/api/status/'+encodeURIComponent(jobId),{cache:'no-store'});
-  const d=await r.json();if(!r.ok)throw new Error(d.error||'Status ဖတ်မရပါ');
+  const tx=await r.text();let d;try{d=JSON.parse(tx)}catch(_){throw Object.assign(new Error('Server ပြန်မဖြေသေးပါ'),{transient:true})}
+  if(!r.ok)throw new Error(d.error||'Status ဖတ်မရပါ');failCount=0;
   draw(d.status==='completed'?6:stageIndex(d.stage));
   if(d.message)add('['+(d.stage||'Processing')+'] '+d.message);
   if(d.error)add('ERROR: '+d.error);
@@ -86,7 +87,7 @@ async function poll(){
   } else if(d.status==='error'){
    clearInterval(pollTimer);busy=false;go.disabled=false;go.textContent='Try Again';add('❌ Processing မအောင်မြင်ပါ။ အပေါ်က error နှင့် Render logs ကို စစ်ပါ။');
   }
- }catch(e){clearInterval(pollTimer);busy=false;go.disabled=false;go.textContent='Try Again';add('❌ '+e.message)}
+ }catch(e){if(e.transient||e instanceof TypeError){failCount++;if(failCount<=45){if(failCount===1||failCount%6===0)add('⏳ Server အလုပ်များနေသည်၊ ဆက်စောင့်နေသည်…');return}}clearInterval(pollTimer);busy=false;go.disabled=false;go.textContent='Try Again';add('❌ '+e.message)}
 }
 draw(-1);
 go.onclick=async()=>{
