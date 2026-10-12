@@ -1657,6 +1657,63 @@ async function edgeTtsDirect(text, outputPath, voice, ratePercent) {
   fs.writeFileSync(outputPath, Buffer.concat(buffers));
 }
 
+async function geminiTtsToMp3(text, outputPath, voiceName, ratePercent) {
+  const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
+  const models = [
+    process.env.GEMINI_TTS_MODEL,
+    "gemini-3.1-flash-tts-preview",
+    "gemini-2.5-flash-preview-tts"
+  ].filter(Boolean);
+  const pcmParts = [];
+  let sampleRate = 24000;
+
+  for (const part of splitForEdge(text, 1500)) {
+    let pcm = null;
+    let lastError = null;
+    for (const model of models) {
+      for (let attempt = 0; attempt < 2 && !pcm; attempt++) {
+        try {
+          const res = await ai.models.generateContent({
+            model,
+            contents: [{ role: "user", parts: [{ text: part }] }],
+            config: {
+              responseModalities: ["AUDIO"],
+              speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } }
+            }
+          });
+          const inline = res?.candidates?.[0]?.content?.parts?.find(p => p?.inlineData?.data)?.inlineData;
+          if (inline?.data) {
+            pcm = Buffer.from(inline.data, "base64");
+            const m = String(inline.mimeType || "").match(/rate=(\d+)/);
+            if (m) sampleRate = Number(m[1]);
+          } else {
+            lastError = new Error("Gemini TTS audio မပါလာပါ");
+          }
+        } catch (error) {
+          lastError = error;
+          await new Promise(r => setTimeout(r, 1500));
+        }
+      }
+      if (pcm) break;
+    }
+    if (!pcm) throw lastError || new Error("Gemini TTS failed");
+    pcmParts.push(pcm);
+  }
+
+  const pcmPath = `${outputPath}.pcm`;
+  fs.writeFileSync(pcmPath, Buffer.concat(pcmParts));
+  const tempo = Math.min(2, Math.max(0.5, 1 + ratePercent / 100));
+  try {
+    await runCommand("ffmpeg", [
+      "-y", "-f", "s16le", "-ar", String(sampleRate), "-ac", "1", "-i", pcmPath,
+      ...(Math.abs(tempo - 1) > 0.01 ? ["-filter:a", `atempo=${tempo.toFixed(3)}`] : []),
+      "-codec:a", "libmp3lame", "-b:a", "64k", outputPath
+    ]);
+  } finally {
+    try { fs.unlinkSync(pcmPath); } catch {}
+  }
+}
+
 async function generateFullTTS(scenes, outputPath, voice, rate = 1) {
   const actualVoice = resolveEdgeVoice(voice);
   const actualRate = resolveEdgeRate(rate);
@@ -1682,17 +1739,36 @@ async function generateFullTTS(scenes, outputPath, voice, rate = 1) {
     timeout: 30000
   });
 
+  const geminiVoice = /Nilar/i.test(actualVoice) ? "Kore" : "Charon";
+  const errors = [];
+  let done = false;
+
   try {
-    await edgeTtsDirect(fullText, outputPath, actualVoice, ratePercent);
-  } catch (directError) {
-    console.error("[EDGE TTS] direct failed, old library fallback:", String(directError?.message || directError).slice(0, 300));
+    await geminiTtsToMp3(fullText, outputPath, geminiVoice, ratePercent);
+    done = fs.existsSync(outputPath) && fs.statSync(outputPath).size > 100;
+    if (done) console.log(`[GEMINI TTS] voice=${geminiVoice}`);
+  } catch (error) {
+    errors.push(`gemini: ${String(error?.message || error).slice(0, 200)}`);
+    console.error("[GEMINI TTS] failed:", String(error?.message || error).slice(0, 300));
+  }
+
+  if (!done) {
     try {
-      await tts.ttsPromise(fullText, outputPath);
-    } catch (oldError) {
-      throw new Error(
-        `Edge TTS မအောင်မြင်ပါ။ direct: ${String(directError?.message || directError).slice(0, 200)} | old: ${oldError?.message || oldError}`
-      );
+      await edgeTtsDirect(fullText, outputPath, actualVoice, ratePercent);
+      done = true;
+    } catch (error) {
+      errors.push(`edge: ${String(error?.message || error).slice(0, 120)}`);
+      try {
+        await tts.ttsPromise(fullText, outputPath);
+        done = true;
+      } catch (oldError) {
+        errors.push(`edge-old: ${oldError?.message || oldError}`);
+      }
     }
+  }
+
+  if (!done) {
+    throw new Error(`အသံထုတ်လို့မရပါ။ ${errors.join(" | ")}`);
   }
 
   if (!fs.existsSync(outputPath)) {
