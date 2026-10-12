@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import dotenv from "dotenv";
 import os from "os";
+import WebSocket from "ws";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
@@ -1534,6 +1535,128 @@ function resolveEdgeRate(rate) {
    MICROSOFT EDGE TTS
 ========================================================= */
 
+const EDGE_TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
+
+function edgeGec() {
+  let ticks = Math.floor(Date.now() / 1000) + 11644473600;
+  ticks -= ticks % 300;
+  ticks *= 10000000;
+  return crypto.createHash("sha256").update(`${ticks}${EDGE_TOKEN}`).digest("hex").toUpperCase();
+}
+
+function xmlEscape(text) {
+  return String(text)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
+function splitForEdge(text, maxBytes = 2500) {
+  const pieces = text.split(/(?<=[။!?.\n])\s*/).filter(Boolean);
+  const parts = [];
+  let current = "";
+  const push = () => { if (current.trim()) parts.push(current.trim()); current = ""; };
+  for (const piece of pieces) {
+    if (Buffer.byteLength(piece) > maxBytes) {
+      push();
+      let chunk = "";
+      for (const ch of piece) {
+        if (Buffer.byteLength(chunk + ch) > maxBytes) { parts.push(chunk); chunk = ""; }
+        chunk += ch;
+      }
+      current = chunk;
+      continue;
+    }
+    if (Buffer.byteLength(current + " " + piece) > maxBytes) push();
+    current = current ? `${current} ${piece}` : piece;
+  }
+  push();
+  return parts;
+}
+
+function edgeChunk(text, voice, ratePercent, version) {
+  return new Promise((resolve, reject) => {
+    const major = version.split(".")[0];
+    const id = crypto.randomUUID().replace(/-/g, "");
+    const url =
+      `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1` +
+      `?TrustedClientToken=${EDGE_TOKEN}&ConnectionId=${id}` +
+      `&Sec-MS-GEC=${edgeGec()}&Sec-MS-GEC-Version=1-${version}`;
+    const ws = new WebSocket(url, {
+      headers: {
+        Pragma: "no-cache",
+        "Cache-Control": "no-cache",
+        Origin: "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
+        "User-Agent": `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${major}.0.0.0 Safari/537.36 Edg/${major}.0.0.0`,
+        "Accept-Language": "en-US,en;q=0.9",
+        Cookie: `muid=${crypto.randomBytes(16).toString("hex").toUpperCase()};`
+      }
+    });
+    const audio = [];
+    let finished = false;
+    const fail = error => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      try { ws.terminate(); } catch {}
+      reject(error);
+    };
+    const timer = setTimeout(() => fail(new Error("Edge TTS timeout")), 45000);
+
+    ws.on("open", () => {
+      const stamp = new Date().toISOString();
+      ws.send(
+        `X-Timestamp:${stamp}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n` +
+        `{"context":{"synthesis":{"audio":{"metadataoptions":{"sentenceBoundaryEnabled":"false","wordBoundaryEnabled":"false"},"outputFormat":"audio-24khz-48kbitrate-mono-mp3"}}}}\r\n`
+      );
+      const rate = `${ratePercent >= 0 ? "+" : ""}${ratePercent}%`;
+      ws.send(
+        `X-RequestId:${id}\r\nContent-Type:application/ssml+xml\r\nX-Timestamp:${stamp}Z\r\nPath:ssml\r\n\r\n` +
+        `<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'><voice name='${voice}'><prosody pitch='+0Hz' rate='${rate}' volume='+0%'>${xmlEscape(text)}</prosody></voice></speak>`
+      );
+    });
+    ws.on("message", (data, isBinary) => {
+      if (!isBinary) {
+        if (data.toString().includes("Path:turn.end")) {
+          finished = true;
+          clearTimeout(timer);
+          try { ws.close(); } catch {}
+          resolve(Buffer.concat(audio));
+        }
+        return;
+      }
+      const buf = Buffer.from(data);
+      const headLen = buf.readUInt16BE(0);
+      if (buf.subarray(2, 2 + headLen).toString().includes("Path:audio")) {
+        audio.push(buf.subarray(2 + headLen));
+      }
+    });
+    ws.on("unexpected-response", (req, res) => fail(new Error(`Edge TTS HTTP ${res.statusCode}`)));
+    ws.on("error", fail);
+    ws.on("close", () => fail(new Error("Edge TTS connection closed")));
+  });
+}
+
+async function edgeTtsDirect(text, outputPath, voice, ratePercent) {
+  const versions = [process.env.EDGE_CHROMIUM_VERSION, "143.0.3650.75", "130.0.2849.68"].filter(Boolean);
+  const buffers = [];
+  for (const part of splitForEdge(text)) {
+    let result = null;
+    let lastError = null;
+    for (const version of versions) {
+      try {
+        const audio = await edgeChunk(part, voice, ratePercent, version);
+        if (audio.length > 100) { result = audio; break; }
+        lastError = new Error("Edge TTS empty audio");
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!result) throw lastError || new Error("Edge TTS failed");
+    buffers.push(result);
+  }
+  fs.writeFileSync(outputPath, Buffer.concat(buffers));
+}
+
 async function generateFullTTS(scenes, outputPath, voice, rate = 1) {
   const actualVoice = resolveEdgeVoice(voice);
   const actualRate = resolveEdgeRate(rate);
@@ -1560,28 +1683,14 @@ async function generateFullTTS(scenes, outputPath, voice, rate = 1) {
   });
 
   try {
-    const textPath = `${outputPath}.txt`;
-    fs.writeFileSync(textPath, fullText);
-    try {
-      await runCommand("edge-tts", [
-        "--voice", actualVoice,
-        "--file", textPath,
-        `--rate=${ratePercent >= 0 ? "+" : ""}${ratePercent}%`,
-        "--write-media", outputPath
-      ]);
-    } finally {
-      try { fs.unlinkSync(textPath); } catch {}
-    }
-    if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 100) {
-      throw new Error("edge-tts (python) က audio မထုတ်ပေးပါ။");
-    }
-  } catch (pyError) {
-    console.error("[EDGE TTS] python failed, node fallback:", String(pyError?.message || pyError).slice(0, 300));
+    await edgeTtsDirect(fullText, outputPath, actualVoice, ratePercent);
+  } catch (directError) {
+    console.error("[EDGE TTS] direct failed, old library fallback:", String(directError?.message || directError).slice(0, 300));
     try {
       await tts.ttsPromise(fullText, outputPath);
-    } catch (nodeError) {
+    } catch (oldError) {
       throw new Error(
-        `Edge TTS မအောင်မြင်ပါ။ python: ${String(pyError?.message || pyError).slice(0, 200)} | node: ${nodeError?.message || nodeError}`
+        `Edge TTS မအောင်မြင်ပါ။ direct: ${String(directError?.message || directError).slice(0, 200)} | old: ${oldError?.message || oldError}`
       );
     }
   }
