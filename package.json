@@ -1,7 +1,7 @@
 {
-  "name": "ynt-recap-tool",
-  "version": "1.1.0",
-  "description": "YNT Recap Tool with YouTube ingestion, Myanmar Edge TTS, recap rendering and optional 9:16 Shorts",
+  "name": "ynt-recap-tool-free-pipeline",
+  "version": "1.0.0",
+  "description": "YNT Recap Tool using Groq Whisper/Vision/Text, Edge TTS and FFmpeg",
   "type": "module",
   "main": "server.js",
   "scripts": {
@@ -12,13 +12,11 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@google/genai": "^2.24.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "groq-sdk": "^0.37.0",
     "multer": "^1.4.5-lts.1",
     "pg": "^8.16.3",
-    "node-edge-tts": "^1.2.10",
-    "ws": "^8.18.0"
+    "node-edge-tts": "^1.2.10"
   }
 }
