@@ -51,7 +51,7 @@ button:disabled{opacity:.6;cursor:default}
 <div class="chk"><input id="sh" type="checkbox" checked><label for="sh" style="margin:0;color:inherit">Viral 9:16 Shorts ပါထုတ်မယ်</label></div>
 
 <button id="go">Start</button>
-<p class="note">P1 Video + Groq Whisper/Vision → P2 Recap Script → P3 Myanmar Translation → P4 Edge TTS + FFmpeg Final Video. Gemini မသုံးပါ။ Render မှာ GROQ_API_KEY, DATABASE_URL, FFmpeg နဲ့ yt-dlp တပ်ဆင်ထားရန်လိုသည်။</p></div>
+<p class="note">P1 Video + Groq Whisper/Vision → P2 Recap Script → P3 Myanmar Translation → P4 Gemini TTS + FFmpeg Final Video. Gemini ကို TTS အတွက်သာသုံးပြီး Scene Analysis/Script/Translation ကို Groq သုံးသည်။ Render မှာ GROQ_API_KEY, GEMINI_API_KEY, DATABASE_URL, FFmpeg နဲ့ yt-dlp တပ်ဆင်ထားရန်လိုသည်။</p></div>
 
 <div class="card"><h2>၂။ လုပ်ငန်းစဉ်</h2><div class="bar"><i id="p"></i></div>
 <ol class="steps" id="steps"></ol></div>
@@ -60,7 +60,7 @@ button:disabled{opacity:.6;cursor:default}
 <div class="out" id="out" style="margin-top:12px"><div>🎬 Recap Video</div><div id="o2">📱 9:16 Shorts</div></div></div>
 <script>
 const $=id=>document.getElementById(id);
-const S=[["📥","P1 Video + Transcript","Video ရယူပြီး Whisper timestamps ထုတ်မယ်"],["👁️","P1 Scene Analysis","Groq Vision က frame တွေစစ်မယ်"],["📝","P2 Recap Script","အဖြစ်အပျက်အစဉ်အလိုက် script ရေးမယ်"],["🇲🇲","P3 Myanmar Translation","Script ကို မြန်မာဘာသာပြန်မယ်"],["🗣️","P4 Edge TTS + FFmpeg","အသံနဲ့ video ကို sync လုပ်မယ်"],["📱","P4 Export","Final MP4 နဲ့ 9:16 Shorts ထုတ်မယ်"]];
+const S=[["📥","P1 Video + Transcript","Video ရယူပြီး Whisper timestamps ထုတ်မယ်"],["👁️","P1 Scene Analysis","Groq Vision က frame တွေစစ်မယ်"],["📝","P2 Recap Script","အဖြစ်အပျက်အစဉ်အလိုက် script ရေးမယ်"],["🇲🇲","P3 Myanmar Translation","Script ကို မြန်မာဘာသာပြန်မယ်"],["🗣️","P4 Gemini TTS + FFmpeg","အသံနဲ့ video ကို sync လုပ်မယ်"],["📱","P4 Export","Final MP4 နဲ့ 9:16 Shorts ထုတ်မယ်"]];
 const ul=$('steps'),log=$('log'),p=$('p'),go=$('go');
 let busy=false,jobId=null,pollTimer=null;
 function draw(i){ul.innerHTML=S.map((s,k)=>{let c=k<i?'done':k===i?'run':'';return `<li class="st ${c}"><div class="ic">${k<i?'✓':s[0]}</div><div><b>${k+1}. ${s[1]}</b><span>${s[2]}</span></div><div class="tag">${k<i?'ပြီး':k===i?'လုပ်နေ…':''}</div></li>`}).join('');p.style.width=(Math.max(0,Math.min(6,i))/6*100)+'%'}
