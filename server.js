@@ -7,8 +7,8 @@ import crypto from "crypto";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import Groq from "groq-sdk";
+import { GoogleGenAI } from "@google/genai";
 import pg from "pg";
-import { EdgeTTS } from "node-edge-tts";
 
 const { Pool } = pg;
 
@@ -57,14 +57,8 @@ for (const dir of [
 const GROQ_MODEL = "whisper-large-v3-turbo";
 const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-20b";
 const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "qwen/qwen3.8-27b";
-const GEMINI_MODEL = "disabled";
-const EDGE_TTS_DEFAULT_VOICE = "my-MM-NilarNeural";
-const EDGE_TTS_VOICES = {
-  female: "my-MM-NilarNeural",
-  male: "my-MM-ThihaNeural",
-  nilar: "my-MM-NilarNeural",
-  thiha: "my-MM-ThihaNeural"
-};
+const GEMINI_MODEL = "disabled"; // Scene analysis and recap remain on Groq.
+const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || "gemini-3.8-flash-lite-tts";
 
 /* =========================================================
    SETTINGS
@@ -1393,60 +1387,58 @@ async function generateScenePlan(jobId, moviePath, duration, transcript, languag
 }
 
 /* =========================================================
-   MICROSOFT EDGE TTS VOICE
+   GEMINI TTS VOICE — restored from the previously working build
 ========================================================= */
 
-function resolveEdgeVoice(voice) {
-  const key = String(voice || "female").trim().toLowerCase();
-  return EDGE_TTS_VOICES[key] || EDGE_TTS_DEFAULT_VOICE;
+function resolveVoice(voice) {
+  if (voice === "male") return "Puck";
+  if (voice === "female") return "Kore";
+  const allowed = [
+    "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus",
+    "Aoede", "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel",
+    "Algieba", "Despina", "Erinome", "Algenib", "Rasalgethi",
+    "Laomedeia", "Achernar", "Alnilam", "Schedar", "Gacrux",
+    "Pulcherrima", "Achird", "Zubenelgenubi", "Vindemiatrix",
+    "Sadachbia", "Sadaltager", "Sulafat"
+  ];
+  return allowed.includes(voice) ? voice : "Kore";
 }
 
-function resolveEdgeRate(rate) {
-  const value = Number(rate);
-  if (!Number.isFinite(value)) return 1;
-  return Math.max(0.7, Math.min(1.3, value));
-}
-
-/* =========================================================
-   MICROSOFT EDGE TTS
-========================================================= */
-
-async function generateFullTTS(scenes, outputPath, voice, rate = 1) {
-  const actualVoice = resolveEdgeVoice(voice);
-  const actualRate = resolveEdgeRate(rate);
+async function generateFullTTS(ai, scenes, outputPath, voice) {
+  const actualVoice = resolveVoice(voice);
   const narrations = scenes.map(scene => String(scene.narration || "").trim());
-
   if (narrations.some(text => !text)) {
     const bad = scenes.find(scene => !String(scene.narration || "").trim());
     throw new Error(`Scene ${bad?.index ?? "?"} has no narration.`);
   }
-
   const fullText = narrations.join(" ").trim();
   if (!fullText) throw new Error("No narration text was available for TTS.");
 
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-
-  const ratePercent = Math.round((actualRate - 1) * 100);
-  const tts = new EdgeTTS({
-    voice: actualVoice,
-    lang: "my-MM",
-    outputFormat: "audio-24khz-48kbitrate-mono-mp3",
-    saveSubtitles: false,
-    rate: `${ratePercent >= 0 ? "+" : ""}${ratePercent}%`,
-    timeout: 30000
-  });
-
-  await tts.ttsPromise(fullText, outputPath);
-
-  if (!fs.existsSync(outputPath)) {
-    throw new Error("Microsoft Edge TTS did not return an audio file.");
-  }
-
-  if (fs.statSync(outputPath).size < 100) {
-    throw new Error("Generated Edge TTS audio is invalid.");
-  }
-
-  console.log(`[EDGE TTS] voice=${actualVoice} rate=${actualRate}`);
+  const response = await callGeminiWithRetry(
+    "Full Recap TTS",
+    () => ai.models.generateContent({
+      model: GEMINI_TTS_MODEL,
+      contents: [{
+        role: "user",
+        parts: [{
+          text: fullText,
+          speech_metadata: {
+            style: "Natural cinematic movie recap narration. Clear Burmese pronunciation, smooth natural pacing, emotional but controlled storyteller voice. Speak continuously as one natural movie recap."
+          }
+        }]
+      }],
+      config: {
+        responseModalities: ["AUDIO"],
+        speechConfig: { voiceConfig: { voice: actualVoice } }
+      }
+    })
+  );
+  const base64 = response?.candidates?.[0]?.content?.parts?.find(part => part?.inlineData?.data)?.inlineData?.data;
+  if (!base64) throw new Error("Gemini returned no full narration audio.");
+  fs.writeFileSync(outputPath, Buffer.from(base64, "base64"));
+  if (fs.statSync(outputPath).size < 100) throw new Error("Generated full narration audio is invalid.");
+  console.log(`[GEMINI TTS] model=${GEMINI_TTS_MODEL} voice=${actualVoice}`);
   return outputPath;
 }
 
@@ -1774,12 +1766,13 @@ async function renderSceneSyncVideo(
   const sceneDir = path.join(jobFolder, "scenes");
   fs.mkdirSync(sceneDir, { recursive: true });
 
-  const fullTTS = path.join(sceneDir, "full-narration.mp3");
+  const fullTTS = path.join(sceneDir, "full-narration.wav");
+  const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
 
-  updateJob(jobId, { stage: "Voice", progress: 65, message: "Microsoft Edge TTS နဲ့ Myanmar narration ထုတ်နေပါတယ်..." });
+  updateJob(jobId, { stage: "Voice", progress: 65, message: "Gemini TTS နဲ့ Myanmar narration ထုတ်နေပါတယ်..." });
 
-  // ONE continuous Edge TTS request for the entire recap. Gemini TTS is not used.
-  await generateFullTTS(scenePlan.scenes, fullTTS, voice, voiceRate);
+  // Restore the previously working single-request Gemini TTS path. P1-P3 stay on Groq.
+  await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice);
 
   const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
   const renderedScenes = [];
@@ -2103,7 +2096,7 @@ app.get(
         whisper: GROQ_MODEL,
         recap: GROQ_TEXT_MODEL,
         vision: GROQ_VISION_MODEL,
-        tts: "Microsoft Edge TTS"
+        tts: GEMINI_TTS_MODEL
       },
 
       sceneSync: true,
@@ -2460,7 +2453,7 @@ async function startServer() {
         );
 
         console.log(
-          "Microsoft Edge TTS: my-MM-NilarNeural / my-MM-ThihaNeural"
+          `Gemini TTS: ${GEMINI_TTS_MODEL}`
         );
 
         console.log(
