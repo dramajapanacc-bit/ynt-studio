@@ -55,10 +55,8 @@ for (const dir of [
 ========================================================= */
 
 const GROQ_MODEL = "whisper-large-v3-turbo";
-const GROQ_TEXT_MODEL = process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-20b";
-const GROQ_VISION_MODEL = process.env.GROQ_VISION_MODEL || "qwen/qwen3.8-27b";
-const GEMINI_MODEL = "disabled"; // Scene analysis and recap remain on Groq.
-const GEMINI_TTS_MODEL = process.env.GEMINI_TTS_MODEL || "gemini-3.8-flash-lite-tts";
+const GEMINI_MODEL = "gemini-3.8-flash";
+const GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts";
 
 /* =========================================================
    SETTINGS
@@ -172,12 +170,6 @@ async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_jobs_updated_at
     ON jobs (updated_at DESC)
   `);
-
-  await db.query(
-    `UPDATE jobs SET status = 'error', message = $1, error = $1, updated_at = NOW()
-     WHERE status NOT IN ('completed', 'error')`,
-    ["Server ပြန်စတင်သွားလို့ job ရပ်သွားပါတယ်။ Start ကို ပြန်နှိပ်ပါ။"]
-  );
 
   console.log(
     "[JOB STORAGE] PostgreSQL database ready."
@@ -1302,125 +1294,284 @@ function normalizeScenes(
 }
 
 /* =========================================================
-   P1-P3: GROQ VISION + GROQ SCRIPT + MYANMAR TRANSLATION
-   Gemini is intentionally not used in this pipeline.
+   GEMINI SCENE PLAN
 ========================================================= */
-async function extractSampleFrames(moviePath, duration, frameDir) {
-  fs.mkdirSync(frameDir, { recursive: true });
-  const count = Math.max(4, Math.min(12, Math.ceil(duration / 45)));
-  const frames = [];
-  for (let i = 0; i < count; i++) {
-    const time = Math.min(Math.max(0, duration - 0.25), (duration * (i + 0.5)) / count);
-    const output = path.join(frameDir, `frame-${String(i + 1).padStart(3, "0")}.jpg`);
-    await runCommand("ffmpeg", ["-y", "-ss", time.toFixed(2), "-i", moviePath, "-frames:v", "1", "-vf", "scale=640:-2", "-q:v", "5", output]);
-    if (fs.existsSync(output) && fs.statSync(output).size > 0) frames.push({ time, path: output });
-  }
-  if (!frames.length) throw new Error("P1: FFmpeg could not extract scene frames.");
-  return frames;
-}
 
-function imageDataUrl(imagePath) {
-  const data = fs.readFileSync(imagePath).toString("base64");
-  return `data:image/jpeg;base64,${data}`;
-}
+async function generateScenePlan(
+  jobId,
+  moviePath,
+  duration,
+  transcript,
+  language = "my",
+  style = "cinematic"
+) {
+  const ai =
+    new GoogleGenAI({
+      apiKey: requireEnv(
+        "GEMINI_API_KEY"
+      )
+    });
 
-async function groqChat(model, messages, extra = {}) {
-  const client = new Groq({ apiKey: requireEnv("GROQ_API_KEY") });
-  const response = await client.chat.completions.create({
-    model,
-    messages,
-    temperature: 0.2,
-    max_completion_tokens: 7000,
-    ...extra
+  updateJob(jobId, {
+    stage: "Gemini",
+    progress: 55,
+    message:
+      "Gemini is analyzing the movie and matching scenes..."
   });
-  const content = response?.choices?.[0]?.message?.content;
-  if (!content || typeof content !== "string") throw new Error(`Groq model ${model} returned empty text.`);
-  return content;
-}
 
-async function describeFramesWithGroq(jobId, frames) {
-  const descriptions = [];
-  for (let i = 0; i < frames.length; i += 3) {
-    const batch = frames.slice(i, i + 3);
-    updateJob(jobId, { stage: "P1 Visual Analysis", progress: 30 + Math.round((i / frames.length) * 12), message: `Groq Vision: frame ${i + 1}-${i + batch.length}/${frames.length}` });
-    const content = [{ type: "text", text: "Describe each attached movie frame in order. Do not infer unseen events. Return ONLY JSON: {\"frames\":[{\"index\":1,\"description\":\"visible action, people, setting, emotion\"}]}. The index must match the image order." }];
-    for (let j = 0; j < batch.length; j++) {
-      content.push({ type: "text", text: `Image ${i + j + 1}; timestamp=${batch[j].time.toFixed(2)} seconds` });
-      content.push({ type: "image_url", image_url: { url: imageDataUrl(batch[j].path) } });
-    }
-    let text;
-    try {
-      text = await groqChat(GROQ_VISION_MODEL, [{ role: "user", content }], { response_format: { type: "json_object" } });
-    } catch (e) {
-      throw new Error(`P1 Groq Vision failed (${GROQ_VISION_MODEL}): ${e.message}`);
-    }
-    let parsed;
-    try { parsed = parseGeminiJSON(text); } catch { parsed = { frames: [] }; }
-    const items = Array.isArray(parsed.frames) ? parsed.frames : [];
-    for (let j = 0; j < batch.length; j++) {
-      const item = items.find(x => Number(x.index) === i + j + 1) || items[j];
-      descriptions.push({ time: batch[j].time, description: String(item?.description || item?.summary || "Visual frame sampled; details unavailable.").trim() });
-    }
+  const videoFile =
+    await uploadVideoToGemini(
+      ai,
+      moviePath
+    );
+
+  const timeline =
+    buildTranscriptTimeline(
+      transcript.segments
+    );
+
+  let languageInstruction =
+    "Write natural spoken Myanmar (Burmese).";
+
+  if (language === "en") {
+    languageInstruction =
+      "Write natural spoken English.";
   }
-  return descriptions;
+
+  let styleInstruction =
+    "Use cinematic movie recap narration.";
+
+  if (style === "short") {
+    styleInstruction =
+      "Use concise and fast-paced movie recap narration.";
+  }
+
+  if (style === "storytelling") {
+    styleInstruction =
+      "Use smooth storytelling with suspense and emotional flow.";
+  }
+
+  if (style === "detailed") {
+    styleInstruction =
+      "Use detailed but natural movie recap narration.";
+  }
+
+  const prompt = `
+You are creating a PROFESSIONAL SYNCHRONIZED MOVIE RECAP.
+
+You have access to the actual movie video.
+
+You MUST analyze what is visibly happening.
+
+You also have the original Whisper transcript with timestamps.
+
+Your output will be used to create a final video where each narration
+is placed directly over its selected video scene.
+
+SYNCHRONIZATION IS EXTREMELY IMPORTANT.
+
+RULES:
+
+1. Analyze the actual movie video.
+2. Identify meaningful visual scene changes.
+3. Every scene needs start_sec and end_sec.
+4. Use real timestamps from the movie.
+5. Keep scenes chronological.
+6. Do not overlap scenes.
+7. Do not leave gaps.
+8. Cover the complete movie from 0 to ${duration.toFixed(2)} seconds.
+9. Prefer scenes around 6 to 14 seconds.
+10. Create approximately 8 to ${MAX_SCENES} scenes.
+11. Match narration to what is actually visible.
+12. Use Whisper transcript as supporting information.
+13. Do not invent events.
+14. Do not invent characters.
+15. Do not invent dialogue.
+16. Do not move events to incorrect timestamps.
+17. Keep important story events.
+18. Keep the ending.
+19. Avoid meaningless filler.
+20. Narration must sound natural when spoken.
+21. Narration length must be reasonable for its scene.
+22. Do not use Markdown.
+23. Do not use headings in narration.
+24. Do not mention AI.
+25. Return ONLY JSON.
+
+LANGUAGE:
+${languageInstruction}
+
+STYLE:
+${styleInstruction}
+
+JSON FORMAT:
+
+{
+  "scenes": [
+    {
+      "start_sec": 0,
+      "end_sec": 8,
+      "visual_summary": "What is visibly happening.",
+      "event_summary": "Important story event.",
+      "narration": "Natural recap narration."
+    }
+  ]
 }
 
-async function generateScenePlan(jobId, moviePath, duration, transcript, language = "my", style = "cinematic") {
-  const jobFolder = path.dirname(moviePath);
-  updateJob(jobId, { stage: "P1 Visual Analysis", progress: 25, message: "FFmpeg နဲ့ scene frame တွေထုတ်နေပါတယ်..." });
-  const frames = await extractSampleFrames(moviePath, duration, path.join(jobFolder, "sample-frames"));
-  const visuals = await describeFramesWithGroq(jobId, frames);
-  const timeline = buildTranscriptTimeline(transcript.segments).slice(0, 45000);
-  updateJob(jobId, { stage: "P2 Recap Script", progress: 45, message: "Groq က scene timeline နဲ့ dialogue ကို ပေါင်းပြီး recap script ရေးနေပါတယ်..." });
-  const planPrompt = `You are a careful movie-recap writer. Use ONLY the supplied visual observations and timestamped Whisper transcript. Create 6 to ${MAX_SCENES} chronological, non-overlapping scenes covering 0 to ${duration.toFixed(2)} seconds. Every scene must have start_sec, end_sec, visual_summary, event_summary, narration. Keep narration concise enough to fit the scene. Do not invent events or dialogue; where evidence is unclear, describe only what is supported. Write narration in clear English first. Style: ${style}. Return ONLY JSON {"scenes":[...]}.\nVISUAL OBSERVATIONS:\n${visuals.map(v => `[${v.time.toFixed(2)}s] ${v.description}`).join("\n")}\nTIMESTAMPED TRANSCRIPT:\n${timeline}`;
-  const planText = await groqChat(GROQ_TEXT_MODEL, [{ role: "user", content: planPrompt }], { response_format: { type: "json_object" } });
-  const parsed = parseGeminiJSON(planText);
-  let scenes = normalizeScenes(parsed.scenes, duration);
-  if (!scenes.length) throw new Error("P2: Groq did not return usable scenes.");
-  updateJob(jobId, { stage: "P3 Myanmar Translation", progress: 58, message: "Groq က Recap Script ကို မြန်မာဘာသာပြန်နေပါတယ်..." });
-  const translationPrompt = `Translate the following movie recap narration into natural spoken Myanmar (Burmese). Preserve meaning, character names, scene order, and all array indices. Do not add new events. Return ONLY JSON {"translations":[{"index":1,"text":"Myanmar translation"}]}. Input JSON:\n${JSON.stringify(scenes.map((scene, i) => ({ index: i + 1, text: scene.narration })))} `;
-  const translatedText = await groqChat(GROQ_TEXT_MODEL, [{ role: "user", content: translationPrompt }], { response_format: { type: "json_object" } });
-  const translated = parseGeminiJSON(translatedText);
-  const translations = Array.isArray(translated.translations) ? translated.translations : [];
-  scenes = scenes.map((scene, i) => {
-    const item = translations.find(t => Number(t.index) === i + 1) || translations[i];
-    const narration = String(item?.text || "").trim();
-    if (!narration) throw new Error(`P3: Myanmar translation missing for scene ${i + 1}.`);
-    return { ...scene, narration };
-  });
-  updateJob(jobId, { stage: "P3 Myanmar Translation", progress: 62, message: `မြန်မာ Script ပြီးပါပြီ — ${scenes.length} scenes.` });
-  return { scenes };
+WHISPER TIMELINE:
+
+${timeline}
+`;
+
+  const response =
+    await callGeminiWithRetry(
+      "Scene-Synchronized Movie Analysis",
+      () =>
+        ai.interactions.create({
+          model: GEMINI_MODEL,
+
+          input: [
+            {
+              type: "video",
+
+              uri: videoFile.uri,
+
+              mime_type:
+                videoFile.mimeType,
+
+              processing: {
+                type: "static",
+                fps: SCENE_FPS
+              }
+            },
+
+            {
+              type: "text",
+              text: prompt
+            }
+          ],
+
+          response_format: {
+            type: "text",
+            mime_type:
+              "application/json",
+            schema:
+              scenePlanSchema
+          }
+        })
+    );
+
+  const outputText =
+    response?.output_text ||
+    response?.outputText ||
+    "";
+
+  if (!outputText) {
+    throw new Error(
+      "Gemini returned an empty scene plan."
+    );
+  }
+
+  const parsed =
+    parseGeminiJSON(
+      outputText
+    );
+
+  const scenes =
+    normalizeScenes(
+      parsed.scenes,
+      duration
+    );
+
+  if (!scenes.length) {
+    throw new Error(
+      "Gemini returned no usable scenes."
+    );
+  }
+
+  console.log(
+    `[SCENE SYNC] ${scenes.length} scenes created`
+  );
+
+  return {
+    scenes
+  };
 }
 
 /* =========================================================
-   GEMINI TTS VOICE — restored from the previously working build
+   TTS VOICE
 ========================================================= */
 
 function resolveVoice(voice) {
-  if (voice === "male") return "Puck";
-  if (voice === "female") return "Kore";
+  if (voice === "male") {
+    return "Puck";
+  }
+
+  if (voice === "female") {
+    return "Kore";
+  }
+
   const allowed = [
-    "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus",
-    "Aoede", "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel",
-    "Algieba", "Despina", "Erinome", "Algenib", "Rasalgethi",
-    "Laomedeia", "Achernar", "Alnilam", "Schedar", "Gacrux",
-    "Pulcherrima", "Achird", "Zubenelgenubi", "Vindemiatrix",
-    "Sadachbia", "Sadaltager", "Sulafat"
+    "Zephyr",
+    "Puck",
+    "Charon",
+    "Kore",
+    "Fenrir",
+    "Leda",
+    "Orus",
+    "Aoede",
+    "Callirrhoe",
+    "Autonoe",
+    "Enceladus",
+    "Iapetus",
+    "Umbriel",
+    "Algieba",
+    "Despina",
+    "Erinome",
+    "Algenib",
+    "Rasalgethi",
+    "Laomedeia",
+    "Achernar",
+    "Alnilam",
+    "Schedar",
+    "Gacrux",
+    "Pulcherrima",
+    "Achird",
+    "Zubenelgenubi",
+    "Vindemiatrix",
+    "Sadachbia",
+    "Sadaltager",
+    "Sulafat"
   ];
-  return allowed.includes(voice) ? voice : "Kore";
+
+  if (allowed.includes(voice)) {
+    return voice;
+  }
+
+  return "Kore";
 }
 
-async function generateFullTTS(ai, scenes, outputPath, voice) {
+/* =========================================================
+   TTS
+========================================================= */
+
+async function generateFullTTS(
+  ai,
+  scenes,
+  outputPath,
+  voice
+) {
   const actualVoice = resolveVoice(voice);
   const narrations = scenes.map(scene => String(scene.narration || "").trim());
+
   if (narrations.some(text => !text)) {
     const bad = scenes.find(scene => !String(scene.narration || "").trim());
     throw new Error(`Scene ${bad?.index ?? "?"} has no narration.`);
   }
+
   const fullText = narrations.join(" ").trim();
   if (!fullText) throw new Error("No narration text was available for TTS.");
 
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   const response = await callGeminiWithRetry(
     "Full Recap TTS",
     () => ai.models.generateContent({
@@ -1440,11 +1591,12 @@ async function generateFullTTS(ai, scenes, outputPath, voice) {
       }
     })
   );
+
   const base64 = response?.candidates?.[0]?.content?.parts?.find(part => part?.inlineData?.data)?.inlineData?.data;
   if (!base64) throw new Error("Gemini returned no full narration audio.");
+
   fs.writeFileSync(outputPath, Buffer.from(base64, "base64"));
   if (fs.statSync(outputPath).size < 100) throw new Error("Generated full narration audio is invalid.");
-  console.log(`[GEMINI TTS] model=${GEMINI_TTS_MODEL} voice=${actualVoice}`);
   return outputPath;
 }
 
@@ -1622,14 +1774,9 @@ async function renderSceneVideo(
 ) {
   const duration = Math.max(0.05, scene.end - scene.start);
 
-  const maxHeight = Number(process.env.RENDER_MAX_HEIGHT || 720);
-
   await runCommand(
-    "nice",
+    "ffmpeg",
     [
-      "-n",
-      "10",
-      "ffmpeg",
       "-y",
       "-ss",
       scene.start.toFixed(3),
@@ -1638,16 +1785,12 @@ async function renderSceneVideo(
       "-t",
       duration.toFixed(3),
       "-an",
-      "-vf",
-      `scale=-2:'min(${maxHeight},ih)'`,
       "-c:v",
       "libx264",
       "-preset",
-      "ultrafast",
-      "-threads",
-      "2",
+      "veryfast",
       "-crf",
-      "26",
+      "23",
       "-pix_fmt",
       "yuv420p",
       "-movflags",
@@ -1774,19 +1917,17 @@ async function renderSceneSyncVideo(
   moviePath,
   scenePlan,
   voice,
-  jobFolder,
-  voiceRate = 1,
-  makeShorts = true
+  jobFolder
 ) {
+  const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
   const sceneDir = path.join(jobFolder, "scenes");
   fs.mkdirSync(sceneDir, { recursive: true });
 
   const fullTTS = path.join(sceneDir, "full-narration.wav");
-  const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
 
-  updateJob(jobId, { stage: "Voice", progress: 65, message: "Gemini TTS နဲ့ Myanmar narration ထုတ်နေပါတယ်..." });
+  updateJob(jobId, { stage: "Voice", progress: 65, message: "Generating one continuous narration voice..." });
 
-  // Restore the previously working single-request Gemini TTS path. P1-P3 stay on Groq.
+  // ONE Gemini TTS request for the entire recap.
   await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice);
 
   const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
@@ -1835,9 +1976,7 @@ async function processOneClip(
   moviePath,
   language,
   style,
-  voice,
-  voiceRate = 1,
-  makeShorts = true
+  voice
 ) {
   try {
     const jobFolder =
@@ -1988,7 +2127,7 @@ async function processOneClip(
     );
 
     updateJob(jobId, {
-      stage: "P2 Recap Script",
+      stage: "Gemini",
       progress: 62,
       message:
         `${scenePlan.scenes.length} synchronized scenes created.`,
@@ -2012,9 +2151,7 @@ async function processOneClip(
         moviePath,
         scenePlan,
         voice,
-        jobFolder,
-        voiceRate,
-        makeShorts
+        jobFolder
       );
 
     /* -----------------------------------------
@@ -2029,19 +2166,6 @@ async function processOneClip(
       throw new Error(
         "FFmpeg did not create the final MP4."
       );
-    }
-
-    let shortsPath = null;
-    if (makeShorts) {
-      updateJob(jobId, { stage: "P4 Shorts Export", progress: 97, message: "9:16 vertical Shorts ထုတ်နေပါတယ်..." });
-      shortsPath = path.join(jobFolder, "YNT-Recap-Shorts-9x16.mp4");
-      try {
-        await runCommand("nice", ["-n", "10", "ffmpeg", "-y", "-i", outputPath, "-vf", "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1", "-c:v", "libx264", "-preset", "ultrafast", "-threads", "2", "-crf", "28", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", shortsPath]);
-        if (!fs.existsSync(shortsPath) || fs.statSync(shortsPath).size <= 0) throw new Error("P4: FFmpeg could not create 9:16 Shorts.");
-      } catch (shortsError) {
-        console.error("[SHORTS] skipped:", String(shortsError?.message || shortsError).slice(0, 300));
-        shortsPath = null;
-      }
     }
 
     const stats =
@@ -2069,10 +2193,8 @@ async function processOneClip(
         path: outputPath,
         filename,
         size: stats.size,
-        url: `/api/download/${jobId}`,
-        shortsPath,
-        shortsFilename: shortsPath ? `YNT-Recap-Shorts-${jobId}.mp4` : null,
-        shortsUrl: shortsPath ? `/api/download/${jobId}?type=shorts` : null
+        url:
+          `/api/download/${jobId}`
       }
     });
 
@@ -2114,13 +2236,11 @@ app.get(
 
       models: {
         whisper: GROQ_MODEL,
-        recap: GROQ_TEXT_MODEL,
-        vision: GROQ_VISION_MODEL,
+        recap: GEMINI_MODEL,
         tts: GEMINI_TTS_MODEL
       },
 
       sceneSync: true,
-      geminiUsed: false,
       sceneFPS: SCENE_FPS,
       jobStorage: "PostgreSQL",
       dataDir: DATA_DIR
@@ -2192,13 +2312,20 @@ app.get(
           });
       }
 
-      const isShorts = req.query.type === "shorts";
-      const targetPath = isShorts ? job.output.shortsPath : job.output.path;
-      const targetName = isShorts ? job.output.shortsFilename : job.output.filename;
-      if (!targetPath || !fs.existsSync(targetPath)) {
-        return res.status(404).json({ error: isShorts ? "9:16 Shorts file is not available." : "Output video file no longer exists." });
+      if (
+        !fs.existsSync(job.output.path)
+      ) {
+        return res
+          .status(404)
+          .json({
+            error: "Output video file no longer exists."
+          });
       }
-      return res.download(targetPath, targetName);
+
+      return res.download(
+        job.output.path,
+        job.output.filename
+      );
     } catch (error) {
       console.error(
         "DOWNLOAD ERROR:",
@@ -2224,12 +2351,13 @@ app.post(
 
   async (req, res) => {
     try {
-      const youtubeUrl = String(req.body?.youtubeUrl || "").trim();
-      if (!req.file && !youtubeUrl) {
-        return res.status(400).json({ error: "MP4 ဖိုင်တင်ပါ သို့မဟုတ် YouTube URL ထည့်ပါ။" });
-      }
-      if (youtubeUrl && !/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(youtubeUrl)) {
-        return res.status(400).json({ error: "YouTube URL ပုံစံ မမှန်ပါ။" });
+      if (!req.file) {
+        return res
+          .status(400)
+          .json({
+            error:
+              "Movie file is required."
+          });
       }
 
       const job =
@@ -2248,27 +2376,25 @@ app.post(
         }
       );
 
-      let originalName = req.file?.originalname || "youtube-video.mp4";
-      let extension = path.extname(originalName) || ".mp4";
-      const moviePath = path.join(jobFolder, `movie${extension}`);
-      if (req.file) {
-        fs.renameSync(req.file.path, moviePath);
-      } else {
-        updateJob(job.id, { stage: "YouTube Download", progress: 4, message: "yt-dlp နဲ့ ခွင့်ပြုထားတဲ့ YouTube video ကို ရယူနေပါတယ်..." });
-        try {
-          const downloadTemplate = path.join(jobFolder, "download.%(ext)s");
-          await execFileAsync("yt-dlp", ["--no-playlist", "--no-warnings", "-f", "bv*+ba/b", "--merge-output-format", "mp4", "-o", downloadTemplate, youtubeUrl], { timeout: 15 * 60 * 1000, maxBuffer: 4 * 1024 * 1024 });
-        } catch (e) {
-          throw new Error(`YouTube download မအောင်မြင်ပါ။ yt-dlp/FFmpeg သို့မဟုတ် video access ပြဿနာဖြစ်နိုင်သည်: ${e.message}`);
-        }
-        if (!fs.existsSync(moviePath) || fs.statSync(moviePath).size <= 0) {
-          const candidates = fs.readdirSync(jobFolder).filter(n => n.startsWith("download.") && !n.endsWith(".part"));
-          const foundName = candidates.find(n => /\.(mp4|mkv|mov|webm)$/i.test(n)) || candidates[0];
-          if (foundName) fs.renameSync(path.join(jobFolder, foundName), moviePath);
-        }
-        if (!fs.existsSync(moviePath) || fs.statSync(moviePath).size <= 0) throw new Error("yt-dlp က video file မထုတ်ပေးနိုင်ပါ။");
-        originalName = "youtube-video.mp4";
-      }
+      const originalName =
+        req.file.originalname ||
+        "movie.mp4";
+
+      const extension =
+        path.extname(
+          originalName
+        ) || ".mp4";
+
+      const moviePath =
+        path.join(
+          jobFolder,
+          `movie${extension}`
+        );
+
+      fs.renameSync(
+        req.file.path,
+        moviePath
+      );
 
       const language =
         req.body?.language ||
@@ -2281,10 +2407,6 @@ app.post(
       const voice =
         req.body?.voice ||
         "female";
-
-      const voiceRate =
-        Number(req.body?.voiceRate || 1);
-      const makeShorts = String(req.body?.makeShorts ?? "true") !== "false";
 
 
       updateJob(job.id, {
@@ -2344,9 +2466,7 @@ app.post(
           moviePath,
           language,
           style,
-          voice,
-          voiceRate,
-          makeShorts
+          voice
         ).catch(error => {
           console.error(
             `[JOB ${job.id}] UNHANDLED ERROR:`,
