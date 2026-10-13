@@ -1,7 +1,7 @@
 {
-  "name": "ynt-recap-tool-groq-gemini-tts",
+  "name": "ynt-one-clips",
   "version": "1.0.0",
-  "description": "YNT Recap Tool: Groq Whisper/Vision/Text and restored Gemini TTS with FFmpeg",
+  "description": "YNT One Clips - AI Movie Recap Generator",
   "type": "module",
   "main": "server.js",
   "scripts": {
@@ -12,11 +12,11 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@google/genai": "^2.24.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "groq-sdk": "^0.37.0",
     "multer": "^1.4.5-lts.1",
-    "pg": "^8.16.3",
-    "@google/genai": "^2.24.0"
+    "pg": "^8.16.3"
   }
 }
