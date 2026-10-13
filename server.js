@@ -173,6 +173,12 @@ async function initDatabase() {
     ON jobs (updated_at DESC)
   `);
 
+  await db.query(
+    `UPDATE jobs SET status = 'error', message = $1, error = $1, updated_at = NOW()
+     WHERE status NOT IN ('completed', 'error')`,
+    ["Server ပြန်စတင်သွားလို့ job ရပ်သွားပါတယ်။ Start ကို ပြန်နှိပ်ပါ။"]
+  );
+
   console.log(
     "[JOB STORAGE] PostgreSQL database ready."
   );
@@ -1616,9 +1622,14 @@ async function renderSceneVideo(
 ) {
   const duration = Math.max(0.05, scene.end - scene.start);
 
+  const maxHeight = Number(process.env.RENDER_MAX_HEIGHT || 720);
+
   await runCommand(
-    "ffmpeg",
+    "nice",
     [
+      "-n",
+      "10",
+      "ffmpeg",
       "-y",
       "-ss",
       scene.start.toFixed(3),
@@ -1627,12 +1638,16 @@ async function renderSceneVideo(
       "-t",
       duration.toFixed(3),
       "-an",
+      "-vf",
+      `scale=-2:'min(${maxHeight},ih)'`,
       "-c:v",
       "libx264",
       "-preset",
-      "veryfast",
+      "ultrafast",
+      "-threads",
+      "2",
       "-crf",
-      "23",
+      "26",
       "-pix_fmt",
       "yuv420p",
       "-movflags",
@@ -2020,8 +2035,13 @@ async function processOneClip(
     if (makeShorts) {
       updateJob(jobId, { stage: "P4 Shorts Export", progress: 97, message: "9:16 vertical Shorts ထုတ်နေပါတယ်..." });
       shortsPath = path.join(jobFolder, "YNT-Recap-Shorts-9x16.mp4");
-      await runCommand("ffmpeg", ["-y", "-i", outputPath, "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1", "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", shortsPath]);
-      if (!fs.existsSync(shortsPath) || fs.statSync(shortsPath).size <= 0) throw new Error("P4: FFmpeg could not create 9:16 Shorts.");
+      try {
+        await runCommand("nice", ["-n", "10", "ffmpeg", "-y", "-i", outputPath, "-vf", "scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1", "-c:v", "libx264", "-preset", "ultrafast", "-threads", "2", "-crf", "28", "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", shortsPath]);
+        if (!fs.existsSync(shortsPath) || fs.statSync(shortsPath).size <= 0) throw new Error("P4: FFmpeg could not create 9:16 Shorts.");
+      } catch (shortsError) {
+        console.error("[SHORTS] skipped:", String(shortsError?.message || shortsError).slice(0, 300));
+        shortsPath = null;
+      }
     }
 
     const stats =
