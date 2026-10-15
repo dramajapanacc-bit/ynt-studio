@@ -2,6 +2,7 @@ import express from "express";
 import multer from "multer";
 import dotenv from "dotenv";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import crypto from "crypto";
 import { execFile } from "child_process";
@@ -1555,7 +1556,7 @@ function resolveVoice(voice) {
    TTS
 ========================================================= */
 
-async function generateFullTTS(
+async function generateGeminiTTS(
   ai,
   scenes,
   outputPath,
@@ -1598,6 +1599,121 @@ async function generateFullTTS(
   fs.writeFileSync(outputPath, Buffer.from(base64, "base64"));
   if (fs.statSync(outputPath).size < 100) throw new Error("Generated full narration audio is invalid.");
   return outputPath;
+}
+
+/* =========================================================
+   EXTRA FREE TTS ENGINES (Azure / Google Translate) + AUTO FALLBACK
+========================================================= */
+
+const ttsEngineByJob = new Map();
+const MALE_VOICES = new Set(["male","Puck","Charon","Fenrir","Orus","Enceladus","Iapetus","Umbriel","Algenib","Rasalgethi","Alnilam","Schedar","Achird","Zubenelgenubi","Sadachbia","Sadaltager"]);
+function isMaleVoice(voice) { return MALE_VOICES.has(String(voice)); }
+const TTS_ENGINES = ["auto", "gemini", "azure", "google"];
+
+function splitTtsText(text, maxChars) {
+  const pieces = String(text).split(/(?<=[။!?.\n])\s*/).filter(Boolean);
+  const parts = [];
+  let current = "";
+  for (const piece of pieces) {
+    if (piece.length > maxChars) {
+      if (current) { parts.push(current); current = ""; }
+      for (let i = 0; i < piece.length; i += maxChars) parts.push(piece.slice(i, i + maxChars));
+      continue;
+    }
+    if ((current + " " + piece).length > maxChars && current) { parts.push(current); current = ""; }
+    current = current ? `${current} ${piece}` : piece;
+  }
+  if (current) parts.push(current);
+  return parts;
+}
+
+function xmlEscapeTts(text) {
+  return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
+}
+
+async function audioBuffersToWav(buffers, outputPath, ext) {
+  const tempPath = `${outputPath}.${ext}`;
+  fs.writeFileSync(tempPath, Buffer.concat(buffers));
+  try {
+    await runCommand("ffmpeg", ["-y", "-i", tempPath, "-vn", "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", "-f", "wav", outputPath]);
+  } finally {
+    try { fs.unlinkSync(tempPath); } catch {}
+  }
+}
+
+async function azureTts(text, outputPath, voice) {
+  const key = (process.env.AZURE_SPEECH_KEY || "").trim();
+  const region = (process.env.AZURE_SPEECH_REGION || "").trim();
+  if (!key || !region) throw new Error("AZURE_SPEECH_KEY / AZURE_SPEECH_REGION မထည့်ရသေးပါ");
+  const voiceName = isMaleVoice(voice) ? "my-MM-ThihaNeural" : "my-MM-NilarNeural";
+  const buffers = [];
+  for (const part of splitTtsText(text, 1200)) {
+    const ssml = `<speak version='1.0' xml:lang='my-MM'><voice xml:lang='my-MM' name='${voiceName}'>${xmlEscapeTts(part)}</voice></speak>`;
+    let audio = null;
+    let lastError = null;
+    for (let attempt = 0; attempt < 3 && !audio; attempt++) {
+      const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+        method: "POST",
+        headers: {
+          "Ocp-Apim-Subscription-Key": key,
+          "Content-Type": "application/ssml+xml",
+          "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
+          "User-Agent": "YNTRecapTool"
+        },
+        body: ssml
+      });
+      if (res.ok) {
+        audio = Buffer.from(await res.arrayBuffer());
+      } else {
+        lastError = new Error(`Azure TTS HTTP ${res.status}`);
+        if (res.status !== 429 && res.status < 500) break;
+        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+      }
+    }
+    if (!audio || audio.length < 100) throw lastError || new Error("Azure TTS empty audio");
+    buffers.push(audio);
+  }
+  await audioBuffersToWav(buffers, outputPath, "mp3");
+}
+
+async function googleTranslateTts(text, outputPath) {
+  const buffers = [];
+  for (const part of splitTtsText(text, 180)) {
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=my&q=${encodeURIComponent(part)}`;
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36" } });
+    if (!res.ok) throw new Error(`Google Translate TTS HTTP ${res.status}`);
+    const audio = Buffer.from(await res.arrayBuffer());
+    if (audio.length < 100) throw new Error("Google Translate TTS empty audio");
+    buffers.push(audio);
+    await new Promise(r => setTimeout(r, 250));
+  }
+  await audioBuffersToWav(buffers, outputPath, "mp3");
+}
+
+async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto") {
+  const fullText = scenes.map(scene => String(scene.narration || "").trim()).join(" ").trim();
+  if (!fullText) throw new Error("No narration text was available for TTS.");
+
+  const order = engine === "auto" ? ["gemini", "azure", "google"] : [engine];
+  const errors = [];
+
+  for (const name of order) {
+    try {
+      if (name === "gemini") await generateGeminiTTS(ai, scenes, outputPath, voice);
+      else if (name === "azure") await azureTts(fullText, outputPath, voice);
+      else if (name === "google") await googleTranslateTts(fullText, outputPath);
+      else throw new Error("မသိတဲ့ voice engine");
+
+      if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 100) throw new Error("audio file invalid");
+      console.log(`[TTS] engine=${name}`);
+      return outputPath;
+    } catch (error) {
+      const message = String(error?.message || error).slice(0, 200);
+      errors.push(`${name}: ${message}`);
+      console.error(`[TTS] ${name} failed: ${message}`);
+    }
+  }
+  throw new Error(`အသံထုတ်လို့မရပါ။ ${errors.join(" | ")}`);
 }
 
 async function splitFullTTSForScenes(fullAudio, scenes, sceneDir) {
@@ -1928,7 +2044,7 @@ async function renderSceneSyncVideo(
   updateJob(jobId, { stage: "Voice", progress: 65, message: "Generating one continuous narration voice..." });
 
   // ONE Gemini TTS request for the entire recap.
-  await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice);
+  await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice, ttsEngineByJob.get(jobId) || "auto");
 
   const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
   const renderedScenes = [];
@@ -1971,12 +2087,76 @@ async function renderSceneSyncVideo(
    PROCESS JOB
 ========================================================= */
 
+async function finishRecap(jobId, moviePath, scenePlan, voice, jobFolder) {
+    /* -----------------------------------------
+       RENDER
+    ----------------------------------------- */
+
+    const outputPath =
+      await renderSceneSyncVideo(
+        jobId,
+        moviePath,
+        scenePlan,
+        voice,
+        jobFolder
+      );
+
+    /* -----------------------------------------
+       VERIFY
+    ----------------------------------------- */
+
+    if (
+      !fs.existsSync(
+        outputPath
+      )
+    ) {
+      throw new Error(
+        "FFmpeg did not create the final MP4."
+      );
+    }
+
+    const stats =
+      fs.statSync(
+        outputPath
+      );
+
+    if (stats.size <= 0) {
+      throw new Error(
+        "Final MP4 file is empty."
+      );
+    }
+
+    const filename =
+      `YNT-One-Clips-${jobId}.mp4`;
+
+    updateJob(jobId, {
+      status: "completed",
+      stage: "Ready",
+      progress: 100,
+      message:
+        "Your synchronized recap video is ready.",
+
+      output: {
+        path: outputPath,
+        filename,
+        size: stats.size,
+        url:
+          `/api/download/${jobId}`
+      }
+    });
+
+    console.log(
+      `[JOB ${jobId}] COMPLETED`
+    );
+}
+
 async function processOneClip(
   jobId,
   moviePath,
   language,
   style,
-  voice
+  voice,
+  reviewScript = false
 ) {
   try {
     const jobFolder =
@@ -2141,66 +2321,24 @@ async function processOneClip(
       }
     });
 
-    /* -----------------------------------------
-       RENDER
-    ----------------------------------------- */
-
-    const outputPath =
-      await renderSceneSyncVideo(
-        jobId,
-        moviePath,
-        scenePlan,
-        voice,
-        jobFolder
-      );
-
-    /* -----------------------------------------
-       VERIFY
-    ----------------------------------------- */
-
-    if (
-      !fs.existsSync(
-        outputPath
-      )
-    ) {
-      throw new Error(
-        "FFmpeg did not create the final MP4."
-      );
+    if (reviewScript) {
+      updateJob(jobId, {
+        status: "script_ready",
+        stage: "Script",
+        progress: 62,
+        message: "Script ရပါပြီ။ ကြည့်ပြီး လိုသလို ပြင်ပါ၊ ပြီးရင် Video ထုတ်ပါ။",
+        scenes: scenePlan.scenes.map((scene, i) => ({
+          index: scene.index ?? i + 1,
+          start: scene.start,
+          end: scene.end,
+          narration: scene.narration
+        }))
+      });
+      console.log(`[JOB ${jobId}] SCRIPT READY`);
+      return;
     }
 
-    const stats =
-      fs.statSync(
-        outputPath
-      );
-
-    if (stats.size <= 0) {
-      throw new Error(
-        "Final MP4 file is empty."
-      );
-    }
-
-    const filename =
-      `YNT-One-Clips-${jobId}.mp4`;
-
-    updateJob(jobId, {
-      status: "completed",
-      stage: "Ready",
-      progress: 100,
-      message:
-        "Your synchronized recap video is ready.",
-
-      output: {
-        path: outputPath,
-        filename,
-        size: stats.size,
-        url:
-          `/api/download/${jobId}`
-      }
-    });
-
-    console.log(
-      `[JOB ${jobId}] COMPLETED`
-    );
+    await finishRecap(jobId, moviePath, scenePlan, voice, jobFolder);
 
   } catch (error) {
     console.error(
@@ -2342,6 +2480,92 @@ app.get(
 );
 
 /* =========================================================
+   SCRIPT REVIEW + VOICE PREVIEW
+========================================================= */
+
+function jobFolderFor(id) {
+  if (!/^[0-9a-f-]{36}$/i.test(String(id))) return null;
+  return path.join(JOB_DIR, String(id));
+}
+
+app.get("/api/script/:id", (req, res) => {
+  const folder = jobFolderFor(req.params.id);
+  const planPath = folder && path.join(folder, "scene-plan.json");
+  if (!planPath || !fs.existsSync(planPath)) return res.status(404).json({ error: "Script မတွေ့ပါ။" });
+  const plan = JSON.parse(fs.readFileSync(planPath, "utf8"));
+  return res.json({
+    scenes: plan.scenes.map((scene, i) => ({
+      index: scene.index ?? i + 1,
+      start: scene.start,
+      end: scene.end,
+      narration: scene.narration
+    }))
+  });
+});
+
+app.post("/api/render/:id", async (req, res) => {
+  try {
+    const folder = jobFolderFor(req.params.id);
+    const job = await getJob(req.params.id);
+    if (!folder || !job) return res.status(404).json({ error: "Job not found." });
+    if (job.status === "processing") return res.status(409).json({ error: "Job က အလုပ်လုပ်နေဆဲပါ။" });
+
+    const planPath = path.join(folder, "scene-plan.json");
+    if (!fs.existsSync(planPath)) return res.status(404).json({ error: "Script မတွေ့ပါ။" });
+    const plan = JSON.parse(fs.readFileSync(planPath, "utf8"));
+
+    const edits = new Map((Array.isArray(req.body?.scenes) ? req.body.scenes : []).map(item => [Number(item.index), String(item.narration || "").trim()]));
+    plan.scenes.forEach((scene, i) => {
+      const key = Number(scene.index ?? i + 1);
+      if (edits.has(key) && edits.get(key)) scene.narration = edits.get(key).slice(0, 2000);
+    });
+    if (plan.scenes.some(scene => !String(scene.narration || "").trim())) {
+      return res.status(400).json({ error: "Scene တစ်ခုမှာ စာမရှိပါ။" });
+    }
+    fs.writeFileSync(planPath, JSON.stringify(plan, null, 2), "utf8");
+
+    const voice = String(req.body?.voice || "female");
+    const engine = String(req.body?.ttsEngine || "auto").toLowerCase();
+    ttsEngineByJob.set(job.id, TTS_ENGINES.includes(engine) ? engine : "auto");
+
+    const movieName = fs.readdirSync(folder).find(name => /^movie\./i.test(name));
+    if (!movieName) return res.status(404).json({ error: "Movie file မတွေ့တော့ပါ။ ပြန်တင်ပါ။" });
+
+    updateJob(job.id, { status: "processing", stage: "Voice", progress: 63, message: "Script အတည်ပြုပြီး၊ အသံထုတ်ပါမယ်...", error: null });
+    res.status(202).json({ success: true, jobId: job.id });
+
+    setImmediate(() => {
+      finishRecap(job.id, path.join(folder, movieName), plan, voice, folder).catch(error => {
+        console.error(`[JOB ${job.id}] ERROR:`, error);
+        updateJob(job.id, { status: "error", stage: "Error", progress: 0, message: error.message || "Render failed.", error: error.message || "Render failed." });
+      });
+    });
+  } catch (error) {
+    console.error("RENDER ERROR:", error);
+    return res.status(500).json({ error: "Render မစနိုင်ပါ။" });
+  }
+});
+
+app.post("/api/tts-preview", async (req, res) => {
+  const text = String(req.body?.text || "").trim().slice(0, 220);
+  if (!text) return res.status(400).json({ error: "စာမပါပါ။" });
+  const voice = String(req.body?.voice || "female");
+  const engine = String(req.body?.ttsEngine || "auto").toLowerCase();
+  const tmp = path.join(os.tmpdir(), `ynt-preview-${crypto.randomUUID()}.wav`);
+  try {
+    const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
+    await generateFullTTS(ai, [{ narration: text }], tmp, voice, TTS_ENGINES.includes(engine) ? engine : "auto");
+    res.setHeader("Content-Type", "audio/wav");
+    res.setHeader("Cache-Control", "no-store");
+    return res.send(fs.readFileSync(tmp));
+  } catch (error) {
+    return res.status(502).json({ error: String(error?.message || error).slice(0, 300) });
+  } finally {
+    try { fs.unlinkSync(tmp); } catch {}
+  }
+});
+
+/* =========================================================
    ONE CLIP
 ========================================================= */
 
@@ -2408,6 +2632,10 @@ app.post(
         req.body?.voice ||
         "female";
 
+      const reviewScript = String(req.body?.reviewScript || "") === "1";
+      const requestedEngine = String(req.body?.ttsEngine || "auto").toLowerCase();
+      ttsEngineByJob.set(job.id, TTS_ENGINES.includes(requestedEngine) ? requestedEngine : "auto");
+
 
       updateJob(job.id, {
         originalFilename: originalName,
@@ -2466,7 +2694,8 @@ app.post(
           moviePath,
           language,
           style,
-          voice
+          voice,
+          reviewScript
         ).catch(error => {
           console.error(
             `[JOB ${job.id}] UNHANDLED ERROR:`,
