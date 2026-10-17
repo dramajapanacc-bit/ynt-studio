@@ -1820,62 +1820,41 @@ function buildAtempoFilters(
    FIT TTS TO SCENE
 ========================================================= */
 
+const MIN_TEMPO = Number(process.env.MIN_TEMPO || 0.88);
+const MAX_TEMPO = Number(process.env.MAX_TEMPO || 1.3);
+
 async function fitAudioToScene(
   inputAudio,
   outputAudio,
   targetDuration
 ) {
-  const sourceDuration =
-    await getAudioDuration(
-      inputAudio
-    );
+  const sourceDuration = await getAudioDuration(inputAudio);
 
   if (sourceDuration <= 0) {
-    throw new Error(
-      "Generated TTS has invalid duration."
-    );
+    throw new Error("Generated TTS has invalid duration.");
   }
 
-  const factor =
-    sourceDuration /
-    targetDuration;
+  // Natural speed: never stretch the voice a lot. Short narration keeps its
+  // normal speed (silence is added after it); long narration is sped up only
+  // a little and the scene video is extended instead of cutting words off.
+  const factor = sourceDuration / targetDuration;
+  const tempo = Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, factor));
+  const speechDuration = sourceDuration / tempo;
+  const finalDuration = Math.max(targetDuration, speechDuration);
 
-  const filters =
-    buildAtempoFilters(
-      factor
-    );
-
+  const filters = [];
+  if (Math.abs(tempo - 1) > 0.01) filters.push(`atempo=${tempo.toFixed(4)}`);
   filters.push("apad");
+  filters.push(`atrim=duration=${finalDuration.toFixed(3)}`);
 
-  filters.push(
-    `atrim=duration=${targetDuration.toFixed(
-      3
-    )}`
-  );
+  await runCommand("ffmpeg", [
+    "-y", "-i", inputAudio,
+    "-af", filters.join(","),
+    "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le",
+    outputAudio
+  ]);
 
-  await runCommand(
-    "ffmpeg",
-    [
-      "-y",
-      "-i",
-      inputAudio,
-      "-af",
-      filters.join(","),
-      "-ar",
-      "24000",
-      "-ac",
-      "1",
-      "-c:a",
-      "pcm_s16le",
-      outputAudio
-    ]
-  );
-
-  return {
-    sourceDuration,
-    targetDuration,
-    factor
-  };
+  return { sourceDuration, targetDuration, factor, tempo, finalDuration };
 }
 
 
@@ -2063,14 +2042,18 @@ async function renderSceneSyncVideo(
     const sceneVideo = path.join(sceneDir, `scene-${number}-video.mp4`);
     const sceneFinal = path.join(sceneDir, `scene-${number}-final.mp4`);
 
-    await fitAudioToScene(rawTTS, fittedTTS, scene.duration);
+    const fit = await fitAudioToScene(rawTTS, fittedTTS, scene.duration);
+    const sceneForVideo = fit.finalDuration > scene.duration + 0.05
+      ? { ...scene, end: scene.start + fit.finalDuration }
+      : scene;
+    console.log(`[SYNC] scene ${scene.index}: speech ${fit.sourceDuration.toFixed(1)}s, slot ${scene.duration.toFixed(1)}s, tempo ${fit.tempo.toFixed(2)}`);
 
     updateJob(jobId, {
       stage: "FFmpeg", progress: progress + 1,
       message: `Scene ${scene.index} / ${scenePlan.scenes.length} — syncing video and voice...`
     });
 
-    await renderSceneVideo(moviePath, scene, sceneVideo);
+    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo);
     await muxScene(sceneVideo, fittedTTS, sceneFinal);
     renderedScenes.push(sceneFinal);
   }
