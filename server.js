@@ -67,10 +67,7 @@ const GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts";
 
 const AUDIO_CHUNK_SECONDS = 90;
 const SCENE_FPS = 2;
-const MAX_SCENES = Number(process.env.MAX_SCENES || 24);
-// Highlights mode (default): the recap uses ONLY the important scenes and skips the rest.
-// Set RECAP_MODE=full in .env to cover the whole movie like before.
-const HIGHLIGHT_MODE = process.env.RECAP_MODE !== "full";
+const MAX_SCENES = 18;
 const MIN_SCENE_SECONDS = 3;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 
@@ -1121,7 +1118,7 @@ function normalizeScenes(
     if (!normalized.length) {
       normalized.push({
         ...scene,
-        start: HIGHLIGHT_MODE ? scene.start : 0
+        start: 0
       });
 
       continue;
@@ -1132,7 +1129,10 @@ function normalizeScenes(
         normalized.length - 1
       ];
 
-    if (!HIGHLIGHT_MODE && scene.start > previous.end) {
+    if (
+      scene.start >
+      previous.end
+    ) {
       previous.end =
         scene.start;
     }
@@ -1153,7 +1153,7 @@ function normalizeScenes(
     }
   }
 
-  if (!HIGHLIGHT_MODE && normalized.length) {
+  if (normalized.length) {
     normalized[
       normalized.length - 1
     ].end = duration;
@@ -1166,7 +1166,9 @@ function normalizeScenes(
       scene.end - scene.start;
 
     if (
-      sceneDuration < MIN_SCENE_SECONDS && merged.length && (!HIGHLIGHT_MODE || scene.start - merged[merged.length - 1].end < 0.5)
+      sceneDuration <
+        MIN_SCENE_SECONDS &&
+      merged.length
     ) {
       const previous =
         merged[
@@ -1193,7 +1195,8 @@ function normalizeScenes(
   }
 
   if (
-    !HIGHLIGHT_MODE && merged.length >= 2 && merged[0].end -
+    merged.length >= 2 &&
+    merged[0].end -
       merged[0].start <
       MIN_SCENE_SECONDS
   ) {
@@ -1296,7 +1299,7 @@ function normalizeScenes(
     }
   }
 
-  if (!HIGHLIGHT_MODE && merged.length) {
+  if (merged.length) {
     merged[0].start = 0;
 
     merged[
@@ -1370,7 +1373,7 @@ async function generateScenePlan(
     );
 
   let languageInstruction =
-    "Write natural SPOKEN Myanmar (Burmese), the way a popular Myanmar movie-recap YouTuber tells a gripping story to a friend. Use colloquial spoken endings (တယ်၊ ပါတယ်၊ လိုက်တယ်၊ ပါလိမ့်မယ်) and short punchy sentences. Do NOT use formal written literary style (သည်၊ ၏၊ ဖြစ်သည်).";
+    "Write natural spoken Myanmar (Burmese).";
 
   if (language === "en") {
     languageInstruction =
@@ -1378,7 +1381,7 @@ async function generateScenePlan(
   }
 
   let styleInstruction =
-    "Use gripping, emotional movie recap storytelling that keeps viewers hooked until the last second.";
+    "Use cinematic movie recap narration.";
 
   if (style === "short") {
     styleInstruction =
@@ -1394,23 +1397,6 @@ async function generateScenePlan(
     styleInstruction =
       "Use detailed but natural movie recap narration.";
   }
-
-  const targetRecapSec = Math.round(Math.min(duration * 0.8, Math.min(600, Math.max(90, duration * 0.2))));
-  const targetScenes = Math.max(6, Math.min(MAX_SCENES, Math.round(targetRecapSec / 9)));
-
-  const gapRule = HIGHLIGHT_MODE
-    ? `7. DO NOT cover the whole movie. Select ONLY the most important story moments (key turning points, conflicts, reveals, the climax and the ending). SKIP boring, slow, repetitive or unimportant parts completely. Gaps between selected scenes are expected and good.
-8. The total length of all selected scenes should be about ${targetRecapSec} seconds (the full movie is ${duration.toFixed(2)} seconds). The first scene may start later than 0, and the last scene must include the ending of the movie.`
-    : `7. Do not leave gaps.
-8. Cover the complete movie from 0 to ${duration.toFixed(2)} seconds.`;
-
-  const sceneCountRule = HIGHLIGHT_MODE
-    ? `10. Create about ${targetScenes} scenes (never more than ${MAX_SCENES}).`
-    : `10. Create approximately 8 to ${MAX_SCENES} scenes.`;
-
-  const highlightStoryRule = HIGHLIGHT_MODE
-    ? `I. Because unimportant parts of the movie are skipped, the NARRATION must still tell the COMPLETE story from beginning to end in order. When time jumps over a skipped part, add one short natural clause that says what happened in between (for example: "ဒီအချိန်မှာ ... ဖြစ်သွားတယ်", "နောက်တော့ ...") so the audience never feels lost. Never narrate something the viewer cannot follow.`
-    : "";
 
   const prompt = `
 You are creating a PROFESSIONAL SYNCHRONIZED MOVIE RECAP.
@@ -1434,10 +1420,11 @@ RULES:
 4. Use real timestamps from the movie.
 5. Keep scenes chronological.
 6. Do not overlap scenes.
-${gapRule}
+7. Do not leave gaps.
+8. Cover the complete movie from 0 to ${duration.toFixed(2)} seconds.
 9. Prefer scenes around 6 to 14 seconds.
-${sceneCountRule}
-11. Narration must agree with what is on screen, but TELL THE STORY (who wants what, what is at stake, what changes). Never just describe the pictures.
+10. Create approximately 8 to ${MAX_SCENES} scenes.
+11. Match narration to what is actually visible.
 12. Use Whisper transcript as supporting information.
 13. Do not invent events.
 14. Do not invent characters.
@@ -1456,17 +1443,6 @@ ${sceneCountRule}
 23. Do not use headings in narration.
 24. Do not mention AI.
 25. Return ONLY JSON.
-
-RECAP STORYTELLING RULES (very important):
-A. A recap is NOT a scene-by-scene description. It is a condensed, exciting retelling of the movie's main story that makes people want to keep watching.
-B. HOOK: the very first scene's narration must open with a gripping hook in one or two short sentences (a shocking situation, a mysterious question, or the central conflict). Do not start with a boring introduction.
-C. Keep only the main story line: who the hero is, what they want, the big obstacles, the turning points, the climax and the ending. Skip minor details completely.
-D. Build tension: vary the rhythm with short sentences before big moments, use words of suspense and surprise, and ask a rhetorical question now and then (not in every scene).
-E. Show emotion and stakes: fear, love, betrayal, hope, danger. Make viewers care about the characters.
-F. Link scenes with natural story connectors so the recap flows as one story, not separate clips.
-G. ENDING: the last scene must land with an impactful closing line (twist, emotion, or lasting thought).
-H. Speak naturally. No lists, no labels, no stage directions in the narration text.
-${highlightStoryRule}
 
 LANGUAGE:
 ${languageInstruction}
@@ -1699,6 +1675,7 @@ async function generateGeminiTTS(
 ========================================================= */
 
 const ttsEngineByJob = new Map();
+let lastTtsEngine = null;
 const MALE_VOICES = new Set(["male","Puck","Charon","Fenrir","Orus","Enceladus","Iapetus","Umbriel","Algenib","Rasalgethi","Alnilam","Schedar","Achird","Zubenelgenubi","Sadachbia","Sadaltager"]);
 function isMaleVoice(voice) { return MALE_VOICES.has(String(voice)); }
 const TTS_ENGINES = ["auto", "gemini", "azure", "google"];
@@ -1783,11 +1760,12 @@ async function googleTranslateTts(text, outputPath) {
   await audioBuffersToWav(buffers, outputPath, "mp3");
 }
 
-async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto") {
+async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto", preferred = null) {
   const fullText = scenes.map(scene => String(scene.narration || "").trim()).join(" ").trim();
   if (!fullText) throw new Error("No narration text was available for TTS.");
 
-  const order = engine === "auto" ? ["gemini", "azure", "google"] : [engine];
+  let order = engine === "auto" ? ["gemini", "azure", "google"] : [engine];
+  if (preferred && order.includes(preferred)) order = [preferred, ...order.filter(name => name !== preferred)];
   const errors = [];
 
   for (const name of order) {
@@ -1799,6 +1777,7 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto") {
 
       if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 100) throw new Error("audio file invalid");
       console.log(`[TTS] engine=${name}`);
+      lastTtsEngine = name;
       return outputPath;
     } catch (error) {
       const message = String(error?.message || error).slice(0, 200);
@@ -1812,7 +1791,7 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto") {
 async function detectSilences(audioPath) {
   const result = await runCommand("ffmpeg", [
     "-i", audioPath,
-    "-af", `silencedetect=noise=${process.env.SILENCE_DB || "-35dB"}:d=${process.env.SILENCE_MIN || "0.08"}`,
+    "-af", `silencedetect=noise=${process.env.SILENCE_DB || "-35dB"}:d=0.12`,
     "-f", "null", "-"
   ]);
   const text = `${result.stderr || ""}\n${result.stdout || ""}`;
@@ -1981,6 +1960,19 @@ async function fitAudioToScene(
   outputAudio,
   targetDuration
 ) {
+  // Remove dead air at the start/end of the clip so the voice sits exactly in its scene.
+  try {
+    const trimmed = inputAudio.replace(/\.wav$/i, "-trim.wav");
+    await runCommand("ffmpeg", [
+      "-y", "-i", inputAudio,
+      "-af", "silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.05,areverse,silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.12,areverse",
+      "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", trimmed
+    ]);
+    if ((await getAudioDuration(trimmed)) > 0.2) inputAudio = trimmed;
+  } catch (error) {
+    console.warn("[FIT] edge-silence trim skipped:", String(error?.message || error).slice(0, 120));
+  }
+
   const sourceDuration = await getAudioDuration(inputAudio);
 
   if (sourceDuration <= 0) {
@@ -1993,7 +1985,7 @@ async function fitAudioToScene(
   const factor = sourceDuration / targetDuration;
   const tempo = Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, factor));
   const speechDuration = sourceDuration / tempo;
-  const finalDuration = Math.max(targetDuration, speechDuration);
+  const finalDuration = Math.max(targetDuration, speechDuration + 0.12);
 
   const filters = [];
   if (Math.abs(tempo - 1) > 0.01) filters.push(`atempo=${tempo.toFixed(4)}`);
@@ -2158,7 +2150,7 @@ async function concatScenes(
 }
 
 /* =========================================================
-   JOIN VIDEO + AUDIO, ENCODE AAC ONCE (no clicks at scene joins)
+   JOIN VIDEO + AUDIO, ENCODE AAC ONCE (no clicks / dropouts at scene joins)
 ========================================================= */
 
 async function concatAndMux(videoFiles, audioFiles, outputPath, jobFolder) {
@@ -2202,14 +2194,25 @@ async function renderSceneSyncVideo(
   const sceneDir = path.join(jobFolder, "scenes");
   fs.mkdirSync(sceneDir, { recursive: true });
 
-  const fullTTS = path.join(sceneDir, "full-narration.wav");
+  // One TTS request per scene: every voice clip belongs to exactly one scene, so nothing is
+  // cut mid-word, no scene ends up silent, and long scripts cannot garble the audio.
+  const requestedEngine = ttsEngineByJob.get(jobId) || "auto";
+  const rawSceneAudio = [];
+  let preferredEngine = null;
 
-  updateJob(jobId, { stage: "Voice", progress: 65, message: "Generating one continuous narration voice..." });
+  for (let i = 0; i < scenePlan.scenes.length; i++) {
+    const scene = scenePlan.scenes[i];
+    updateJob(jobId, {
+      stage: "Voice",
+      progress: 62 + Math.round((i / scenePlan.scenes.length) * 6),
+      message: `Voice ${i + 1} / ${scenePlan.scenes.length} — generating narration...`
+    });
+    const rawPath = path.join(sceneDir, `scene-${String(scene.index).padStart(3, "0")}-raw.wav`);
+    await generateFullTTS(ai, [scene], rawPath, voice, requestedEngine, preferredEngine);
+    preferredEngine = lastTtsEngine;
+    rawSceneAudio.push(rawPath);
+  }
 
-  // ONE Gemini TTS request for the entire recap.
-  await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice, ttsEngineByJob.get(jobId) || "auto");
-
-  const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
   const renderedScenes = [];
   const renderedAudio = [];
 
@@ -2240,11 +2243,10 @@ async function renderSceneSyncVideo(
 
     await renderSceneVideo(moviePath, sceneForVideo, sceneVideo);
 
-    // Make the audio exactly as long as the real rendered video (no drift between scenes).
+    // If the movie ends before the narration does, hold the last frame instead of cutting speech.
     let finalSceneVideo = sceneVideo;
     let videoDuration = await getAudioDuration(sceneVideo);
     if (videoDuration + 0.05 < fit.finalDuration) {
-      // The movie ends before the narration does: hold the last frame instead of cutting speech.
       const padded = path.join(sceneDir, `scene-${number}-video-padded.mp4`);
       await runCommand("ffmpeg", [
         "-y", "-i", sceneVideo,
@@ -2256,6 +2258,8 @@ async function renderSceneSyncVideo(
       finalSceneVideo = padded;
       videoDuration = await getAudioDuration(padded);
     }
+
+    // Make the audio exactly as long as the real rendered video (no drift between scenes).
     const syncedAudio = path.join(sceneDir, `scene-${number}-audio-sync.wav`);
     await runCommand("ffmpeg", [
       "-y", "-i", fittedTTS,
