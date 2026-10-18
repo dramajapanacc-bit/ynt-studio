@@ -67,7 +67,10 @@ const GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts";
 
 const AUDIO_CHUNK_SECONDS = 90;
 const SCENE_FPS = 2;
-const MAX_SCENES = 18;
+const MAX_SCENES = Number(process.env.MAX_SCENES || 24);
+// Highlights mode (default): the recap uses ONLY the important scenes and skips the rest.
+// Set RECAP_MODE=full in .env to cover the whole movie like before.
+const HIGHLIGHT_MODE = process.env.RECAP_MODE !== "full";
 const MIN_SCENE_SECONDS = 3;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 
@@ -1118,7 +1121,7 @@ function normalizeScenes(
     if (!normalized.length) {
       normalized.push({
         ...scene,
-        start: 0
+        start: HIGHLIGHT_MODE ? scene.start : 0
       });
 
       continue;
@@ -1129,10 +1132,7 @@ function normalizeScenes(
         normalized.length - 1
       ];
 
-    if (
-      scene.start >
-      previous.end
-    ) {
+    if (!HIGHLIGHT_MODE && scene.start > previous.end) {
       previous.end =
         scene.start;
     }
@@ -1153,7 +1153,7 @@ function normalizeScenes(
     }
   }
 
-  if (normalized.length) {
+  if (!HIGHLIGHT_MODE && normalized.length) {
     normalized[
       normalized.length - 1
     ].end = duration;
@@ -1166,9 +1166,7 @@ function normalizeScenes(
       scene.end - scene.start;
 
     if (
-      sceneDuration <
-        MIN_SCENE_SECONDS &&
-      merged.length
+      sceneDuration < MIN_SCENE_SECONDS && merged.length && (!HIGHLIGHT_MODE || scene.start - merged[merged.length - 1].end < 0.5)
     ) {
       const previous =
         merged[
@@ -1195,8 +1193,7 @@ function normalizeScenes(
   }
 
   if (
-    merged.length >= 2 &&
-    merged[0].end -
+    !HIGHLIGHT_MODE && merged.length >= 2 && merged[0].end -
       merged[0].start <
       MIN_SCENE_SECONDS
   ) {
@@ -1299,7 +1296,7 @@ function normalizeScenes(
     }
   }
 
-  if (merged.length) {
+  if (!HIGHLIGHT_MODE && merged.length) {
     merged[0].start = 0;
 
     merged[
@@ -1398,6 +1395,23 @@ async function generateScenePlan(
       "Use detailed but natural movie recap narration.";
   }
 
+  const targetRecapSec = Math.round(Math.min(duration * 0.8, Math.min(600, Math.max(90, duration * 0.2))));
+  const targetScenes = Math.max(6, Math.min(MAX_SCENES, Math.round(targetRecapSec / 9)));
+
+  const gapRule = HIGHLIGHT_MODE
+    ? `7. DO NOT cover the whole movie. Select ONLY the most important story moments (key turning points, conflicts, reveals, the climax and the ending). SKIP boring, slow, repetitive or unimportant parts completely. Gaps between selected scenes are expected and good.
+8. The total length of all selected scenes should be about ${targetRecapSec} seconds (the full movie is ${duration.toFixed(2)} seconds). The first scene may start later than 0, and the last scene must include the ending of the movie.`
+    : `7. Do not leave gaps.
+8. Cover the complete movie from 0 to ${duration.toFixed(2)} seconds.`;
+
+  const sceneCountRule = HIGHLIGHT_MODE
+    ? `10. Create about ${targetScenes} scenes (never more than ${MAX_SCENES}).`
+    : `10. Create approximately 8 to ${MAX_SCENES} scenes.`;
+
+  const highlightStoryRule = HIGHLIGHT_MODE
+    ? `I. Because unimportant parts of the movie are skipped, the NARRATION must still tell the COMPLETE story from beginning to end in order. When time jumps over a skipped part, add one short natural clause that says what happened in between (for example: "ဒီအချိန်မှာ ... ဖြစ်သွားတယ်", "နောက်တော့ ...") so the audience never feels lost. Never narrate something the viewer cannot follow.`
+    : "";
+
   const prompt = `
 You are creating a PROFESSIONAL SYNCHRONIZED MOVIE RECAP.
 
@@ -1420,10 +1434,9 @@ RULES:
 4. Use real timestamps from the movie.
 5. Keep scenes chronological.
 6. Do not overlap scenes.
-7. Do not leave gaps.
-8. Cover the complete movie from 0 to ${duration.toFixed(2)} seconds.
+${gapRule}
 9. Prefer scenes around 6 to 14 seconds.
-10. Create approximately 8 to ${MAX_SCENES} scenes.
+${sceneCountRule}
 11. Narration must agree with what is on screen, but TELL THE STORY (who wants what, what is at stake, what changes). Never just describe the pictures.
 12. Use Whisper transcript as supporting information.
 13. Do not invent events.
@@ -1453,6 +1466,7 @@ E. Show emotion and stakes: fear, love, betrayal, hope, danger. Make viewers car
 F. Link scenes with natural story connectors so the recap flows as one story, not separate clips.
 G. ENDING: the last scene must land with an impactful closing line (twist, emotion, or lasting thought).
 H. Speak naturally. No lists, no labels, no stage directions in the narration text.
+${highlightStoryRule}
 
 LANGUAGE:
 ${languageInstruction}
@@ -2227,7 +2241,21 @@ async function renderSceneSyncVideo(
     await renderSceneVideo(moviePath, sceneForVideo, sceneVideo);
 
     // Make the audio exactly as long as the real rendered video (no drift between scenes).
-    const videoDuration = await getAudioDuration(sceneVideo);
+    let finalSceneVideo = sceneVideo;
+    let videoDuration = await getAudioDuration(sceneVideo);
+    if (videoDuration + 0.05 < fit.finalDuration) {
+      // The movie ends before the narration does: hold the last frame instead of cutting speech.
+      const padded = path.join(sceneDir, `scene-${number}-video-padded.mp4`);
+      await runCommand("ffmpeg", [
+        "-y", "-i", sceneVideo,
+        "-vf", `tpad=stop_mode=clone:stop_duration=${(fit.finalDuration - videoDuration + 0.1).toFixed(3)}`,
+        "-t", fit.finalDuration.toFixed(3), "-an",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
+        padded
+      ]);
+      finalSceneVideo = padded;
+      videoDuration = await getAudioDuration(padded);
+    }
     const syncedAudio = path.join(sceneDir, `scene-${number}-audio-sync.wav`);
     await runCommand("ffmpeg", [
       "-y", "-i", fittedTTS,
@@ -2235,7 +2263,7 @@ async function renderSceneSyncVideo(
       "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", syncedAudio
     ]);
 
-    renderedScenes.push(sceneVideo);
+    renderedScenes.push(finalSceneVideo);
     renderedAudio.push(syncedAudio);
   }
 
