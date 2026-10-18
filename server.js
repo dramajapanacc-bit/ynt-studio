@@ -56,7 +56,9 @@ for (const dir of [
 ========================================================= */
 
 const GROQ_MODEL = "whisper-large-v3-turbo";
-const GEMINI_MODEL = "gemini-3.8-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+const GEMINI_FALLBACK_MODELS = (process.env.GEMINI_FALLBACK_MODELS || "gemini-3.7-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite")
+  .split(",").map(name => name.trim()).filter(Boolean);
 const GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts";
 
 /* =========================================================
@@ -479,6 +481,38 @@ function isRetryableGeminiError(error) {
   ].includes(status);
 }
 
+const exhaustedModels = new Map();
+
+async function callWithModelFallback(operationName, makeCall) {
+  const models = [GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS.filter(name => name !== GEMINI_MODEL)];
+  let lastError = null;
+
+  for (const model of models) {
+    if ((exhaustedModels.get(model) || 0) > Date.now()) continue;
+
+    try {
+      const result = await callGeminiWithRetry(`${operationName} [${model}]`, () => makeCall(model));
+      console.log(`[GEMINI] ${operationName}: ${model}`);
+      return result;
+    } catch (error) {
+      lastError = error;
+      const message = String(error?.message || error);
+      if (/429|quota|rate limit|per day|404|not found|not supported|NOT_FOUND/i.test(message)) {
+        if (/per day|perday|daily/i.test(message)) {
+          exhaustedModels.set(model, Date.now() + 3 * 60 * 60 * 1000);
+        }
+        console.warn(`[GEMINI] ${model} မရပါ၊ နောက် model ကို စမ်းပါမယ်။`);
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  if (lastError) throw lastError;
+  exhaustedModels.clear();
+  throw new Error("Gemini model အားလုံး quota ကုန်နေပါတယ်။ နာရီအနည်းငယ် စောင့်ပြီး ပြန်စမ်းပါ။");
+}
+
 async function callGeminiWithRetry(
   operationName,
   operation
@@ -530,6 +564,13 @@ async function callGeminiWithRetry(
         status || "",
         error?.message || error
       );
+
+      if (
+        status === 429 &&
+        /per day|perday|daily/i.test(String(error?.message || ""))
+      ) {
+        throw error;
+      }
 
       if (!isRetryableGeminiError(error)) {
         throw error;
@@ -1393,7 +1434,11 @@ RULES:
 18. Keep the ending.
 19. Avoid meaningless filler.
 20. Narration must sound natural when spoken.
-21. Narration length must be reasonable for its scene.
+21. NARRATION LENGTH BUDGET (very important): the narration of each scene must be speakable in LESS than that scene's duration at a normal speaking pace.
+    - Myanmar: about 9 to 11 characters per second of the scene (a 10 second scene is about 100 characters). Never go above 13 characters per second.
+    - English: about 2 words per second.
+    - Do NOT describe every small action. Summarize only the key story events and skip minor details.
+    - Leave short natural pauses. It is better to say less than to rush.
 22. Do not use Markdown.
 23. Do not use headings in narration.
 24. Do not mention AI.
@@ -1425,11 +1470,11 @@ ${timeline}
 `;
 
   const response =
-    await callGeminiWithRetry(
+    await callWithModelFallback(
       "Scene-Synchronized Movie Analysis",
-      () =>
+      (model) =>
         ai.interactions.create({
-          model: GEMINI_MODEL,
+          model,
 
           input: [
             {
@@ -1493,6 +1538,13 @@ ${timeline}
   console.log(
     `[SCENE SYNC] ${scenes.length} scenes created`
   );
+
+  {
+    const rates = scenes.map(scene => String(scene.narration || "").length / Math.max(1, scene.end - scene.start));
+    const average = rates.reduce((a, b) => a + b, 0) / rates.length;
+    const tooLong = rates.filter(rate => rate > 14).length;
+    console.log(`[SCENE SYNC] narration density avg ${average.toFixed(1)} chars/sec, ${tooLong} scene(s) too long`);
+  }
 
   return {
     scenes
@@ -1716,29 +1768,89 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto") {
   throw new Error(`အသံထုတ်လို့မရပါ။ ${errors.join(" | ")}`);
 }
 
+async function detectSilences(audioPath) {
+  const result = await runCommand("ffmpeg", [
+    "-i", audioPath,
+    "-af", `silencedetect=noise=${process.env.SILENCE_DB || "-35dB"}:d=0.12`,
+    "-f", "null", "-"
+  ]);
+  const text = `${result.stderr || ""}\n${result.stdout || ""}`;
+  const starts = [...text.matchAll(/silence_start: (-?[\d.]+)/g)].map(m => Math.max(0, Number(m[1])));
+  const ends = [...text.matchAll(/silence_end: ([\d.]+) \| silence_duration: ([\d.]+)/g)].map(m => ({ end: Number(m[1]), dur: Number(m[2]) }));
+  const silences = [];
+  for (let i = 0; i < Math.min(starts.length, ends.length); i++) {
+    silences.push({ mid: (starts[i] + ends[i].end) / 2, dur: ends[i].dur });
+  }
+  return silences;
+}
+
+// Cut the narration at real pauses (not mid-word): start from the proportional
+// estimate, then snap each boundary to the best nearby silence.
+function chooseSceneCuts(silences, total, weights) {
+  const n = weights.length;
+  const cuts = [];
+  let prev = 0;
+
+  for (let i = 0; i < n - 1; i++) {
+    const remainingWeight = weights.slice(i).reduce((sum, value) => sum + value, 0);
+    const estimate = prev + (total - prev) * (weights[i] / remainingWeight);
+    const segment = (total - prev) / (n - i);
+
+    const pick = window => {
+      let found = null;
+      let foundScore = Infinity;
+      for (const silence of silences) {
+        if (silence.mid <= prev + 0.4 || silence.mid >= total - 0.3) continue;
+        const distance = Math.abs(silence.mid - estimate);
+        if (distance > window) continue;
+        const score = distance - 2 * Math.min(silence.dur, 1);
+        if (score < foundScore) {
+          foundScore = score;
+          found = silence.mid;
+        }
+      }
+      return found;
+    };
+
+    const best = pick(Math.max(2.5, 0.6 * segment)) ?? pick(Math.max(4, 1.2 * segment));
+
+    const cut = best ?? Math.min(Math.max(estimate, prev + 0.2), total - 0.1);
+    cuts.push(cut);
+    prev = cut;
+  }
+  return cuts;
+}
+
 async function splitFullTTSForScenes(fullAudio, scenes, sceneDir) {
   const totalAudioDuration = await getAudioDuration(fullAudio);
   const weights = scenes.map(scene => Math.max(1, String(scene.narration || "").trim().length));
-  const totalWeight = weights.reduce((sum, value) => sum + value, 0);
-  const files = [];
-  let offset = 0;
 
+  let silences = [];
+  try {
+    silences = await detectSilences(fullAudio);
+  } catch (error) {
+    console.warn("[SPLIT] silence detection failed, using proportional split:", String(error?.message || error).slice(0, 160));
+  }
+
+  const cuts = chooseSceneCuts(silences, totalAudioDuration, weights);
+  const bounds = [0, ...cuts, totalAudioDuration];
+  console.log(`[SPLIT] ${silences.length} pauses found, cuts at: ${cuts.map(c => c.toFixed(1)).join(", ")}`);
+
+  const files = [];
   for (let i = 0; i < scenes.length; i++) {
     const scene = scenes[i];
-    const remaining = Math.max(0, totalAudioDuration - offset);
-    const allocated = i === scenes.length - 1 ? remaining : totalAudioDuration * (weights[i] / totalWeight);
-    const duration = Math.max(0.05, Math.min(remaining, allocated));
+    const start = bounds[i];
+    const duration = Math.max(0.05, bounds[i + 1] - start);
     const number = String(scene.index).padStart(3, "0");
     const rawPath = path.join(sceneDir, `scene-${number}-raw.wav`);
 
     await runCommand("ffmpeg", [
-      "-y", "-ss", offset.toFixed(3), "-i", fullAudio,
+      "-y", "-ss", start.toFixed(3), "-i", fullAudio,
       "-t", duration.toFixed(3), "-vn", "-ar", "24000", "-ac", "1",
       "-c:a", "pcm_s16le", rawPath
     ]);
 
     files.push(rawPath);
-    offset += duration;
   }
   return files;
 }
@@ -2529,18 +2641,30 @@ app.post("/api/render/:id", async (req, res) => {
   }
 });
 
+const previewCache = new Map();
+
 app.post("/api/tts-preview", async (req, res) => {
   const text = String(req.body?.text || "").trim().slice(0, 220);
   if (!text) return res.status(400).json({ error: "စာမပါပါ။" });
   const voice = String(req.body?.voice || "female");
   const engine = String(req.body?.ttsEngine || "auto").toLowerCase();
+  const cacheKey = `${engine}|${voice}|${text}`;
+  const cached = previewCache.get(cacheKey);
+  if (cached) {
+    res.setHeader("Content-Type", "audio/wav");
+    res.setHeader("Cache-Control", "no-store");
+    return res.send(cached);
+  }
   const tmp = path.join(os.tmpdir(), `ynt-preview-${crypto.randomUUID()}.wav`);
   try {
     const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
     await generateFullTTS(ai, [{ narration: text }], tmp, voice, TTS_ENGINES.includes(engine) ? engine : "auto");
+    const audioData = fs.readFileSync(tmp);
+    previewCache.set(cacheKey, audioData);
+    if (previewCache.size > 40) previewCache.delete(previewCache.keys().next().value);
     res.setHeader("Content-Type", "audio/wav");
     res.setHeader("Cache-Control", "no-store");
-    return res.send(fs.readFileSync(tmp));
+    return res.send(audioData);
   } catch (error) {
     return res.status(502).json({ error: String(error?.message || error).slice(0, 300) });
   } finally {
