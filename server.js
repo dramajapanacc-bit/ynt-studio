@@ -402,7 +402,9 @@ async function runCommand(command, args) {
       command,
       args,
       {
-        maxBuffer: 100 * 1024 * 1024
+        maxBuffer: 100 * 1024 * 1024,
+        timeout: 15 * 60 * 1000,
+        killSignal: "SIGKILL"
       }
     );
 
@@ -1992,12 +1994,19 @@ async function renderSceneVideo(
       "-t",
       duration.toFixed(3),
       "-an",
+      "-nostats",
+      "-loglevel",
+      "error",
+      "-vf",
+      "scale='if(gt(iw,ih),min(1280,iw),min(720,iw))':-2",
+      "-threads",
+      "2",
       "-c:v",
       "libx264",
       "-preset",
       "veryfast",
       "-crf",
-      "23",
+      "24",
       "-pix_fmt",
       "yuv420p",
       "-movflags",
