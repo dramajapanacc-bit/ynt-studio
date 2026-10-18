@@ -1373,7 +1373,7 @@ async function generateScenePlan(
     );
 
   let languageInstruction =
-    "Write natural spoken Myanmar (Burmese).";
+    "Write natural SPOKEN Myanmar (Burmese), the way a popular Myanmar movie-recap YouTuber tells a gripping story to a friend. Use colloquial spoken endings (တယ်၊ ပါတယ်၊ လိုက်တယ်၊ ပါလိမ့်မယ်) and short punchy sentences. Do NOT use formal written literary style (သည်၊ ၏၊ ဖြစ်သည်).";
 
   if (language === "en") {
     languageInstruction =
@@ -1381,7 +1381,7 @@ async function generateScenePlan(
   }
 
   let styleInstruction =
-    "Use cinematic movie recap narration.";
+    "Use gripping, emotional movie recap storytelling that keeps viewers hooked until the last second.";
 
   if (style === "short") {
     styleInstruction =
@@ -1424,7 +1424,7 @@ RULES:
 8. Cover the complete movie from 0 to ${duration.toFixed(2)} seconds.
 9. Prefer scenes around 6 to 14 seconds.
 10. Create approximately 8 to ${MAX_SCENES} scenes.
-11. Match narration to what is actually visible.
+11. Narration must agree with what is on screen, but TELL THE STORY (who wants what, what is at stake, what changes). Never just describe the pictures.
 12. Use Whisper transcript as supporting information.
 13. Do not invent events.
 14. Do not invent characters.
@@ -1443,6 +1443,16 @@ RULES:
 23. Do not use headings in narration.
 24. Do not mention AI.
 25. Return ONLY JSON.
+
+RECAP STORYTELLING RULES (very important):
+A. A recap is NOT a scene-by-scene description. It is a condensed, exciting retelling of the movie's main story that makes people want to keep watching.
+B. HOOK: the very first scene's narration must open with a gripping hook in one or two short sentences (a shocking situation, a mysterious question, or the central conflict). Do not start with a boring introduction.
+C. Keep only the main story line: who the hero is, what they want, the big obstacles, the turning points, the climax and the ending. Skip minor details completely.
+D. Build tension: vary the rhythm with short sentences before big moments, use words of suspense and surprise, and ask a rhetorical question now and then (not in every scene).
+E. Show emotion and stakes: fear, love, betrayal, hope, danger. Make viewers care about the characters.
+F. Link scenes with natural story connectors so the recap flows as one story, not separate clips.
+G. ENDING: the last scene must land with an impactful closing line (twist, emotion, or lasting thought).
+H. Speak naturally. No lists, no labels, no stage directions in the narration text.
 
 LANGUAGE:
 ${languageInstruction}
@@ -1648,7 +1658,24 @@ async function generateGeminiTTS(
   const base64 = response?.candidates?.[0]?.content?.parts?.find(part => part?.inlineData?.data)?.inlineData?.data;
   if (!base64) throw new Error("Gemini returned no full narration audio.");
 
-  fs.writeFileSync(outputPath, Buffer.from(base64, "base64"));
+  const audioBuffer = Buffer.from(base64, "base64");
+  if (audioBuffer.length < 100) throw new Error("Generated full narration audio is invalid.");
+
+  if (audioBuffer.slice(0, 4).toString("ascii") === "RIFF") {
+    fs.writeFileSync(outputPath, audioBuffer);
+  } else {
+    // Gemini TTS usually returns raw 16-bit PCM without a WAV header.
+    const mime = response?.candidates?.[0]?.content?.parts?.find(part => part?.inlineData?.data)?.inlineData?.mimeType || "";
+    const rate = Number((/rate=(\d+)/.exec(mime) || [])[1]) || 24000;
+    const pcmPath = `${outputPath}.pcm`;
+    fs.writeFileSync(pcmPath, audioBuffer);
+    try {
+      await runCommand("ffmpeg", ["-y", "-f", "s16le", "-ar", String(rate), "-ac", "1", "-i", pcmPath, "-c:a", "pcm_s16le", "-f", "wav", outputPath]);
+    } finally {
+      try { fs.unlinkSync(pcmPath); } catch {}
+    }
+  }
+
   if (fs.statSync(outputPath).size < 100) throw new Error("Generated full narration audio is invalid.");
   return outputPath;
 }
@@ -1771,7 +1798,7 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto") {
 async function detectSilences(audioPath) {
   const result = await runCommand("ffmpeg", [
     "-i", audioPath,
-    "-af", `silencedetect=noise=${process.env.SILENCE_DB || "-35dB"}:d=0.12`,
+    "-af", `silencedetect=noise=${process.env.SILENCE_DB || "-35dB"}:d=${process.env.SILENCE_MIN || "0.08"}`,
     "-f", "null", "-"
   ]);
   const text = `${result.stderr || ""}\n${result.stdout || ""}`;
@@ -1932,8 +1959,8 @@ function buildAtempoFilters(
    FIT TTS TO SCENE
 ========================================================= */
 
-const MIN_TEMPO = Number(process.env.MIN_TEMPO || 0.88);
-const MAX_TEMPO = Number(process.env.MAX_TEMPO || 1.3);
+const MIN_TEMPO = Number(process.env.MIN_TEMPO || 1.0);
+const MAX_TEMPO = Number(process.env.MAX_TEMPO || 1.12);
 
 async function fitAudioToScene(
   inputAudio,
@@ -1958,6 +1985,7 @@ async function fitAudioToScene(
   if (Math.abs(tempo - 1) > 0.01) filters.push(`atempo=${tempo.toFixed(4)}`);
   filters.push("apad");
   filters.push(`atrim=duration=${finalDuration.toFixed(3)}`);
+  filters.push("afade=t=in:d=0.015");
 
   await runCommand("ffmpeg", [
     "-y", "-i", inputAudio,
@@ -2116,6 +2144,36 @@ async function concatScenes(
 }
 
 /* =========================================================
+   JOIN VIDEO + AUDIO, ENCODE AAC ONCE (no clicks at scene joins)
+========================================================= */
+
+async function concatAndMux(videoFiles, audioFiles, outputPath, jobFolder) {
+  const quote = f => `file '${f.replace(/'/g, "'\\''")}'`;
+  const videoList = path.join(jobFolder, "video-list.txt");
+  const audioList = path.join(jobFolder, "audio-list.txt");
+  const joinedVideo = path.join(jobFolder, "joined-video.mp4");
+  const joinedAudio = path.join(jobFolder, "joined-narration.wav");
+
+  fs.writeFileSync(videoList, videoFiles.map(quote).join("\n"), "utf8");
+  fs.writeFileSync(audioList, audioFiles.map(quote).join("\n"), "utf8");
+
+  await runCommand("ffmpeg", ["-y", "-f", "concat", "-safe", "0", "-i", videoList, "-c", "copy", joinedVideo]);
+  await runCommand("ffmpeg", ["-y", "-f", "concat", "-safe", "0", "-i", audioList, "-c", "copy", joinedAudio]);
+
+  await runCommand("ffmpeg", [
+    "-y", "-i", joinedVideo, "-i", joinedAudio,
+    "-map", "0:v:0", "-map", "1:a:0",
+    "-c:v", "copy",
+    "-af", "highpass=f=70,loudnorm=I=-16:TP=-1.5:LRA=11",
+    "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+    "-shortest", "-movflags", "+faststart",
+    outputPath
+  ]);
+
+  return outputPath;
+}
+
+/* =========================================================
    RENDER FINAL VIDEO
 ========================================================= */
 
@@ -2139,6 +2197,7 @@ async function renderSceneSyncVideo(
 
   const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
   const renderedScenes = [];
+  const renderedAudio = [];
 
   for (let i = 0; i < scenePlan.scenes.length; i++) {
     const scene = scenePlan.scenes[i];
@@ -2166,15 +2225,25 @@ async function renderSceneSyncVideo(
     });
 
     await renderSceneVideo(moviePath, sceneForVideo, sceneVideo);
-    await muxScene(sceneVideo, fittedTTS, sceneFinal);
-    renderedScenes.push(sceneFinal);
+
+    // Make the audio exactly as long as the real rendered video (no drift between scenes).
+    const videoDuration = await getAudioDuration(sceneVideo);
+    const syncedAudio = path.join(sceneDir, `scene-${number}-audio-sync.wav`);
+    await runCommand("ffmpeg", [
+      "-y", "-i", fittedTTS,
+      "-af", `apad,atrim=duration=${videoDuration.toFixed(3)},afade=t=out:st=${Math.max(0, videoDuration - 0.03).toFixed(3)}:d=0.03`,
+      "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", syncedAudio
+    ]);
+
+    renderedScenes.push(sceneVideo);
+    renderedAudio.push(syncedAudio);
   }
 
   updateJob(jobId, { stage: "FFmpeg", progress: 94, message: "Joining synchronized scenes..." });
 
   const listPath = path.join(jobFolder, "scene-list.txt");
   const outputPath = path.join(jobFolder, "YNT-One-Clips-Recap.mp4");
-  await concatScenes(renderedScenes, outputPath, listPath);
+  await concatAndMux(renderedScenes, renderedAudio, outputPath, jobFolder);
   return outputPath;
 }
 
