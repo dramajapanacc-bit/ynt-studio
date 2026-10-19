@@ -192,12 +192,12 @@ textarea:focus{border-color:var(--cyan)}
 <section class="card">
   <div class="head"><span class="num">2</span><div><h2>Myanmar Voice</h2><p>▶ ကို နှိပ်ပြီး အသံတစ်ခုချင်း နားထောင်ကြည့်ပါ၊ ကြိုက်တာကို ရွေးပါ။</p></div></div>
   <div class="row">
-    <div><label for="ttsEngine">အသံထုတ်တဲ့နည်း</label><select id="ttsEngine" class="selectBox"><option value="gemini" selected>✨ Gemini TTS (မြန်မာအသံ)</option></select></div>
+    <div><label for="ttsEngine">အသံထုတ်တဲ့နည်း</label><select id="ttsEngine" class="selectBox"><option value="auto" selected>🔁 Auto (Gemini → Azure → Google)</option><option value="gemini">✨ Gemini TTS</option><option value="azure">☁️ Azure Speech</option><option value="google">🌐 Google Translate TTS</option></select></div>
     <div><label for="language">ဘာသာစကား</label><select id="language" class="selectBox"><option value="my" selected>🇲🇲 မြန်မာ</option><option value="en">🇬🇧 English</option></select></div>
   </div>
   <div class="voices" id="voices"></div>
   <p class="vmsg" id="voiceMsg"></p>
-  <p class="hint">Gemini TTS ကိုသာ အသုံးပြုပါမယ်။ ရွေးထားတဲ့ Voice ကို Preview နဲ့ Recap Video နှစ်ခုလုံးမှာ အသုံးပြုပါမယ်။</p>
+  <p class="hint">Azure / Google မှာ အမျိုးသား၊ အမျိုးသမီး နှစ်မျိုးပဲ ကွာပါတယ်။</p>
 </section>
 
 <section class="card" id="burnCard">
