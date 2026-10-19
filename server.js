@@ -75,6 +75,8 @@ const GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts";
 const AUDIO_CHUNK_SECONDS = 90;
 const SCENE_FPS = 2;
 const MAX_SCENES = 18;
+// "sync" style (faithful dialogue + events) needs many more, shorter scenes.
+const SYNC_MAX_SCENES = Number(process.env.SYNC_MAX_SCENES || 40);
 const MIN_SCENE_SECONDS = 3;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 
@@ -1044,7 +1046,8 @@ function parseGeminiJSON(text) {
 
 function normalizeScenes(
   rawScenes,
-  duration
+  duration,
+  maxScenes = MAX_SCENES
 ) {
   if (!Array.isArray(rawScenes)) {
     throw new Error(
@@ -1228,7 +1231,7 @@ function normalizeScenes(
 
   while (
     merged.length >
-    MAX_SCENES
+    maxScenes
   ) {
     let smallestIndex = 0;
     let smallestDuration =
@@ -1400,6 +1403,18 @@ suspenseful, fast-paced movie recap narration.
 - Language: natural, fluent, professional voice-over Burmese (spoken style, not bookish).
 - The length budget in rule 21 still applies: never write more than can be spoken in the scene.`;
 
+  const syncMode = style === "sync";
+  if (syncMode) {
+    styleInstruction = `
+FAITHFUL SYNC MODE. This is NOT a summary. The narration is a natural Burmese
+translation of what is said AND what visibly happens, scene by scene.
+- Every scene must start and end where a spoken line (WHISPER TIMELINE segment) or a visible event starts and ends. Use the segment timestamps as the scene boundaries.
+- Translate EVERY spoken line inside the scene into natural spoken Burmese (meaning-for-meaning, not word-for-word, no bookish language). Do not skip, merge or reorder dialogue.
+- Keep who-says-what clear (e.g. "သူက ... ပြောတယ်"), and add a short description only for important visible actions that happen in silent moments.
+- Never describe events from another scene. The narration of a scene must only contain what happens between its start_sec and end_sec.
+- Do NOT summarize and do NOT add events or dialogue that are not in the video.`;
+  }
+
   if (style === "short") {
     styleInstruction =
       "Use concise and fast-paced movie recap narration.";
@@ -1439,8 +1454,8 @@ RULES:
 6. Do not overlap scenes.
 7. Do not leave gaps.
 8. Cover the complete movie from 0 to ${duration.toFixed(2)} seconds.
-9. Prefer scenes around 6 to 14 seconds.
-10. Create approximately 8 to ${MAX_SCENES} scenes.
+9. ${syncMode ? "Scene length follows the dialogue and events, not a fixed size." : "Prefer scenes around 6 to 14 seconds."}
+10. ${syncMode ? `Create one scene per spoken line or visible event, up to ${SYNC_MAX_SCENES} scenes. Scenes may be as short as 1.5 seconds.` : `Create approximately 8 to ${MAX_SCENES} scenes.`}
 11. Match narration to what is actually visible.
 12. Use Whisper transcript as supporting information.
 13. Do not invent events.
@@ -1454,7 +1469,7 @@ RULES:
 21. NARRATION LENGTH BUDGET (very important): the narration of each scene must be speakable in LESS than that scene's duration at a normal speaking pace.
     - Myanmar: about 9 to 11 characters per second of the scene (a 10 second scene is about 100 characters). Never go above 13 characters per second.
     - English: about 2 words per second.
-    - Do NOT describe every small action. Summarize only the key story events and skip minor details.
+    - ${syncMode ? "In sync mode all dialogue in the scene MUST still be translated; if it is too long, choose a shorter natural Burmese wording of the same meaning instead of dropping lines." : "Do NOT describe every small action. Summarize only the key story events and skip minor details."}
     - Leave short natural pauses. It is better to say less than to rush.
 22. Do not use Markdown.
 23. Do not use headings in narration.
@@ -1543,7 +1558,8 @@ ${timeline}
   const scenes =
     normalizeScenes(
       parsed.scenes,
-      duration
+      duration,
+      style === "sync" ? SYNC_MAX_SCENES : MAX_SCENES
     );
 
   if (!scenes.length) {
@@ -1629,7 +1645,8 @@ async function generateGeminiTTS(
   ai,
   scenes,
   outputPath,
-  voice
+  voice,
+  recapStyle
 ) {
   const actualVoice = resolveVoice(voice);
   const narrations = scenes.map(scene => String(scene.narration || "").trim());
@@ -1651,7 +1668,7 @@ async function generateGeminiTTS(
         parts: [{
           text: fullText,
           speech_metadata: {
-            style: "Natural cinematic movie recap narration. Clear Burmese pronunciation, smooth natural pacing, emotional but controlled storyteller voice. Speak continuously as one natural movie recap."
+            style: recapStyleText(recapStyle)
           }
         }]
       }],
@@ -1759,7 +1776,7 @@ async function googleTranslateTts(text, outputPath) {
   await audioBuffersToWav(buffers, outputPath, "mp3");
 }
 
-async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto") {
+async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto", recapStyle) {
   const fullText = scenes.map(scene => String(scene.narration || "").trim()).join(" ").trim();
   if (!fullText) throw new Error("No narration text was available for TTS.");
 
@@ -1768,7 +1785,7 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto") {
 
   for (const name of order) {
     try {
-      if (name === "gemini") await generateGeminiTTS(ai, scenes, outputPath, voice);
+      if (name === "gemini") await generateGeminiTTS(ai, scenes, outputPath, voice, recapStyle);
       else if (name === "azure") await azureTts(fullText, outputPath, voice);
       else if (name === "google") await googleTranslateTts(fullText, outputPath);
       else throw new Error("မသိတဲ့ voice engine");
@@ -1908,6 +1925,65 @@ async function getAudioDuration(
 }
 
 /* =========================================================
+   RECAP VOICE SETTINGS + SPEED BY STYLE
+========================================================= */
+
+// Reference voice settings for stability-based TTS APIs (e.g. ElevenLabs).
+// Gemini TTS does not take these numbers, so for Gemini the same intent is
+// sent as the style prompt below (see recapStyleText).
+const recapVoiceSettings = {
+  stability: 0.35,          // more expressive / emotional delivery
+  similarity_boost: 0.75,
+  style_exaggeration: 0.25, // more "recap" feel
+  use_speaker_boost: true
+};
+
+const styleByJob = new Map();
+
+// Speed (ffmpeg atempo) per recap style. Default recap speed is 1.1x.
+function getRecapSpeed(recapStyle) {
+  switch (String(recapStyle || "").toLowerCase()) {
+    case "sync":
+      return 1.0; // faithful dialogue: keep natural speed
+    case "fast":
+    case "short":
+      return 1.25; // Shorts / TikTok pace
+    case "dramatic":
+    case "cinematic":
+      return 1.05; // tense, clear storytelling
+    default:
+      return 1.1;
+  }
+}
+
+function recapStyleText(recapStyle) {
+  const base = "Natural cinematic movie recap narration. Clear Burmese pronunciation, smooth natural pacing, emotional but controlled storyteller voice. Speak continuously as one natural movie recap.";
+  switch (String(recapStyle || "").toLowerCase()) {
+    case "sync":
+      return "Natural spoken Burmese, clear pronunciation, natural conversational pacing, like a dubbing narrator following the scene.";
+    case "fast":
+    case "short":
+      return base + " Energetic, punchy, fast TikTok/Shorts-style delivery.";
+    case "dramatic":
+    case "cinematic":
+      return base + " Tense, dramatic, expressive delivery with emphasis on key moments.";
+    default:
+      return base + " Slightly expressive, recap-style energy.";
+  }
+}
+
+// Standalone speed change (keeps pitch) for any audio file.
+async function adjustAudioSpeed(inputAudioPath, outputAudioPath, recapStyle) {
+  const filters = buildAtempoFilters(getRecapSpeed(recapStyle));
+  await runCommand("ffmpeg", [
+    "-y", "-i", inputAudioPath,
+    ...(filters.length ? ["-filter:a", filters.join(",")] : []),
+    "-vn", outputAudioPath
+  ]);
+  return outputAudioPath;
+}
+
+/* =========================================================
    ATEMPO
 ========================================================= */
 
@@ -1955,7 +2031,8 @@ const MAX_TEMPO = Number(process.env.MAX_TEMPO || 1.3);
 async function fitAudioToScene(
   inputAudio,
   outputAudio,
-  targetDuration
+  targetDuration,
+  recapSpeed = 1
 ) {
   const sourceDuration = await getAudioDuration(inputAudio);
 
@@ -1966,13 +2043,16 @@ async function fitAudioToScene(
   // Natural speed: never stretch the voice a lot. Short narration keeps its
   // normal speed (silence is added after it); long narration is sped up only
   // a little and the scene video is extended instead of cutting words off.
-  const factor = sourceDuration / targetDuration;
-  const tempo = Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, factor));
+  // recapSpeed (style based) is applied first, then the usual fit-to-scene
+  // adjustment on top of it.
+  const factor = (sourceDuration / recapSpeed) / targetDuration;
+  const fitTempo = Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, factor));
+  const tempo = fitTempo * recapSpeed;
   const speechDuration = sourceDuration / tempo;
   const finalDuration = Math.max(targetDuration, speechDuration);
 
   const filters = [];
-  if (Math.abs(tempo - 1) > 0.01) filters.push(`atempo=${tempo.toFixed(4)}`);
+  filters.push(...buildAtempoFilters(tempo));
   filters.push("apad");
   filters.push(`atrim=duration=${finalDuration.toFixed(3)}`);
 
@@ -2163,10 +2243,32 @@ async function renderSceneSyncVideo(
 
   updateJob(jobId, { stage: "Voice", progress: 65, message: "Generating one continuous narration voice..." });
 
-  // ONE Gemini TTS request for the entire recap.
-  await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice, ttsEngineByJob.get(jobId) || "auto");
-
-  const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
+  const jobStyle = styleByJob.get(jobId);
+  let rawSceneAudio;
+  if (jobStyle === "sync") {
+    // Exact-ish sync with a small quota cost: scenes are voiced in small
+    // batches (one TTS call per batch) and each batch is split only inside
+    // itself, so any cut error can never drift across the whole video.
+    // TTS_BATCH_SCENES=1 gives one call per scene (most exact, most quota).
+    const batchSize = Math.max(1, Number(process.env.TTS_BATCH_SCENES || 5));
+    rawSceneAudio = [];
+    for (let i = 0; i < scenePlan.scenes.length; i += batchSize) {
+      const batch = scenePlan.scenes.slice(i, i + batchSize);
+      const batchPath = path.join(sceneDir, `batch-${String(i / batchSize).padStart(3, "0")}.wav`);
+      updateJob(jobId, {
+        stage: "Voice",
+        progress: 65 + Math.round((i / scenePlan.scenes.length) * 3),
+        message: `Scenes ${batch[0].index}-${batch[batch.length - 1].index} / ${scenePlan.scenes.length} — generating narration voice...`
+      });
+      await generateFullTTS(ai, batch, batchPath, voice, ttsEngineByJob.get(jobId) || "auto", jobStyle);
+      const parts = await splitFullTTSForScenes(batchPath, batch, sceneDir);
+      rawSceneAudio.push(...parts);
+    }
+  } else {
+    // ONE Gemini TTS request for the entire recap.
+    await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice, ttsEngineByJob.get(jobId) || "auto", jobStyle);
+    rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
+  }
   const renderedScenes = [];
 
   const burn = readBurn(jobFolder);
@@ -2190,7 +2292,7 @@ async function renderSceneSyncVideo(
     const sceneVideo = path.join(sceneDir, `scene-${number}-video.mp4`);
     const sceneFinal = path.join(sceneDir, `scene-${number}-final.mp4`);
 
-    const fit = await fitAudioToScene(rawTTS, fittedTTS, scene.duration);
+    const fit = await fitAudioToScene(rawTTS, fittedTTS, scene.duration, getRecapSpeed(styleByJob.get(jobId)));
     const sceneForVideo = fit.finalDuration > scene.duration + 0.05
       ? { ...scene, end: scene.start + fit.finalDuration }
       : scene;
@@ -2672,6 +2774,7 @@ app.post("/api/render/:id", async (req, res) => {
     const voice = String(req.body?.voice || "female");
     const engine = String(req.body?.ttsEngine || "auto").toLowerCase();
     ttsEngineByJob.set(job.id, TTS_ENGINES.includes(engine) ? engine : "auto");
+    if (req.body?.style) styleByJob.set(job.id, String(req.body.style));
 
     const movieName = fs.readdirSync(folder).find(name => /^movie\./i.test(name));
     if (!movieName) return res.status(404).json({ error: "Movie file မတွေ့တော့ပါ။ ပြန်တင်ပါ။" });
@@ -2792,7 +2895,7 @@ app.post(
 
       const style =
         req.body?.style ||
-        "cinematic";
+        "sync";
 
       const voice =
         req.body?.voice ||
@@ -2801,6 +2904,7 @@ app.post(
       const reviewScript = String(req.body?.reviewScript || "") === "1";
       const requestedEngine = String(req.body?.ttsEngine || "auto").toLowerCase();
       ttsEngineByJob.set(job.id, TTS_ENGINES.includes(requestedEngine) ? requestedEngine : "auto");
+      styleByJob.set(job.id, style);
 
 
       updateJob(job.id, {
