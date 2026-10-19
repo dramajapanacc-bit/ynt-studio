@@ -10,6 +10,7 @@ import { promisify } from "util";
 import Groq from "groq-sdk";
 import { GoogleGenAI } from "@google/genai";
 import pg from "pg";
+import { ensureFont, buildAss, buildFilterGraph, FONT_FAMILY } from "./burn.js";
 
 const { Pool } = pg;
 
@@ -402,7 +403,9 @@ async function runCommand(command, args) {
       command,
       args,
       {
-        maxBuffer: 100 * 1024 * 1024
+        maxBuffer: 100 * 1024 * 1024,
+        timeout: 15 * 60 * 1000,
+        killSignal: "SIGKILL"
       }
     );
 
@@ -1974,38 +1977,169 @@ async function fitAudioToScene(
    CUT VIDEO SCENE — ORIGINAL VIDEO ONLY
 ========================================================= */
 
+// BURN-HELPERS-START
+/* =========================================================
+   SUBTITLE + BLUR OPTIONS (optional, chosen in the UI)
+========================================================= */
+
+const burnOptionsByJob = new Map();
+const SUB_POS_Y = { top: 0.14, middle: 0.5, bottom: 0.84 };
+
+function sanitizeBurn(raw) {
+  let b = raw;
+  if (typeof b === "string") {
+    try { b = JSON.parse(b); } catch { b = null; }
+  }
+  if (!b || typeof b !== "object") return null;
+
+  const num = (v, d, lo, hi) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d;
+  };
+
+  const sub = b.subtitle && typeof b.subtitle === "object" ? b.subtitle : {};
+  const blur = b.blur && typeof b.blur === "object" ? b.blur : {};
+
+  const boxes = (Array.isArray(blur.boxes) ? blur.boxes : [])
+    .slice(0, 6)
+    .map(x => ({ x: num(x?.x, 0, 0, 1), y: num(x?.y, 0, 0, 1), w: num(x?.w, 0, 0, 1), h: num(x?.h, 0, 0, 1) }))
+    .filter(x => x.w > 0.02 && x.h > 0.01);
+
+  return {
+    subtitle: {
+      enabled: sub.enabled === true,
+      sizePct: num(sub.sizePct, 3.6, 1.5, 9),
+      color: /^#?[0-9a-f]{6}$/i.test(String(sub.color || "")) ? String(sub.color) : "#ffe600",
+      position: ["top", "middle", "bottom"].includes(sub.position) ? sub.position : "bottom"
+    },
+    blur: {
+      enabled: blur.enabled === true && boxes.length > 0,
+      boxes,
+      strength: num(blur.strength, 14, 2, 60)
+    }
+  };
+}
+
+// Break an over-long Burmese phrase at syllable starts (never inside a syllable).
+function breakLongPhrase(piece, maxLen) {
+  const chars = Array.from(piece);
+  const out = [];
+  let start = 0;
+  while (chars.length - start > maxLen) {
+    const cut = start + maxLen;
+    let k = cut;
+    while (k > start + 8) {
+      const c = chars[k].codePointAt(0);
+      const nx = chars[k + 1] ? chars[k + 1].codePointAt(0) : 0;
+      const pv = chars[k - 1].codePointAt(0);
+      if (c >= 0x1000 && c <= 0x1021 && nx !== 0x103A && nx !== 0x1039 && pv !== 0x1039) break;
+      k--;
+    }
+    if (k <= start + 8) k = cut;
+    out.push(chars.slice(start, k).join(""));
+    start = k;
+  }
+  out.push(chars.slice(start).join(""));
+  return out.filter(Boolean);
+}
+
+function splitSubtitleText(text, maxLen = 30) {
+  const clean = String(text || "").replace(/\s+/g, " ").trim();
+  if (!clean) return [];
+
+  const pieces = clean.split(/(?<=[။၊!?])|\s+/u).map(x => x.trim()).filter(Boolean);
+  const lines = [];
+  let current = "";
+
+  for (const piece of pieces) {
+    const parts = Array.from(piece).length > maxLen ? breakLongPhrase(piece, maxLen) : [piece];
+    for (const part of parts) {
+      if (!current) { current = part; continue; }
+      if (Array.from(current + " " + part).length <= maxLen) current += " " + part;
+      else { lines.push(current); current = part; }
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+// Cues are timed relative to the START of the scene clip (each scene is encoded separately).
+function buildSceneCues(text, speechSeconds) {
+  const lines = splitSubtitleText(text);
+  if (!lines.length) return [];
+  const total = Math.max(0.8, Number(speechSeconds) || 0);
+  const weights = lines.map(line => Math.max(4, Array.from(line).length));
+  const sum = weights.reduce((a, b) => a + b, 0);
+  let t = 0;
+  return lines.map((line, i) => {
+    const d = total * weights[i] / sum;
+    const cue = { start: t, end: t + d, text: line };
+    t += d;
+    return cue;
+  });
+}
+
+async function probeVideoSize(moviePath) {
+  const result = await runCommand("ffprobe", [
+    "-v", "error", "-select_streams", "v:0", "-show_streams", "-of", "json", moviePath
+  ]);
+  const stream = JSON.parse(result.stdout).streams?.[0];
+  if (!stream) throw new Error("Video stream not found.");
+
+  let w = Number(stream.width);
+  let h = Number(stream.height);
+  const rotation = Math.abs(Number(
+    stream.tags?.rotate ??
+    (stream.side_data_list || []).find(d => d.rotation !== undefined)?.rotation ??
+    0
+  ));
+  if (rotation === 90 || rotation === 270) [w, h] = [h, w];
+
+  // Same size cap for every scene (keeps encoding light and all scenes joinable).
+  const cap = w >= h ? 1280 : 720;
+  let outW = Math.min(w, cap);
+  outW -= outW % 2;
+  let outH = Math.round((h * outW) / w);
+  outH -= outH % 2;
+  return { W: Math.max(2, outW), H: Math.max(2, outH) };
+}
+// BURN-HELPERS-END
+
 async function renderSceneVideo(
   moviePath,
   scene,
-  outputPath
+  outputPath,
+  burn = null
 ) {
   const duration = Math.max(0.05, scene.end - scene.start);
 
-  await runCommand(
-    "ffmpeg",
-    [
-      "-y",
-      "-ss",
-      scene.start.toFixed(3),
-      "-i",
-      moviePath,
-      "-t",
-      duration.toFixed(3),
-      "-an",
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "23",
-      "-pix_fmt",
-      "yuv420p",
-      "-movflags",
-      "+faststart",
-      outputPath
-    ]
+  const args = [
+    "-y",
+    "-ss", scene.start.toFixed(3),
+    "-i", moviePath,
+    "-t", duration.toFixed(3),
+    "-an",
+    "-nostats", "-loglevel", "error"
+  ];
+
+  if (burn) {
+    const { graph } = buildFilterGraph(burn);
+    args.push("-filter_complex", graph, "-map", "[vout]");
+  } else {
+    args.push("-vf", "scale='if(gt(iw,ih),min(1280,iw),min(720,iw))':-2");
+  }
+
+  args.push(
+    "-threads", "2",
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-crf", "24",
+    "-pix_fmt", "yuv420p",
+    "-movflags", "+faststart",
+    outputPath
   );
 
+  await runCommand("ffmpeg", args);
   return outputPath;
 }
 
@@ -2140,6 +2274,32 @@ async function renderSceneSyncVideo(
   const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
   const renderedScenes = [];
 
+  // Optional Myanmar subtitles + blur boxes (chosen in the UI).
+  let burnPlan = null;
+  const burnOpts = burnOptionsByJob.get(jobId);
+  if (burnOpts && (burnOpts.subtitle.enabled || burnOpts.blur.enabled)) {
+    try {
+      const size = await probeVideoSize(moviePath);
+      const fontsDir = path.join(DATA_DIR, "fonts");
+      let subOk = false;
+      if (burnOpts.subtitle.enabled) {
+        subOk = (await ensureFont(fontsDir)).ok;
+        if (!subOk) console.warn(`[JOB ${jobId}] Myanmar subtitle font could not be downloaded. Subtitles skipped.`);
+      }
+      burnPlan = {
+        ...size,
+        fontsDir,
+        sub: subOk ? burnOpts.subtitle : null,
+        boxes: burnOpts.blur.enabled ? burnOpts.blur.boxes : [],
+        strength: burnOpts.blur.strength
+      };
+      console.log(`[JOB ${jobId}] Burn-in: subtitles=${Boolean(burnPlan.sub)} blurBoxes=${burnPlan.boxes.length} size=${size.W}x${size.H}`);
+    } catch (error) {
+      console.warn(`[JOB ${jobId}] Burn-in setup failed, continuing without it:`, String(error?.message || error).slice(0, 200));
+      burnPlan = null;
+    }
+  }
+
   for (let i = 0; i < scenePlan.scenes.length; i++) {
     const scene = scenePlan.scenes[i];
     const progress = 68 + Math.round((i / scenePlan.scenes.length) * 23);
@@ -2165,7 +2325,27 @@ async function renderSceneSyncVideo(
       message: `Scene ${scene.index} / ${scenePlan.scenes.length} — syncing video and voice...`
     });
 
-    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo);
+    let burn = null;
+    if (burnPlan && (burnPlan.sub || burnPlan.boxes.length)) {
+      let assPath = null;
+      if (burnPlan.sub) {
+        const speechSeconds = Math.min(fit.finalDuration, fit.sourceDuration / Math.max(fit.tempo, 0.5)) + 0.1;
+        const cues = buildSceneCues(scene.narration, speechSeconds);
+        if (cues.length) {
+          assPath = path.join(sceneDir, `scene-${number}.ass`);
+          fs.writeFileSync(assPath, buildAss(cues, burnPlan.W, burnPlan.H, {
+            sizePct: burnPlan.sub.sizePct,
+            color: burnPlan.sub.color,
+            x: 0.5,
+            y: SUB_POS_Y[burnPlan.sub.position] ?? 0.84,
+            bold: true
+          }, FONT_FAMILY), "utf8");
+        }
+      }
+      burn = { W: burnPlan.W, H: burnPlan.H, boxes: burnPlan.boxes, strength: burnPlan.strength, assPath, fontsDir: burnPlan.fontsDir };
+    }
+
+    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, burn);
     await muxScene(sceneVideo, fittedTTS, sceneFinal);
     renderedScenes.push(sceneFinal);
   }
@@ -2622,6 +2802,8 @@ app.post("/api/render/:id", async (req, res) => {
     const voice = String(req.body?.voice || "female");
     const engine = String(req.body?.ttsEngine || "auto").toLowerCase();
     ttsEngineByJob.set(job.id, TTS_ENGINES.includes(engine) ? engine : "auto");
+    const burnOptions = sanitizeBurn(req.body?.burn);
+    if (burnOptions) burnOptionsByJob.set(job.id, burnOptions);
 
     const movieName = fs.readdirSync(folder).find(name => /^movie\./i.test(name));
     if (!movieName) return res.status(404).json({ error: "Movie file မတွေ့တော့ပါ။ ပြန်တင်ပါ။" });
@@ -2742,6 +2924,8 @@ app.post(
       const reviewScript = String(req.body?.reviewScript || "") === "1";
       const requestedEngine = String(req.body?.ttsEngine || "auto").toLowerCase();
       ttsEngineByJob.set(job.id, TTS_ENGINES.includes(requestedEngine) ? requestedEngine : "auto");
+      const burnOptions = sanitizeBurn(req.body?.burn);
+      if (burnOptions) burnOptionsByJob.set(job.id, burnOptions);
 
 
       updateJob(job.id, {
