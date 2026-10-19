@@ -1665,124 +1665,45 @@ async function generateGeminiTTS(
   const base64 = response?.candidates?.[0]?.content?.parts?.find(part => part?.inlineData?.data)?.inlineData?.data;
   if (!base64) throw new Error("Gemini returned no full narration audio.");
 
-  fs.writeFileSync(outputPath, Buffer.from(base64, "base64"));
-  if (fs.statSync(outputPath).size < 100) throw new Error("Generated full narration audio is invalid.");
+  // Gemini TTS returns raw 24 kHz, 16-bit mono PCM. Convert it to a real WAV
+  // container before scene splitting and muxing; writing PCM bytes directly
+  // to a .wav filename makes ffmpeg/audio probes fail on some hosts.
+  const pcmPath = `${outputPath}.${crypto.randomUUID()}.pcm`;
+  try {
+    fs.writeFileSync(pcmPath, Buffer.from(base64, "base64"));
+    if (fs.statSync(pcmPath).size < 100) throw new Error("Generated full narration audio is invalid.");
+    await runCommand("ffmpeg", [
+      "-y", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", pcmPath,
+      "-c:a", "pcm_s16le", "-f", "wav", outputPath
+    ]);
+  } finally {
+    try { fs.unlinkSync(pcmPath); } catch {}
+  }
+  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 100) {
+    throw new Error("Gemini TTS WAV conversion failed.");
+  }
   return outputPath;
 }
 
 /* =========================================================
-   EXTRA FREE TTS ENGINES (Azure / Google Translate) + AUTO FALLBACK
+   GEMINI-ONLY TTS SETTINGS
 ========================================================= */
 
 const ttsEngineByJob = new Map();
-const MALE_VOICES = new Set(["male","Puck","Charon","Fenrir","Orus","Enceladus","Iapetus","Umbriel","Algenib","Rasalgethi","Alnilam","Schedar","Achird","Zubenelgenubi","Sadachbia","Sadaltager"]);
-function isMaleVoice(voice) { return MALE_VOICES.has(String(voice)); }
-const TTS_ENGINES = ["auto", "gemini", "azure", "google"];
+const TTS_ENGINES = ["gemini"];
 
-function splitTtsText(text, maxChars) {
-  const pieces = String(text).split(/(?<=[။!?.\n])\s*/).filter(Boolean);
-  const parts = [];
-  let current = "";
-  for (const piece of pieces) {
-    if (piece.length > maxChars) {
-      if (current) { parts.push(current); current = ""; }
-      for (let i = 0; i < piece.length; i += maxChars) parts.push(piece.slice(i, i + maxChars));
-      continue;
-    }
-    if ((current + " " + piece).length > maxChars && current) { parts.push(current); current = ""; }
-    current = current ? `${current} ${piece}` : piece;
+async function generateFullTTS(ai, scenes, outputPath, voice, engine = "gemini") {
+  // Intentionally Gemini-only: no Azure, Google Translate, or automatic
+  // fallback. This keeps previews and final rendered recaps on the same TTS.
+  if (String(engine || "gemini").toLowerCase() !== "gemini") {
+    console.warn(`[TTS] Unsupported engine requested; forcing Gemini TTS.`);
   }
-  if (current) parts.push(current);
-  return parts;
-}
-
-function xmlEscapeTts(text) {
-  return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-}
-
-async function audioBuffersToWav(buffers, outputPath, ext) {
-  const tempPath = `${outputPath}.${ext}`;
-  fs.writeFileSync(tempPath, Buffer.concat(buffers));
-  try {
-    await runCommand("ffmpeg", ["-y", "-i", tempPath, "-vn", "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", "-f", "wav", outputPath]);
-  } finally {
-    try { fs.unlinkSync(tempPath); } catch {}
+  await generateGeminiTTS(ai, scenes, outputPath, voice);
+  if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 100) {
+    throw new Error("Gemini TTS audio file is invalid.");
   }
-}
-
-async function azureTts(text, outputPath, voice) {
-  const key = (process.env.AZURE_SPEECH_KEY || "").trim();
-  const region = (process.env.AZURE_SPEECH_REGION || "").trim();
-  if (!key || !region) throw new Error("AZURE_SPEECH_KEY / AZURE_SPEECH_REGION မထည့်ရသေးပါ");
-  const voiceName = isMaleVoice(voice) ? "my-MM-ThihaNeural" : "my-MM-NilarNeural";
-  const buffers = [];
-  for (const part of splitTtsText(text, 1200)) {
-    const ssml = `<speak version='1.0' xml:lang='my-MM'><voice xml:lang='my-MM' name='${voiceName}'>${xmlEscapeTts(part)}</voice></speak>`;
-    let audio = null;
-    let lastError = null;
-    for (let attempt = 0; attempt < 3 && !audio; attempt++) {
-      const res = await fetch(`https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-        method: "POST",
-        headers: {
-          "Ocp-Apim-Subscription-Key": key,
-          "Content-Type": "application/ssml+xml",
-          "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
-          "User-Agent": "YNTRecapTool"
-        },
-        body: ssml
-      });
-      if (res.ok) {
-        audio = Buffer.from(await res.arrayBuffer());
-      } else {
-        lastError = new Error(`Azure TTS HTTP ${res.status}`);
-        if (res.status !== 429 && res.status < 500) break;
-        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
-      }
-    }
-    if (!audio || audio.length < 100) throw lastError || new Error("Azure TTS empty audio");
-    buffers.push(audio);
-  }
-  await audioBuffersToWav(buffers, outputPath, "mp3");
-}
-
-async function googleTranslateTts(text, outputPath) {
-  const buffers = [];
-  for (const part of splitTtsText(text, 180)) {
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=my&q=${encodeURIComponent(part)}`;
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36" } });
-    if (!res.ok) throw new Error(`Google Translate TTS HTTP ${res.status}`);
-    const audio = Buffer.from(await res.arrayBuffer());
-    if (audio.length < 100) throw new Error("Google Translate TTS empty audio");
-    buffers.push(audio);
-    await new Promise(r => setTimeout(r, 250));
-  }
-  await audioBuffersToWav(buffers, outputPath, "mp3");
-}
-
-async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto") {
-  const fullText = scenes.map(scene => String(scene.narration || "").trim()).join(" ").trim();
-  if (!fullText) throw new Error("No narration text was available for TTS.");
-
-  const order = engine === "auto" ? ["gemini", "azure", "google"] : [engine];
-  const errors = [];
-
-  for (const name of order) {
-    try {
-      if (name === "gemini") await generateGeminiTTS(ai, scenes, outputPath, voice);
-      else if (name === "azure") await azureTts(fullText, outputPath, voice);
-      else if (name === "google") await googleTranslateTts(fullText, outputPath);
-      else throw new Error("မသိတဲ့ voice engine");
-
-      if (!fs.existsSync(outputPath) || fs.statSync(outputPath).size < 100) throw new Error("audio file invalid");
-      console.log(`[TTS] engine=${name}`);
-      return outputPath;
-    } catch (error) {
-      const message = String(error?.message || error).slice(0, 200);
-      errors.push(`${name}: ${message}`);
-      console.error(`[TTS] ${name} failed: ${message}`);
-    }
-  }
-  throw new Error(`အသံထုတ်လို့မရပါ။ ${errors.join(" | ")}`);
+  console.log("[TTS] engine=gemini");
+  return outputPath;
 }
 
 async function detectSilences(audioPath) {
@@ -2164,7 +2085,7 @@ async function renderSceneSyncVideo(
   updateJob(jobId, { stage: "Voice", progress: 65, message: "Generating one continuous narration voice..." });
 
   // ONE Gemini TTS request for the entire recap.
-  await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice, ttsEngineByJob.get(jobId) || "auto");
+  await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice, ttsEngineByJob.get(jobId) || "gemini");
 
   const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
   const renderedScenes = [];
@@ -2670,8 +2591,8 @@ app.post("/api/render/:id", async (req, res) => {
     saveBurn(folder, req.body?.burn);
 
     const voice = String(req.body?.voice || "female");
-    const engine = String(req.body?.ttsEngine || "auto").toLowerCase();
-    ttsEngineByJob.set(job.id, TTS_ENGINES.includes(engine) ? engine : "auto");
+    const engine = String(req.body?.ttsEngine || "gemini").toLowerCase();
+    ttsEngineByJob.set(job.id, TTS_ENGINES.includes(engine) ? engine : "gemini");
 
     const movieName = fs.readdirSync(folder).find(name => /^movie\./i.test(name));
     if (!movieName) return res.status(404).json({ error: "Movie file မတွေ့တော့ပါ။ ပြန်တင်ပါ။" });
@@ -2704,7 +2625,7 @@ app.post("/api/tts-preview", async (req, res) => {
   const text = String(req.body?.text || "").trim().slice(0, 220);
   if (!text) return res.status(400).json({ error: "စာမပါပါ။" });
   const voice = String(req.body?.voice || "female");
-  const engine = String(req.body?.ttsEngine || "auto").toLowerCase();
+  const engine = String(req.body?.ttsEngine || "gemini").toLowerCase();
   const cacheKey = `${engine}|${voice}|${text}`;
   const cached = previewCache.get(cacheKey);
   if (cached) {
@@ -2715,7 +2636,7 @@ app.post("/api/tts-preview", async (req, res) => {
   const tmp = path.join(os.tmpdir(), `ynt-preview-${crypto.randomUUID()}.wav`);
   try {
     const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
-    await generateFullTTS(ai, [{ narration: text }], tmp, voice, TTS_ENGINES.includes(engine) ? engine : "auto");
+    await generateFullTTS(ai, [{ narration: text }], tmp, voice, TTS_ENGINES.includes(engine) ? engine : "gemini");
     const audioData = fs.readFileSync(tmp);
     previewCache.set(cacheKey, audioData);
     if (previewCache.size > 40) previewCache.delete(previewCache.keys().next().value);
@@ -2799,8 +2720,8 @@ app.post(
         "female";
 
       const reviewScript = String(req.body?.reviewScript || "") === "1";
-      const requestedEngine = String(req.body?.ttsEngine || "auto").toLowerCase();
-      ttsEngineByJob.set(job.id, TTS_ENGINES.includes(requestedEngine) ? requestedEngine : "auto");
+      const requestedEngine = String(req.body?.ttsEngine || "gemini").toLowerCase();
+      ttsEngineByJob.set(job.id, TTS_ENGINES.includes(requestedEngine) ? requestedEngine : "gemini");
 
 
       updateJob(job.id, {
