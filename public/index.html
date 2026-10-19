@@ -320,6 +320,10 @@ function applySub(){
   sample.style.display=on?'block':'none';
   sample.style.fontSize=(stage.clientHeight*subPct()/100)+'px';
   sample.style.color=radioVal('subColor')||'#ffe600';
+  if(on&&stage.clientWidth&&stage.clientHeight&&sample.offsetWidth){
+    const hx=Math.min(50,sample.offsetWidth/stage.clientWidth*50),hy=Math.min(50,sample.offsetHeight/stage.clientHeight*50);
+    subX=clamp(subX,hx,100-hx);subY=clamp(subY,hy,100-hy);
+  }
   sample.style.top=subY+'%';sample.style.left=subX+'%';
   $('subY').value=Math.round(subY);$('subX').value=Math.round(subX);
   $('subYV').textContent=Math.round(subY)+'%';$('subXV').textContent=Math.round(subX)+'%';
