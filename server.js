@@ -10,6 +10,13 @@ import { promisify } from "util";
 import Groq from "groq-sdk";
 import { GoogleGenAI } from "@google/genai";
 import pg from "pg";
+import {
+  normalizeBurn,
+  burnActive,
+  probeVideoSize,
+  writeAss,
+  buildBurnFilter
+} from "./burn.js";
 
 const { Pool } = pg;
 
@@ -1380,8 +1387,18 @@ async function generateScenePlan(
       "Write natural spoken English.";
   }
 
-  let styleInstruction =
-    "Use cinematic movie recap narration.";
+  // Default narrator persona (suspense / crime recap voice).
+  let styleInstruction = `
+You are a professional cinematic recap narrator and scriptwriter. Write engaging,
+suspenseful, fast-paced movie recap narration.
+- Tone & voice: mysterious, thrilling and engaging, suitable for a suspense/crime recap.
+- Hook: the very first sentence of the FIRST scene must be a strong attention-grabbing hook.
+- Sentence structure: medium-length sentences in PAST tense (spoken Burmese past tense,
+  e.g. "...ခဲ့တယ်"), a steady gripping narrative flow, no unnecessary filler.
+- Pacing: concise, with smooth transitions between scenes, as if matching a fast-paced
+  video edit. Each scene should end in a way that pulls the viewer into the next one.
+- Language: natural, fluent, professional voice-over Burmese (spoken style, not bookish).
+- The length budget in rule 21 still applies: never write more than can be spoken in the scene.`;
 
   if (style === "short") {
     styleInstruction =
@@ -1977,7 +1994,8 @@ async function fitAudioToScene(
 async function renderSceneVideo(
   moviePath,
   scene,
-  outputPath
+  outputPath,
+  filterComplex = null
 ) {
   const duration = Math.max(0.05, scene.end - scene.start);
 
@@ -1991,6 +2009,9 @@ async function renderSceneVideo(
       moviePath,
       "-t",
       duration.toFixed(3),
+      ...(filterComplex
+        ? ["-filter_complex", filterComplex, "-map", "[vout]"]
+        : []),
       "-an",
       "-c:v",
       "libx264",
@@ -2119,6 +2140,14 @@ async function concatScenes(
    RENDER FINAL VIDEO
 ========================================================= */
 
+function readBurn(jobFolder) {
+  try {
+    return normalizeBurn(fs.readFileSync(path.join(jobFolder, "burn.json"), "utf8"));
+  } catch {
+    return null;
+  }
+}
+
 async function renderSceneSyncVideo(
   jobId,
   moviePath,
@@ -2139,6 +2168,13 @@ async function renderSceneSyncVideo(
 
   const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
   const renderedScenes = [];
+
+  const burn = readBurn(jobFolder);
+  const burnOn = burnActive(burn);
+  const videoSize = burnOn ? await probeVideoSize(moviePath) : null;
+  if (burnOn) {
+    console.log(`[BURN] subtitle=${burn.subtitle.enabled} blurBoxes=${burn.blur.enabled ? burn.blur.boxes.length : 0} size=${videoSize.width}x${videoSize.height}`);
+  }
 
   for (let i = 0; i < scenePlan.scenes.length; i++) {
     const scene = scenePlan.scenes[i];
@@ -2165,7 +2201,20 @@ async function renderSceneSyncVideo(
       message: `Scene ${scene.index} / ${scenePlan.scenes.length} — syncing video and voice...`
     });
 
-    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo);
+    let filterComplex = null;
+    if (burnOn) {
+      let assPath = null;
+      if (burn.subtitle.enabled) {
+        const candidate = path.join(sceneDir, `scene-${number}.ass`);
+        const videoLength = sceneForVideo.end - sceneForVideo.start;
+        if (writeAss(candidate, videoSize, burn.subtitle, scene.narration, Math.min(fit.finalDuration, videoLength))) {
+          assPath = candidate;
+        }
+      }
+      filterComplex = buildBurnFilter(burn, videoSize, assPath);
+    }
+
+    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, filterComplex);
     await muxScene(sceneVideo, fittedTTS, sceneFinal);
     renderedScenes.push(sceneFinal);
   }
@@ -2618,6 +2667,7 @@ app.post("/api/render/:id", async (req, res) => {
       return res.status(400).json({ error: "Scene တစ်ခုမှာ စာမရှိပါ။" });
     }
     fs.writeFileSync(planPath, JSON.stringify(plan, null, 2), "utf8");
+    saveBurn(folder, req.body?.burn);
 
     const voice = String(req.body?.voice || "female");
     const engine = String(req.body?.ttsEngine || "auto").toLowerCase();
@@ -2642,6 +2692,13 @@ app.post("/api/render/:id", async (req, res) => {
 });
 
 const previewCache = new Map();
+
+function saveBurn(folder, raw) {
+  if (raw === undefined || raw === null || raw === "") return;
+  const burn = normalizeBurn(raw);
+  if (!burn) return;
+  fs.writeFileSync(path.join(folder, "burn.json"), JSON.stringify(burn), "utf8");
+}
 
 app.post("/api/tts-preview", async (req, res) => {
   const text = String(req.body?.text || "").trim().slice(0, 220);
@@ -2726,6 +2783,8 @@ app.post(
         req.file.path,
         moviePath
       );
+
+      saveBurn(jobFolder, req.body?.burn);
 
       const language =
         req.body?.language ||
