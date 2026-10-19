@@ -10,7 +10,7 @@ import { promisify } from "util";
 import Groq from "groq-sdk";
 import { GoogleGenAI } from "@google/genai";
 import pg from "pg";
-import { ensureFont, buildAss, buildFilterGraph, FONT_FAMILY } from "./burn.js";
+import fsp from "node:fs/promises";
 
 const { Pool } = pg;
 
@@ -1976,6 +1976,122 @@ async function fitAudioToScene(
 /* =========================================================
    CUT VIDEO SCENE — ORIGINAL VIDEO ONLY
 ========================================================= */
+
+
+/* =========================================================
+   BURN-IN HELPERS (inlined: Myanmar subtitles + blur boxes)
+========================================================= */
+// Burn-in helpers: blur regions + Myanmar subtitles -> ffmpeg arguments.
+
+const FONT_FILE = 'NotoSansMyanmar-Bold.ttf';
+const FONT_FAMILY = 'Noto Sans Myanmar';
+const FONT_URLS = [
+  'https://github.com/notofonts/notofonts.github.io/raw/main/fonts/NotoSansMyanmar/full/ttf/NotoSansMyanmar-Bold.ttf',
+  'https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMyanmar/full/ttf/NotoSansMyanmar-Bold.ttf',
+  'https://github.com/google/fonts/raw/main/ofl/notosansmyanmar/NotoSansMyanmar%5Bwdth%2Cwght%5D.ttf'
+];
+
+// Make sure a Myanmar-capable font exists in fontsDir. Users can also drop their own
+// .ttf/.otf file into the fonts folder (the first Myanmar-capable font found is used).
+async function ensureFont(fontsDir) {
+  await fsp.mkdir(fontsDir, { recursive: true });
+  const target = path.join(fontsDir, FONT_FILE);
+  try { const s = await fsp.stat(target); if (s.size > 50_000) return { ok: true, family: FONT_FAMILY }; } catch {}
+  for (const url of FONT_URLS) {
+    try {
+      const r = await fetch(url, { redirect: 'follow' });
+      if (!r.ok) continue;
+      const buf = Buffer.from(await r.arrayBuffer());
+      if (buf.length < 50_000) continue;
+      await fsp.writeFile(target, buf);
+      return { ok: true, family: FONT_FAMILY };
+    } catch {}
+  }
+  return { ok: false, family: FONT_FAMILY };
+}
+
+
+const bClamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const bNum = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
+
+function assTime(sec) {
+  const cs = Math.max(0, Math.round(sec * 100));
+  const h = Math.floor(cs / 360000), m = Math.floor(cs % 360000 / 6000), s = Math.floor(cs % 6000 / 100), c = cs % 100;
+  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(c).padStart(2, '0')}`;
+}
+// ASS colour is &HAABBGGRR
+function assColor(hex, fallback = '#ffffff') {
+  const h = /^#?[0-9a-f]{6}$/i.test(String(hex || '')) ? String(hex).replace('#', '') : fallback.replace('#', '');
+  const r = h.slice(0, 2), g = h.slice(2, 4), b = h.slice(4, 6);
+  return `&H00${b}${g}${r}`.toUpperCase();
+}
+function escapeAss(t) {
+  return String(t).replace(/\\/g, '').replace(/[{}]/g, '').replace(/\n/g, '\\N');
+}
+
+function buildAss(cues, W, H, sub, fontFamily = FONT_FAMILY) {
+  const sizePct = bClamp(bNum(sub?.sizePct, 3.6), 1.5, 12);
+  const outlinePct = bClamp(bNum(sub?.outlinePct, 0.28), 0, 2);
+  const fontSize = Math.round(H * sizePct / 100);
+  const outline = Math.max(0, +(H * outlinePct / 100).toFixed(2));
+  const px = Math.round(bClamp(bNum(sub?.x, 0.5), 0, 1) * W);
+  const py = Math.round(bClamp(bNum(sub?.y, 0.8), 0, 1) * H);
+  const bold = sub?.bold === false ? 0 : -1;
+  const marginLR = Math.round(W * 0.06);
+  const primary = assColor(sub?.color, '#ffe600');
+  const outlineC = assColor(sub?.outlineColor, '#000000');
+  const header = `[Script Info]
+ScriptType: v4.00+
+PlayResX: ${W}
+PlayResY: ${H}
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,${fontFamily},${fontSize},${primary},${primary},${outlineC},&H80000000,${bold},0,0,0,100,100,0,0,1,${outline},0,5,${marginLR},${marginLR},10,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`;
+  const lines = cues.map(c => `Dialogue: 0,${assTime(c.start)},${assTime(c.end)},Default,,0,0,0,,{\\an5\\pos(${px},${py})}${escapeAss(c.text)}`);
+  return header + lines.join('\n') + '\n';
+}
+
+function escapeFilterPath(p) {
+  return String(p).replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, "\\'").replace(/,/g, '\\,').replace(/\[/g, '\\[').replace(/\]/g, '\\]');
+}
+
+// boxes: [{x,y,w,h}] normalised 0..1 relative to the frame.
+function buildFilterGraph({ W, H, boxes, strength, assPath, fontsDir }) {
+  const sigma = bClamp(bNum(strength, 14), 2, 60);
+  const steps = [];
+  const valid = [];
+  for (const b of Array.isArray(boxes) ? boxes : []) {
+    let x = Math.round(bClamp(bNum(b.x, 0), 0, 1) * W), y = Math.round(bClamp(bNum(b.y, 0), 0, 1) * H);
+    let w = Math.round(bClamp(bNum(b.w, 0), 0, 1) * W), h = Math.round(bClamp(bNum(b.h, 0), 0, 1) * H);
+    x = bClamp(x, 0, W - 2); y = bClamp(y, 0, H - 2);
+    w = bClamp(w, 2, W - x); h = bClamp(h, 2, H - y);
+    w -= w % 2; h -= h % 2; x -= x % 2; y -= y % 2;
+    if (w >= 2 && h >= 2) valid.push({ x, y, w, h });
+  }
+  let cur = 'base';
+  steps.push(`[0:v]scale=${W}:${H},setsar=1[${cur}]`);
+  valid.forEach((b, i) => {
+    const a = `a${i}`, s = `s${i}`, bl = `b${i}`, out = `o${i}`;
+    steps.push(`[${cur}]split=2[${a}][${s}]`);
+    steps.push(`[${s}]crop=${b.w}:${b.h}:${b.x}:${b.y},gblur=sigma=${sigma}:steps=2[${bl}]`);
+    steps.push(`[${a}][${bl}]overlay=${b.x}:${b.y}[${out}]`);
+    cur = out;
+  });
+  if (assPath) {
+    steps.push(`[${cur}]ass='${escapeFilterPath(assPath)}':fontsdir='${escapeFilterPath(fontsDir)}'[vsub]`);
+    cur = 'vsub';
+  }
+  steps.push(`[${cur}]format=yuv420p[vout]`);
+  return { graph: steps.join(';'), blurCount: valid.length };
+}
+
 
 // BURN-HELPERS-START
 /* =========================================================
