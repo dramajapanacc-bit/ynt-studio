@@ -126,6 +126,46 @@ textarea:focus{border-color:var(--cyan)}
 :focus-visible{outline:3px solid var(--cyan);outline-offset:2px}
 @media(max-width:520px){.hero h1{font-size:32px}.row{grid-template-columns:1fr}.step{font-size:9.5px}.step i{width:34px;height:34px}.steps:before{top:17px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* ---- subtitle + blur card ---- */
+.stageWrap{display:none;margin-bottom:14px}
+.stage{position:relative;margin:0 auto;width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
+.boxLayer{position:absolute;inset:0;pointer-events:none}
+.bx{position:absolute;pointer-events:auto;touch-action:none;cursor:move;border:2px dashed var(--ok);border-radius:6px;background:#06091840;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.bx.sel{border-style:solid;box-shadow:0 0 0 2px #2dd4bf66}
+.bx b{position:absolute;left:0;top:0;padding:0 7px;border-radius:0 0 8px 0;font-size:11px;line-height:18px;background:var(--ok);color:#042a26}
+.bx .rs{position:absolute;right:0;bottom:0;width:30px;height:30px;border-radius:10px 0 4px 0;background:var(--ok);touch-action:none;cursor:nwse-resize}
+.bx .rs:after{content:"";position:absolute;right:6px;bottom:6px;width:10px;height:10px;border-right:3px solid #042a26;border-bottom:3px solid #042a26}
+.subSample{position:absolute;left:6%;right:6%;display:none;text-align:center;transform:translateY(-50%);pointer-events:none;font-weight:700;line-height:1.35;text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 2px #000}
+.seek{width:100%;margin:12px 0 0;accent-color:var(--violet)}
+.opt{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.sw{position:relative;display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:44px;font-size:14px;font-weight:700;cursor:pointer}
+.sw input{position:absolute;opacity:0;width:1px;height:1px}
+.sw i{flex:0 0 50px;height:28px;border-radius:14px;position:relative;background:var(--panel2);border:1.5px solid var(--line);transition:background .2s}
+.sw i:after{content:"";position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;transition:transform .2s}
+.sw input:checked+i{background:linear-gradient(90deg,var(--blue),var(--violet));border-color:transparent}
+.sw input:checked+i:after{transform:translateX(22px)}
+.sw input:focus-visible+i{outline:3px solid var(--cyan);outline-offset:2px}
+.subbox{transition:opacity .2s}.subbox.off{opacity:.4;pointer-events:none}
+.lab{display:flex;justify-content:space-between;margin:12px 0 6px;font-size:12px;font-weight:700;color:var(--muted)}
+.lab span:last-child{color:var(--text)}
+.rng{width:100%;accent-color:var(--violet);margin:0}
+.cols{display:flex;gap:12px;flex-wrap:wrap}
+.sc{position:relative;display:block;width:44px;height:44px}
+.sc input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.sc b{display:block;width:44px;height:44px;border-radius:50%;background:var(--c);border:3px solid var(--line)}
+.sc input:checked+b{border-color:#fff;box-shadow:0 0 0 2px var(--violet)}
+.sc input:focus-visible+b{outline:3px solid var(--cyan);outline-offset:2px}
+.seg{display:flex;gap:8px}
+.seg label{position:relative;flex:1;display:block}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg span{display:grid;place-items:center;min-height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel2);font-size:13.5px;font-weight:700}
+.seg input:checked+span{border-color:transparent;color:#fff;background:linear-gradient(90deg,var(--blue),var(--violet))}
+.seg input:focus-visible+span{outline:3px solid var(--cyan);outline-offset:2px}
+.brow{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;margin-top:8px;padding:4px 6px 4px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);font-size:13.5px}
+.brow button{min-height:36px;padding:0 14px;border-radius:10px;border:0;background:#fb718522;color:var(--err);font:inherit;font-size:13px;cursor:pointer}
+.dashbtn{width:100%;min-height:48px;margin-top:10px;border-radius:12px;border:1.5px dashed var(--ok);background:transparent;color:var(--ok);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.dashbtn:disabled{opacity:.5;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -158,6 +198,49 @@ textarea:focus{border-color:var(--cyan)}
   <div class="voices" id="voices"></div>
   <p class="vmsg" id="voiceMsg"></p>
   <p class="hint">Azure / Google မှာ အမျိုးသား၊ အမျိုးသမီး နှစ်မျိုးပဲ ကွာပါတယ်။</p>
+</section>
+
+<section class="card" id="burnCard">
+  <div class="head"><span class="num">3</span><div><h2>စာတန်းထိုး &amp; Blur</h2><p>မြန်မာစာတန်းထိုး ထည့်ခြင်း၊ မူရင်းစာတန်းထိုးကို Blur ဖုံးခြင်း (ရွေးချယ်စရာ)။</p></div></div>
+
+  <div class="stageWrap" id="stageWrap">
+    <div class="stage" id="stage"><video id="stageVideo" muted playsinline preload="metadata"></video><div class="boxLayer" id="boxLayer"></div><div class="subSample" id="subSample">ဒီအချိန်မှာ သူ့လျှို့ဝှက်ချက် ပေါ်လာပါတယ်</div></div>
+    <input class="seek" id="seek" type="range" min="0" max="1000" value="100" aria-label="Video ကို ရွှေ့ကြည့်ရန်">
+    <p class="hint">Slider ကို ရွှေ့ပြီး မူရင်းစာတန်းထိုး ပေါ်တဲ့ frame ကို ရှာပါ။</p>
+  </div>
+  <p class="hint" id="noMovie">Movie ရွေးပြီးရင် ဒီမှာ Preview ပေါ်ပါမယ်။</p>
+
+  <div class="opt">
+    <label class="sw"><span>မြန်မာစာတန်းထိုး ထည့်မယ်</span><input type="checkbox" id="subOn"><i></i></label>
+    <div class="subbox off" id="subOpts">
+      <div class="lab"><label for="subSize">စာလုံးအရွယ်</label><span id="subSizeV">အလတ်</span></div>
+      <input class="rng" id="subSize" type="range" min="1" max="10" value="4">
+      <div class="lab"><span>အရောင်</span><span></span></div>
+      <div class="cols">
+        <label class="sc" style="--c:#ffe600"><input type="radio" name="subColor" value="#ffe600" checked aria-label="အဝါ"><b></b></label>
+        <label class="sc" style="--c:#ffffff"><input type="radio" name="subColor" value="#ffffff" aria-label="အဖြူ"><b></b></label>
+        <label class="sc" style="--c:#5eead4"><input type="radio" name="subColor" value="#5eead4" aria-label="အစိမ်းဖျော့"><b></b></label>
+        <label class="sc" style="--c:#fb923c"><input type="radio" name="subColor" value="#fb923c" aria-label="လိမ္မော်"><b></b></label>
+      </div>
+      <div class="lab"><span>နေရာ</span><span></span></div>
+      <div class="seg">
+        <label><input type="radio" name="subPos" value="top"><span>အပေါ်</span></label>
+        <label><input type="radio" name="subPos" value="middle"><span>အလယ်</span></label>
+        <label><input type="radio" name="subPos" value="bottom" checked><span>အောက်</span></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="opt">
+    <label class="sw"><span>Blur ဖုံးမယ်</span><input type="checkbox" id="blurOn"><i></i></label>
+    <div id="boxList"></div>
+    <button type="button" class="dashbtn" id="addBox">+ Blur အကွက် ထည့်မယ်</button>
+    <div class="subbox off" id="blurOpts">
+      <div class="lab"><label for="blurStr">Blur ပြင်းအား</label><span id="blurStrV">အလတ်</span></div>
+      <input class="rng" id="blurStr" type="range" min="1" max="10" value="3">
+      <p class="hint">Preview ပေါ်က အကွက်ကို ဆွဲရွှေ့ပါ၊ ထောင့်က ပုံစံလေးကို ဆွဲပြီး အရွယ်အစား ပြင်ပါ။</p>
+    </div>
+  </div>
 </section>
 
 <section class="card">
@@ -214,8 +297,90 @@ function showFile(){
   if(!selectedFile)return;
   $('dropTitle').textContent='✅ Movie ရွေးပြီးပါပြီ';$('fileInfo').style.display='block';
   $('fileInfo').textContent=`🎥 ${selectedFile.name} • ${(selectedFile.size/1024/1024).toFixed(1)} MB`;
-  $('preview').style.display='block';$('preview').src=URL.createObjectURL(selectedFile);
+  const u=URL.createObjectURL(selectedFile);$('preview').style.display='block';$('preview').src=u;window.onMovieSelected&&window.onMovieSelected(u);
 }
+
+/* ---------- subtitle + blur options ---------- */
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const stage=$('stage'),layer=$('boxLayer'),sample=$('subSample'),sv=$('stageVideo');
+let boxes=[],selBox=-1,drag=null;
+const radioVal=n=>document.querySelector('input[name="'+n+'"]:checked')?.value;
+const subPct=()=>2+0.4*Number($('subSize').value);
+const sigma=()=>Math.round(4+3.4*Number($('blurStr').value));
+const LV=['အနည်းငယ်','အနည်းငယ်','အလတ်','အလတ်','အလတ်','အလတ်','ပြင်းပြင်း','ပြင်းပြင်း','အရမ်းပြင်း','အရမ်းပြင်း'];
+function applySub(){
+  const on=$('subOn').checked;
+  $('subOpts').classList.toggle('off',!on);
+  sample.style.display=on?'block':'none';
+  sample.style.fontSize=(stage.clientHeight*subPct()/100)+'px';
+  sample.style.color=radioVal('subColor')||'#ffe600';
+  sample.style.top=({top:14,middle:50,bottom:84})[radioVal('subPos')||'bottom']+'%';
+  $('subSizeV').textContent=LV[Number($('subSize').value)-1];
+}
+function applyBlur(){
+  const on=$('blurOn').checked;
+  $('blurOpts').classList.toggle('off',!on);
+  layer.style.display=on?'block':'none';
+  const px=Math.max(2,Math.round(sigma()*stage.clientWidth/1280));
+  layer.querySelectorAll('.bx').forEach(e=>{e.style.webkitBackdropFilter=e.style.backdropFilter='blur('+px+'px)'});
+  $('blurStrV').textContent=LV[Number($('blurStr').value)-1];
+}
+function renderBoxes(){
+  layer.innerHTML=boxes.map((b,i)=>'<div class="bx'+(i===selBox?' sel':'')+'" data-i="'+i+'" style="left:'+b.x*100+'%;top:'+b.y*100+'%;width:'+b.w*100+'%;height:'+b.h*100+'%"><b>'+(i+1)+'</b><span class="rs" data-rs="1"></span></div>').join('');
+  $('boxList').innerHTML=boxes.map((b,i)=>'<div class="brow"><span>အကွက် '+(i+1)+'</span><button type="button" data-del="'+i+'">ဖျက်မယ်</button></div>').join('');
+  $('addBox').disabled=boxes.length>=6;
+  applyBlur();
+}
+$('addBox').onclick=()=>{
+  if(boxes.length>=6)return;
+  boxes.push({x:.06,y:.78,w:.88,h:.14});selBox=boxes.length-1;
+  $('blurOn').checked=true;renderBoxes();
+};
+$('boxList').onclick=e=>{
+  const d=e.target.closest('[data-del]');if(!d)return;
+  boxes.splice(Number(d.dataset.del),1);selBox=-1;renderBoxes();
+};
+layer.addEventListener('pointerdown',e=>{
+  const bx=e.target.closest('.bx');if(!bx)return;
+  const i=Number(bx.dataset.i),r=stage.getBoundingClientRect();
+  selBox=i;
+  drag={i,mode:e.target.dataset.rs?'resize':'move',sx:e.clientX,sy:e.clientY,o:{...boxes[i]},w:r.width,h:r.height};
+  try{bx.setPointerCapture(e.pointerId)}catch{}
+  layer.querySelectorAll('.bx').forEach(el=>el.classList.toggle('sel',Number(el.dataset.i)===i));
+  e.preventDefault();
+});
+layer.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const dx=(e.clientX-drag.sx)/drag.w,dy=(e.clientY-drag.sy)/drag.h,b=boxes[drag.i],o=drag.o;
+  if(drag.mode==='move'){b.x=clamp(o.x+dx,0,1-o.w);b.y=clamp(o.y+dy,0,1-o.h)}
+  else{b.w=clamp(o.w+dx,.06,1-o.x);b.h=clamp(o.h+dy,.04,1-o.y)}
+  const el=layer.querySelector('.bx[data-i="'+drag.i+'"]');
+  if(el){el.style.left=b.x*100+'%';el.style.top=b.y*100+'%';el.style.width=b.w*100+'%';el.style.height=b.h*100+'%'}
+});
+['pointerup','pointercancel'].forEach(t=>layer.addEventListener(t,()=>{drag=null}));
+['subOn','subSize'].forEach(id=>$(id).addEventListener('input',applySub));
+document.querySelectorAll('input[name="subColor"],input[name="subPos"]').forEach(r=>r.addEventListener('change',applySub));
+['blurOn','blurStr'].forEach(id=>$(id).addEventListener('input',applyBlur));
+$('seek').addEventListener('input',()=>{if(sv.duration)sv.currentTime=sv.duration*Number($('seek').value)/1000});
+sv.addEventListener('loadedmetadata',()=>{
+  const r=sv.videoWidth/sv.videoHeight||16/9;
+  stage.style.aspectRatio=String(r);stage.style.width='min(100%,'+Math.round(340*r)+'px)';
+  sv.currentTime=Math.max(0.1,(sv.duration||1)*0.1);
+  applySub();applyBlur();
+});
+if(window.ResizeObserver)new ResizeObserver(()=>{applySub();applyBlur()}).observe(stage);
+window.onMovieSelected=u=>{
+  $('stageWrap').style.display='block';$('noMovie').style.display='none';
+  sv.src=u;
+};
+function burnPayload(){
+  const boxesOut=boxes.map(b=>({x:+b.x.toFixed(4),y:+b.y.toFixed(4),w:+b.w.toFixed(4),h:+b.h.toFixed(4)}));
+  return{
+    subtitle:{enabled:$('subOn').checked,sizePct:+subPct().toFixed(2),color:radioVal('subColor')||'#ffe600',position:radioVal('subPos')||'bottom'},
+    blur:{enabled:$('blurOn').checked&&boxesOut.length>0,boxes:boxesOut,strength:sigma()}
+  };
+}
+applySub();applyBlur();
 $('voices').innerHTML=VOICES.map(([n,g,d],i)=>`<div class="vc"><input type="radio" name="vsel" id="v_${n}" value="${n}"${i===0?' checked':''}><label for="v_${n}"><em class="av ${g==='Female'?'f':'m'}">${n[0]}</em><span class="vt"><b>${n}</b><span>${g} · ${d}</span></span><span class="eq"><s></s><s></s><s></s></span></label><button type="button" class="play" data-v="${n}" aria-label="${n} အသံနားထောင်">▶</button></div>`).join('');
 document.querySelectorAll('input[name="vsel"]').forEach(r=>r.onchange=()=>{voiceName=r.value});
 document.querySelectorAll('.play').forEach(b=>b.onclick=()=>preview(SAMPLE[$('language').value]||SAMPLE.my,b,b.dataset.v));
@@ -288,7 +453,7 @@ $('generate').onclick=async()=>{
   if(selectedFile.size>500*1024*1024){showErr('Video က 500MB ထက် မကျော်ရပါ');return}
   busy=true;$('generate').disabled=true;$('result').style.display='none';$('scriptCard').style.display='none';t0=Date.now();
   renderStatus({stage:'Upload',progress:3,status:'processing',message:'Movie upload စတင်နေပါတယ်...'});
-  const fd=new FormData();fd.append('movie',selectedFile);fd.append('language',$('language').value);fd.append('style',STYLE);fd.append('voice',voiceName);fd.append('ttsEngine',$('ttsEngine').value);fd.append('reviewScript',$('reviewChk').checked?'1':'');
+  const fd=new FormData();fd.append('movie',selectedFile);fd.append('language',$('language').value);fd.append('style',STYLE);fd.append('voice',voiceName);fd.append('ttsEngine',$('ttsEngine').value);fd.append('burn',JSON.stringify(burnPayload()));fd.append('reviewScript',$('reviewChk').checked?'1':'');
   try{
     const r=await fetch('/api/one-clip',{method:'POST',body:fd});const d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d?.error||'Movie processing မစနိုင်ပါ');
@@ -303,7 +468,7 @@ $('renderBtn').onclick=async()=>{
   renderStatus({stage:'Voice',progress:63,status:'processing',message:'Script အတည်ပြုပြီး၊ အသံထုတ်ပါမယ်...'});
   $('progressCard').scrollIntoView({behavior:'smooth',block:'start'});
   try{
-    const r=await fetch('/api/render/'+encodeURIComponent(jobId),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes:items,voice:voiceName,ttsEngine:$('ttsEngine').value})});
+    const r=await fetch('/api/render/'+encodeURIComponent(jobId),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes:items,voice:voiceName,ttsEngine:$('ttsEngine').value,burn:burnPayload()})});
     const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error||'Render မစနိုင်ပါ');startPoll();
   }catch(e){showErr(e.message);stop()}
 };
