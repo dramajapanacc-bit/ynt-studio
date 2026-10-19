@@ -10,7 +10,6 @@ import { promisify } from "util";
 import Groq from "groq-sdk";
 import { GoogleGenAI } from "@google/genai";
 import pg from "pg";
-import fsp from "node:fs/promises";
 
 const { Pool } = pg;
 
@@ -403,9 +402,7 @@ async function runCommand(command, args) {
       command,
       args,
       {
-        maxBuffer: 100 * 1024 * 1024,
-        timeout: 15 * 60 * 1000,
-        killSignal: "SIGKILL"
+        maxBuffer: 100 * 1024 * 1024
       }
     );
 
@@ -1977,285 +1974,38 @@ async function fitAudioToScene(
    CUT VIDEO SCENE — ORIGINAL VIDEO ONLY
 ========================================================= */
 
-
-/* =========================================================
-   BURN-IN HELPERS (inlined: Myanmar subtitles + blur boxes)
-========================================================= */
-// Burn-in helpers: blur regions + Myanmar subtitles -> ffmpeg arguments.
-
-const FONT_FILE = 'NotoSansMyanmar-Bold.ttf';
-const FONT_FAMILY = 'Noto Sans Myanmar';
-const FONT_URLS = [
-  'https://github.com/notofonts/notofonts.github.io/raw/main/fonts/NotoSansMyanmar/full/ttf/NotoSansMyanmar-Bold.ttf',
-  'https://raw.githubusercontent.com/notofonts/notofonts.github.io/main/fonts/NotoSansMyanmar/full/ttf/NotoSansMyanmar-Bold.ttf',
-  'https://github.com/google/fonts/raw/main/ofl/notosansmyanmar/NotoSansMyanmar%5Bwdth%2Cwght%5D.ttf'
-];
-
-// Make sure a Myanmar-capable font exists in fontsDir. Users can also drop their own
-// .ttf/.otf file into the fonts folder (the first Myanmar-capable font found is used).
-async function ensureFont(fontsDir) {
-  await fsp.mkdir(fontsDir, { recursive: true });
-  const target = path.join(fontsDir, FONT_FILE);
-  try { const s = await fsp.stat(target); if (s.size > 50_000) return { ok: true, family: FONT_FAMILY }; } catch {}
-  for (const url of FONT_URLS) {
-    try {
-      const r = await fetch(url, { redirect: 'follow' });
-      if (!r.ok) continue;
-      const buf = Buffer.from(await r.arrayBuffer());
-      if (buf.length < 50_000) continue;
-      await fsp.writeFile(target, buf);
-      return { ok: true, family: FONT_FAMILY };
-    } catch {}
-  }
-  return { ok: false, family: FONT_FAMILY };
-}
-
-
-const bClamp = (v, a, b) => Math.min(b, Math.max(a, v));
-const bNum = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
-
-function assTime(sec) {
-  const cs = Math.max(0, Math.round(sec * 100));
-  const h = Math.floor(cs / 360000), m = Math.floor(cs % 360000 / 6000), s = Math.floor(cs % 6000 / 100), c = cs % 100;
-  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(c).padStart(2, '0')}`;
-}
-// ASS colour is &HAABBGGRR
-function assColor(hex, fallback = '#ffffff') {
-  const h = /^#?[0-9a-f]{6}$/i.test(String(hex || '')) ? String(hex).replace('#', '') : fallback.replace('#', '');
-  const r = h.slice(0, 2), g = h.slice(2, 4), b = h.slice(4, 6);
-  return `&H00${b}${g}${r}`.toUpperCase();
-}
-function escapeAss(t) {
-  return String(t).replace(/\\/g, '').replace(/[{}]/g, '').replace(/\n/g, '\\N');
-}
-
-function buildAss(cues, W, H, sub, fontFamily = FONT_FAMILY) {
-  const sizePct = bClamp(bNum(sub?.sizePct, 3.6), 1.5, 12);
-  const outlinePct = bClamp(bNum(sub?.outlinePct, 0.28), 0, 2);
-  const fontSize = Math.round(H * sizePct / 100);
-  const outline = Math.max(0, +(H * outlinePct / 100).toFixed(2));
-  const px = Math.round(bClamp(bNum(sub?.x, 0.5), 0, 1) * W);
-  const py = Math.round(bClamp(bNum(sub?.y, 0.8), 0, 1) * H);
-  const bold = sub?.bold === false ? 0 : -1;
-  const marginLR = Math.round(W * 0.06);
-  const primary = assColor(sub?.color, '#ffe600');
-  const outlineC = assColor(sub?.outlineColor, '#000000');
-  const header = `[Script Info]
-ScriptType: v4.00+
-PlayResX: ${W}
-PlayResY: ${H}
-WrapStyle: 0
-ScaledBorderAndShadow: yes
-
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,${fontFamily},${fontSize},${primary},${primary},${outlineC},&H80000000,${bold},0,0,0,100,100,0,0,1,${outline},0,5,${marginLR},${marginLR},10,1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-`;
-  const lines = cues.map(c => `Dialogue: 0,${assTime(c.start)},${assTime(c.end)},Default,,0,0,0,,{\\an5\\pos(${px},${py})}${escapeAss(c.text)}`);
-  return header + lines.join('\n') + '\n';
-}
-
-function escapeFilterPath(p) {
-  return String(p).replace(/\\/g, '/').replace(/:/g, '\\:').replace(/'/g, "\\'").replace(/,/g, '\\,').replace(/\[/g, '\\[').replace(/\]/g, '\\]');
-}
-
-// boxes: [{x,y,w,h}] normalised 0..1 relative to the frame.
-function buildFilterGraph({ W, H, boxes, strength, assPath, fontsDir }) {
-  const sigma = bClamp(bNum(strength, 14), 2, 60);
-  const steps = [];
-  const valid = [];
-  for (const b of Array.isArray(boxes) ? boxes : []) {
-    let x = Math.round(bClamp(bNum(b.x, 0), 0, 1) * W), y = Math.round(bClamp(bNum(b.y, 0), 0, 1) * H);
-    let w = Math.round(bClamp(bNum(b.w, 0), 0, 1) * W), h = Math.round(bClamp(bNum(b.h, 0), 0, 1) * H);
-    x = bClamp(x, 0, W - 2); y = bClamp(y, 0, H - 2);
-    w = bClamp(w, 2, W - x); h = bClamp(h, 2, H - y);
-    w -= w % 2; h -= h % 2; x -= x % 2; y -= y % 2;
-    if (w >= 2 && h >= 2) valid.push({ x, y, w, h });
-  }
-  let cur = 'base';
-  steps.push(`[0:v]scale=${W}:${H},setsar=1[${cur}]`);
-  valid.forEach((b, i) => {
-    const a = `a${i}`, s = `s${i}`, bl = `b${i}`, out = `o${i}`;
-    steps.push(`[${cur}]split=2[${a}][${s}]`);
-    steps.push(`[${s}]crop=${b.w}:${b.h}:${b.x}:${b.y},gblur=sigma=${sigma}:steps=2[${bl}]`);
-    steps.push(`[${a}][${bl}]overlay=${b.x}:${b.y}[${out}]`);
-    cur = out;
-  });
-  if (assPath) {
-    steps.push(`[${cur}]ass='${escapeFilterPath(assPath)}':fontsdir='${escapeFilterPath(fontsDir)}'[vsub]`);
-    cur = 'vsub';
-  }
-  steps.push(`[${cur}]format=yuv420p[vout]`);
-  return { graph: steps.join(';'), blurCount: valid.length };
-}
-
-
-// BURN-HELPERS-START
-/* =========================================================
-   SUBTITLE + BLUR OPTIONS (optional, chosen in the UI)
-========================================================= */
-
-const burnOptionsByJob = new Map();
-const SUB_POS_Y = { top: 0.14, middle: 0.5, bottom: 0.84 };
-
-function sanitizeBurn(raw) {
-  let b = raw;
-  if (typeof b === "string") {
-    try { b = JSON.parse(b); } catch { b = null; }
-  }
-  if (!b || typeof b !== "object") return null;
-
-  const num = (v, d, lo, hi) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d;
-  };
-
-  const sub = b.subtitle && typeof b.subtitle === "object" ? b.subtitle : {};
-  const blur = b.blur && typeof b.blur === "object" ? b.blur : {};
-
-  const boxes = (Array.isArray(blur.boxes) ? blur.boxes : [])
-    .slice(0, 6)
-    .map(x => ({ x: num(x?.x, 0, 0, 1), y: num(x?.y, 0, 0, 1), w: num(x?.w, 0, 0, 1), h: num(x?.h, 0, 0, 1) }))
-    .filter(x => x.w > 0.02 && x.h > 0.01);
-
-  return {
-    subtitle: {
-      enabled: sub.enabled === true,
-      sizePct: num(sub.sizePct, 3.6, 1.5, 9),
-      color: /^#?[0-9a-f]{6}$/i.test(String(sub.color || "")) ? String(sub.color) : "#ffe600",
-      position: ["top", "middle", "bottom"].includes(sub.position) ? sub.position : "bottom"
-    },
-    blur: {
-      enabled: blur.enabled === true && boxes.length > 0,
-      boxes,
-      strength: num(blur.strength, 14, 2, 60)
-    }
-  };
-}
-
-// Break an over-long Burmese phrase at syllable starts (never inside a syllable).
-function breakLongPhrase(piece, maxLen) {
-  const chars = Array.from(piece);
-  const out = [];
-  let start = 0;
-  while (chars.length - start > maxLen) {
-    const cut = start + maxLen;
-    let k = cut;
-    while (k > start + 8) {
-      const c = chars[k].codePointAt(0);
-      const nx = chars[k + 1] ? chars[k + 1].codePointAt(0) : 0;
-      const pv = chars[k - 1].codePointAt(0);
-      if (c >= 0x1000 && c <= 0x1021 && nx !== 0x103A && nx !== 0x1039 && pv !== 0x1039) break;
-      k--;
-    }
-    if (k <= start + 8) k = cut;
-    out.push(chars.slice(start, k).join(""));
-    start = k;
-  }
-  out.push(chars.slice(start).join(""));
-  return out.filter(Boolean);
-}
-
-function splitSubtitleText(text, maxLen = 30) {
-  const clean = String(text || "").replace(/\s+/g, " ").trim();
-  if (!clean) return [];
-
-  const pieces = clean.split(/(?<=[။၊!?])|\s+/u).map(x => x.trim()).filter(Boolean);
-  const lines = [];
-  let current = "";
-
-  for (const piece of pieces) {
-    const parts = Array.from(piece).length > maxLen ? breakLongPhrase(piece, maxLen) : [piece];
-    for (const part of parts) {
-      if (!current) { current = part; continue; }
-      if (Array.from(current + " " + part).length <= maxLen) current += " " + part;
-      else { lines.push(current); current = part; }
-    }
-  }
-  if (current) lines.push(current);
-  return lines;
-}
-
-// Cues are timed relative to the START of the scene clip (each scene is encoded separately).
-function buildSceneCues(text, speechSeconds) {
-  const lines = splitSubtitleText(text);
-  if (!lines.length) return [];
-  const total = Math.max(0.8, Number(speechSeconds) || 0);
-  const weights = lines.map(line => Math.max(4, Array.from(line).length));
-  const sum = weights.reduce((a, b) => a + b, 0);
-  let t = 0;
-  return lines.map((line, i) => {
-    const d = total * weights[i] / sum;
-    const cue = { start: t, end: t + d, text: line };
-    t += d;
-    return cue;
-  });
-}
-
-async function probeVideoSize(moviePath) {
-  const result = await runCommand("ffprobe", [
-    "-v", "error", "-select_streams", "v:0", "-show_streams", "-of", "json", moviePath
-  ]);
-  const stream = JSON.parse(result.stdout).streams?.[0];
-  if (!stream) throw new Error("Video stream not found.");
-
-  let w = Number(stream.width);
-  let h = Number(stream.height);
-  const rotation = Math.abs(Number(
-    stream.tags?.rotate ??
-    (stream.side_data_list || []).find(d => d.rotation !== undefined)?.rotation ??
-    0
-  ));
-  if (rotation === 90 || rotation === 270) [w, h] = [h, w];
-
-  // Same size cap for every scene (keeps encoding light and all scenes joinable).
-  const cap = w >= h ? 1280 : 720;
-  let outW = Math.min(w, cap);
-  outW -= outW % 2;
-  let outH = Math.round((h * outW) / w);
-  outH -= outH % 2;
-  return { W: Math.max(2, outW), H: Math.max(2, outH) };
-}
-// BURN-HELPERS-END
-
 async function renderSceneVideo(
   moviePath,
   scene,
-  outputPath,
-  burn = null
+  outputPath
 ) {
   const duration = Math.max(0.05, scene.end - scene.start);
 
-  const args = [
-    "-y",
-    "-ss", scene.start.toFixed(3),
-    "-i", moviePath,
-    "-t", duration.toFixed(3),
-    "-an",
-    "-nostats", "-loglevel", "error"
-  ];
-
-  if (burn) {
-    const { graph } = buildFilterGraph(burn);
-    args.push("-filter_complex", graph, "-map", "[vout]");
-  } else {
-    args.push("-vf", "scale='if(gt(iw,ih),min(1280,iw),min(720,iw))':-2");
-  }
-
-  args.push(
-    "-threads", "2",
-    "-c:v", "libx264",
-    "-preset", "veryfast",
-    "-crf", "24",
-    "-pix_fmt", "yuv420p",
-    "-movflags", "+faststart",
-    outputPath
+  await runCommand(
+    "ffmpeg",
+    [
+      "-y",
+      "-ss",
+      scene.start.toFixed(3),
+      "-i",
+      moviePath,
+      "-t",
+      duration.toFixed(3),
+      "-an",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "veryfast",
+      "-crf",
+      "23",
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart",
+      outputPath
+    ]
   );
 
-  await runCommand("ffmpeg", args);
   return outputPath;
 }
 
@@ -2390,32 +2140,6 @@ async function renderSceneSyncVideo(
   const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
   const renderedScenes = [];
 
-  // Optional Myanmar subtitles + blur boxes (chosen in the UI).
-  let burnPlan = null;
-  const burnOpts = burnOptionsByJob.get(jobId);
-  if (burnOpts && (burnOpts.subtitle.enabled || burnOpts.blur.enabled)) {
-    try {
-      const size = await probeVideoSize(moviePath);
-      const fontsDir = path.join(DATA_DIR, "fonts");
-      let subOk = false;
-      if (burnOpts.subtitle.enabled) {
-        subOk = (await ensureFont(fontsDir)).ok;
-        if (!subOk) console.warn(`[JOB ${jobId}] Myanmar subtitle font could not be downloaded. Subtitles skipped.`);
-      }
-      burnPlan = {
-        ...size,
-        fontsDir,
-        sub: subOk ? burnOpts.subtitle : null,
-        boxes: burnOpts.blur.enabled ? burnOpts.blur.boxes : [],
-        strength: burnOpts.blur.strength
-      };
-      console.log(`[JOB ${jobId}] Burn-in: subtitles=${Boolean(burnPlan.sub)} blurBoxes=${burnPlan.boxes.length} size=${size.W}x${size.H}`);
-    } catch (error) {
-      console.warn(`[JOB ${jobId}] Burn-in setup failed, continuing without it:`, String(error?.message || error).slice(0, 200));
-      burnPlan = null;
-    }
-  }
-
   for (let i = 0; i < scenePlan.scenes.length; i++) {
     const scene = scenePlan.scenes[i];
     const progress = 68 + Math.round((i / scenePlan.scenes.length) * 23);
@@ -2441,27 +2165,7 @@ async function renderSceneSyncVideo(
       message: `Scene ${scene.index} / ${scenePlan.scenes.length} — syncing video and voice...`
     });
 
-    let burn = null;
-    if (burnPlan && (burnPlan.sub || burnPlan.boxes.length)) {
-      let assPath = null;
-      if (burnPlan.sub) {
-        const speechSeconds = Math.min(fit.finalDuration, fit.sourceDuration / Math.max(fit.tempo, 0.5)) + 0.1;
-        const cues = buildSceneCues(scene.narration, speechSeconds);
-        if (cues.length) {
-          assPath = path.join(sceneDir, `scene-${number}.ass`);
-          fs.writeFileSync(assPath, buildAss(cues, burnPlan.W, burnPlan.H, {
-            sizePct: burnPlan.sub.sizePct,
-            color: burnPlan.sub.color,
-            x: 0.5,
-            y: SUB_POS_Y[burnPlan.sub.position] ?? 0.84,
-            bold: true
-          }, FONT_FAMILY), "utf8");
-        }
-      }
-      burn = { W: burnPlan.W, H: burnPlan.H, boxes: burnPlan.boxes, strength: burnPlan.strength, assPath, fontsDir: burnPlan.fontsDir };
-    }
-
-    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, burn);
+    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo);
     await muxScene(sceneVideo, fittedTTS, sceneFinal);
     renderedScenes.push(sceneFinal);
   }
@@ -2918,8 +2622,6 @@ app.post("/api/render/:id", async (req, res) => {
     const voice = String(req.body?.voice || "female");
     const engine = String(req.body?.ttsEngine || "auto").toLowerCase();
     ttsEngineByJob.set(job.id, TTS_ENGINES.includes(engine) ? engine : "auto");
-    const burnOptions = sanitizeBurn(req.body?.burn);
-    if (burnOptions) burnOptionsByJob.set(job.id, burnOptions);
 
     const movieName = fs.readdirSync(folder).find(name => /^movie\./i.test(name));
     if (!movieName) return res.status(404).json({ error: "Movie file မတွေ့တော့ပါ။ ပြန်တင်ပါ။" });
@@ -3040,8 +2742,6 @@ app.post(
       const reviewScript = String(req.body?.reviewScript || "") === "1";
       const requestedEngine = String(req.body?.ttsEngine || "auto").toLowerCase();
       ttsEngineByJob.set(job.id, TTS_ENGINES.includes(requestedEngine) ? requestedEngine : "auto");
-      const burnOptions = sanitizeBurn(req.body?.burn);
-      if (burnOptions) burnOptionsByJob.set(job.id, burnOptions);
 
 
       updateJob(job.id, {
