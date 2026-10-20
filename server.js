@@ -15,7 +15,8 @@ import {
   burnActive,
   probeVideoSize,
   writeAss,
-  buildBurnFilter
+  buildBurnFilter,
+  checkSubtitleFont
 } from "./burn.js";
 
 const { Pool } = pg;
@@ -1696,7 +1697,7 @@ async function generateGeminiTTS(
 const ttsEngineByJob = new Map();
 const MALE_VOICES = new Set(["male","Thiha","Puck","Charon","Fenrir","Orus","Enceladus","Iapetus","Umbriel","Algenib","Rasalgethi","Alnilam","Schedar","Achird","Zubenelgenubi","Sadachbia","Sadaltager"]);
 function isMaleVoice(voice) { return MALE_VOICES.has(String(voice)); }
-const TTS_ENGINES = ["auto", "gemini", "edge", "azure", "google"];
+const TTS_ENGINES = ["auto", "gemini", "edge", "azure", "google", "elevenlabs"];
 
 function splitTtsText(text, maxChars) {
   const pieces = String(text).split(/(?<=[။!?.\n])\s*/).filter(Boolean);
@@ -1731,6 +1732,49 @@ async function audioBuffersToWav(buffers, outputPath, ext) {
 
 // Free Microsoft Edge neural voices (same Burmese voices as Azure), no key or
 // card needed. Uses the `edge-tts` command (installed in the Dockerfile via pip).
+// ElevenLabs (paid/credit based). Burmese is supported by eleven_v3 only
+// (NOT eleven_multilingual_v2 / flash). Needs ELEVENLABS_API_KEY + ELEVENLABS_VOICE_ID
+// (optional ELEVENLABS_VOICE_ID_MALE / ELEVENLABS_VOICE_ID_FEMALE).
+async function elevenLabsTts(text, outputPath, voice) {
+  const key = (process.env.ELEVENLABS_API_KEY || "").trim();
+  const male = (process.env.ELEVENLABS_VOICE_ID_MALE || "").trim();
+  const female = (process.env.ELEVENLABS_VOICE_ID_FEMALE || "").trim();
+  const voiceId = ((isMaleVoice(voice) ? male : female) || process.env.ELEVENLABS_VOICE_ID || "").trim();
+  if (!key || !voiceId) throw new Error("ELEVENLABS_API_KEY / ELEVENLABS_VOICE_ID မထည့်ရသေးပါ");
+  const model = (process.env.ELEVENLABS_MODEL || "eleven_v3").trim();
+  // eleven_v3 only accepts stability 0.0 (Creative) / 0.5 (Natural) / 1.0 (Robust).
+  const isV3 = /v3/i.test(model);
+  const voice_settings = {
+    stability: Number(process.env.ELEVENLABS_STABILITY || (isV3 ? 0.5 : 0.35)),
+    similarity_boost: 0.8,
+    style: 0.2,
+    use_speaker_boost: true
+  };
+  const buffers = [];
+  for (const part of splitTtsText(text, 2500)) {
+    let audio = null;
+    let lastError = null;
+    for (let attempt = 0; attempt < 3 && !audio; attempt++) {
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
+        method: "POST",
+        headers: { "xi-api-key": key, "Content-Type": "application/json", Accept: "audio/mpeg" },
+        body: JSON.stringify({ text: part, model_id: model, voice_settings })
+      });
+      if (res.ok) {
+        audio = Buffer.from(await res.arrayBuffer());
+      } else {
+        const detail = (await res.text().catch(() => "")).slice(0, 160);
+        lastError = new Error(`ElevenLabs HTTP ${res.status} ${detail}`);
+        if (res.status !== 429 && res.status < 500) break;
+        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+      }
+    }
+    if (!audio || audio.length < 100) throw lastError || new Error("ElevenLabs empty audio");
+    buffers.push(audio);
+  }
+  await audioBuffersToWav(buffers, outputPath, "mp3");
+}
+
 let edgeInstallTried = false;
 async function edgeTts(text, outputPath, voice) {
   const voiceName = isMaleVoice(voice) ? "my-MM-ThihaNeural" : "my-MM-NilarNeural";
@@ -1864,6 +1908,7 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto", r
     try {
       if (name === "gemini") await generateGeminiTTS(ai, scenes, outputPath, voice, recapStyle);
       else if (name === "edge") await edgeTts(fullText, outputPath, voice);
+      else if (name === "elevenlabs") await elevenLabsTts(fullText, outputPath, voice);
       else if (name === "azure") await azureTts(fullText, outputPath, voice);
       else if (name === "google") await googleTranslateTts(fullText, outputPath);
       else throw new Error("မသိတဲ့ voice engine");
@@ -3144,6 +3189,7 @@ app.use(
 async function startServer() {
   try {
     await initDatabase();
+    await checkSubtitleFont();
 
     app.listen(
       PORT,
