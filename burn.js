@@ -2,15 +2,39 @@
 import fs from "fs";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import path from "path";
+import { fileURLToPath } from "url";
 
 const execFileAsync = promisify(execFile);
 
 const SUBTITLE_FONT = process.env.SUBTITLE_FONT || "Noto Sans Myanmar";
 const SUBTITLE_FONT_SCALE = Number(process.env.SUBTITLE_FONT_SCALE) || 1;
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+// Project "fonts" folder first (drop NotoSansMyanmar-Regular/Bold.ttf in there),
+// then common system locations.
 const FONT_DIRS = [
+  path.join(HERE, "fonts"),
   "/usr/share/fonts/truetype/noto",
-  "/usr/share/fonts/opentype/noto"
+  "/usr/share/fonts/opentype/noto",
+  "/usr/share/fonts/truetype/padauk",
+  "/usr/share/fonts/truetype",
+  "/usr/share/fonts"
 ];
+
+const hasFontFiles = dir => {
+  try { return fs.readdirSync(dir).some(name => /\.(ttf|otf)$/i.test(name)); } catch { return false; }
+};
+
+// Warn loudly at startup if no Myanmar font is installed (subtitles would be □□□).
+export async function checkSubtitleFont() {
+  try {
+    const { stdout } = await execFileAsync("fc-list", [":lang=my", "family"]);
+    if (stdout.trim()) { console.log(`[FONT] Myanmar font OK: ${stdout.split("\n")[0].trim()}`); return true; }
+  } catch {}
+  if (hasFontFiles(FONT_DIRS[0])) { console.log("[FONT] using fonts from ./fonts"); return true; }
+  console.warn("[FONT] ⚠ No Myanmar font found — burned subtitles will show □□□. Install `fonts-noto-core` (apt) or put NotoSansMyanmar-Regular.ttf and NotoSansMyanmar-Bold.ttf into the ./fonts folder.");
+  return false;
+}
 const PRESET_Y = { top: 14, middle: 50, bottom: 84 };
 
 const num = (v, d, lo, hi) => {
@@ -200,7 +224,7 @@ export function buildBurnFilter(burn, size, assPath) {
   }
 
   if (assPath) {
-    const fontsDir = FONT_DIRS.find(dir => fs.existsSync(dir));
+    const fontsDir = FONT_DIRS.find(hasFontFiles);
     parts.push(
       `[${current}]subtitles=filename=${quote(assPath)}${fontsDir ? `:fontsdir=${quote(fontsDir)}` : ""}[vout]`
     );
