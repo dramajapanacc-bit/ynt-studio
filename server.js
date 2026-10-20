@@ -1413,7 +1413,8 @@ translation of what is said AND what visibly happens, scene by scene.
 - Translate EVERY spoken line inside the scene into natural spoken Burmese (meaning-for-meaning, not word-for-word, no bookish language). Do not skip, merge or reorder dialogue.
 - Keep who-says-what clear (e.g. "သူက ... ပြောတယ်"), and add a short description only for important visible actions that happen in silent moments.
 - Never describe events from another scene. The narration of a scene must only contain what happens between its start_sec and end_sec.
-- Do NOT summarize and do NOT add events or dialogue that are not in the video.`;
+- Do NOT summarize and do NOT add events or dialogue that are not in the video.
+- Even though every line is translated, it must still SOUND like one person telling the story, not like separate subtitles: use natural spoken Burmese, link scenes with spoken connectors (e.g. "အဲဒီအချိန်မှာ", "ဒါပေမဲ့", "နောက်တော့"), use "၊" for short pauses and end every scene with "။".`;
   }
 
   if (style === "natural") {
@@ -3047,7 +3048,7 @@ app.post(
 
       const style =
         req.body?.style ||
-        "sync";
+        "natural";
 
       const voice =
         req.body?.voice ||
