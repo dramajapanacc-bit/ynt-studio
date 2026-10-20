@@ -1416,6 +1416,18 @@ translation of what is said AND what visibly happens, scene by scene.
 - Do NOT summarize and do NOT add events or dialogue that are not in the video.`;
   }
 
+  if (style === "natural") {
+    styleInstruction = `
+You are a Burmese storyteller telling this movie to a friend, as ONE continuous story from start to finish.
+- Voice: warm, natural, spoken Burmese (ပြောစကား), like a person narrating a story out loud. Never bookish, never robotic, never a list of separate captions.
+- Flow: the scenes must read as one connected story. Link each scene to the previous one with natural spoken connectors (e.g. "အဲဒီအချိန်မှာ", "ဒါပေမဲ့", "နောက်တော့", "တစ်ဖက်မှာတော့", "ဒီလိုနဲ့") and let each scene lead into the next. Do not restart or re-introduce characters in every scene.
+- Sentences: complete, medium-length spoken sentences. Avoid very short broken fragments and avoid overlong run-on sentences.
+- Punctuation for speech rhythm: use "၊" for short breathing pauses and "။" at the end of every sentence, so the voice pauses naturally. Every scene narration must end with "။".
+- Tense: tell it in past tense ("...ခဲ့တယ်"), with a gripping hook in the very first sentence of the first scene.
+- Emotion: let tension, surprise and relief show through word choice, not through exclamation marks.
+- The length budget in rule 21 still applies: never write more than can be spoken in the scene.`;
+  }
+
   if (style === "short") {
     styleInstruction =
       "Use concise and fast-paced movie recap narration.";
@@ -1787,6 +1799,11 @@ async function edgeTts(text, outputPath, voice) {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const edgeArgs = ["--voice", voiceName, "--file", textFile, "--write-media", mediaFile];
+        // Optional tuning, e.g. EDGE_RATE=-5% (slower) / EDGE_PITCH=-2Hz (calmer).
+        const edgeRate = (process.env.EDGE_RATE || "").trim();
+        const edgePitch = (process.env.EDGE_PITCH || "").trim();
+        if (edgeRate) edgeArgs.push(`--rate=${edgeRate}`);
+        if (edgePitch) edgeArgs.push(`--pitch=${edgePitch}`);
         const launchers = [
           ["edge-tts", edgeArgs],
           ["python3", ["-m", "edge_tts", ...edgeArgs]],
@@ -1894,8 +1911,19 @@ async function googleTranslateTts(text, outputPath) {
   await audioBuffersToWav(buffers, outputPath, "mp3");
 }
 
+// Join scene narrations into one text. A scene that does not end with
+// sentence punctuation gets "။" so the voice pauses instead of running on.
+function joinNarrationsForTts(scenes) {
+  return scenes
+    .map(scene => String(scene.narration || "").trim())
+    .filter(Boolean)
+    .map(text => (/[။!?.…။၊]$/.test(text) ? text : `${text}။`))
+    .join(" ")
+    .trim();
+}
+
 async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto", recapStyle) {
-  const fullText = scenes.map(scene => String(scene.narration || "").trim()).join(" ").trim();
+  const fullText = joinNarrationsForTts(scenes);
   if (!fullText) throw new Error("No narration text was available for TTS.");
 
   const nativeBurmese = voice === "Thiha" || voice === "Nilar";
@@ -2067,7 +2095,8 @@ const styleByJob = new Map();
 function getRecapSpeed(recapStyle) {
   switch (String(recapStyle || "").toLowerCase()) {
     case "sync":
-      return 1.0; // faithful dialogue: keep natural speed
+    case "natural":
+      return 1.0; // storyteller / faithful dialogue: keep natural speed
     case "fast":
     case "short":
       return 1.25; // Shorts / TikTok pace
