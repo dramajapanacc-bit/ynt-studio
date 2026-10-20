@@ -1589,6 +1589,8 @@ ${timeline}
 ========================================================= */
 
 function resolveVoice(voice) {
+  if (voice === "Thiha") return "Puck";
+  if (voice === "Nilar") return "Kore";
   if (voice === "male") {
     return "Puck";
   }
@@ -1692,7 +1694,7 @@ async function generateGeminiTTS(
 ========================================================= */
 
 const ttsEngineByJob = new Map();
-const MALE_VOICES = new Set(["male","Puck","Charon","Fenrir","Orus","Enceladus","Iapetus","Umbriel","Algenib","Rasalgethi","Alnilam","Schedar","Achird","Zubenelgenubi","Sadachbia","Sadaltager"]);
+const MALE_VOICES = new Set(["male","Thiha","Puck","Charon","Fenrir","Orus","Enceladus","Iapetus","Umbriel","Algenib","Rasalgethi","Alnilam","Schedar","Achird","Zubenelgenubi","Sadachbia","Sadaltager"]);
 function isMaleVoice(voice) { return MALE_VOICES.has(String(voice)); }
 const TTS_ENGINES = ["auto", "gemini", "edge", "azure", "google"];
 
@@ -1827,7 +1829,10 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto", r
   const fullText = scenes.map(scene => String(scene.narration || "").trim()).join(" ").trim();
   if (!fullText) throw new Error("No narration text was available for TTS.");
 
-  const order = engine === "auto" ? ["gemini", "edge", "azure", "google"] : [engine];
+  const nativeBurmese = voice === "Thiha" || voice === "Nilar";
+  const order = engine === "auto"
+    ? (nativeBurmese ? ["edge", "azure", "gemini", "google"] : ["gemini", "edge", "azure", "google"])
+    : [engine];
   const errors = [];
 
   for (const name of order) {
