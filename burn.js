@@ -14,6 +14,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 // then common system locations.
 const FONT_DIRS = [
   path.join(HERE, "fonts"),
+  path.join(HERE, "fonts-runtime"),
   "/usr/share/fonts/truetype/noto",
   "/usr/share/fonts/opentype/noto",
   "/usr/share/fonts/truetype/padauk",
@@ -21,12 +22,44 @@ const FONT_DIRS = [
   "/usr/share/fonts"
 ];
 
+// Fallback for hosts without system fonts (e.g. Render "Node" runtime): the npm
+// package @expo-google-fonts/noto-sans-myanmar ships the .ttf files. They are
+// copied flat into ./fonts-runtime so libass can load them.
+const RUNTIME_FONT_DIR = path.join(HERE, "fonts-runtime");
+function prepareNpmFonts() {
+  try {
+    if (hasFontFiles(RUNTIME_FONT_DIR)) return true;
+    const root = path.join(HERE, "node_modules", "@expo-google-fonts", "noto-sans-myanmar");
+    if (!fs.existsSync(root)) return false;
+    const found = [];
+    const walk = dir => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/NotoSansMyanmar.*\.ttf$/i.test(entry.name) && !/Condensed|Expanded|Semi|Extra|Light|Thin|Black/i.test(entry.name)) found.push(full);
+      }
+    };
+    walk(root);
+    if (!found.length) return false;
+    fs.mkdirSync(RUNTIME_FONT_DIR, { recursive: true });
+    for (const file of found) {
+      // Expo names: NotoSansMyanmar_400Regular.ttf / _700Bold.ttf -> keep as is
+      fs.copyFileSync(file, path.join(RUNTIME_FONT_DIR, path.basename(file)));
+    }
+    return true;
+  } catch (error) {
+    console.warn("[FONT] npm font prepare failed:", String(error?.message || error).slice(0, 160));
+    return false;
+  }
+}
+
 const hasFontFiles = dir => {
   try { return fs.readdirSync(dir).some(name => /\.(ttf|otf)$/i.test(name)); } catch { return false; }
 };
 
 // Warn loudly at startup if no Myanmar font is installed (subtitles would be □□□).
 export async function checkSubtitleFont() {
+  if (prepareNpmFonts()) { console.log("[FONT] Myanmar font ready from npm package (fonts-runtime)"); return true; }
   try {
     const { stdout } = await execFileAsync("fc-list", [":lang=my", "family"]);
     if (stdout.trim()) { console.log(`[FONT] Myanmar font OK: ${stdout.split("\n")[0].trim()}`); return true; }
