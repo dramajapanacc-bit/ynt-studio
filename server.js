@@ -1694,7 +1694,7 @@ async function generateGeminiTTS(
 const ttsEngineByJob = new Map();
 const MALE_VOICES = new Set(["male","Puck","Charon","Fenrir","Orus","Enceladus","Iapetus","Umbriel","Algenib","Rasalgethi","Alnilam","Schedar","Achird","Zubenelgenubi","Sadachbia","Sadaltager"]);
 function isMaleVoice(voice) { return MALE_VOICES.has(String(voice)); }
-const TTS_ENGINES = ["auto", "gemini", "azure", "google"];
+const TTS_ENGINES = ["auto", "gemini", "edge", "azure", "google"];
 
 function splitTtsText(text, maxChars) {
   const pieces = String(text).split(/(?<=[။!?.\n])\s*/).filter(Boolean);
@@ -1724,6 +1724,33 @@ async function audioBuffersToWav(buffers, outputPath, ext) {
     await runCommand("ffmpeg", ["-y", "-i", tempPath, "-vn", "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", "-f", "wav", outputPath]);
   } finally {
     try { fs.unlinkSync(tempPath); } catch {}
+  }
+}
+
+// Free Microsoft Edge neural voices (same Burmese voices as Azure), no key or
+// card needed. Uses the `edge-tts` command (installed in the Dockerfile via pip).
+async function edgeTts(text, outputPath, voice) {
+  const voiceName = isMaleVoice(voice) ? "my-MM-ThihaNeural" : "my-MM-NilarNeural";
+  const base = `${outputPath}.edge`;
+  const textFile = `${base}.txt`;
+  const mediaFile = `${base}.mp3`;
+  fs.writeFileSync(textFile, String(text), "utf8");
+  try {
+    let lastError = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await runCommand("edge-tts", ["--voice", voiceName, "--file", textFile, "--write-media", mediaFile]);
+        if (fs.existsSync(mediaFile) && fs.statSync(mediaFile).size > 100) { lastError = null; break; }
+        lastError = new Error("Edge TTS empty audio");
+      } catch (error) {
+        lastError = error;
+      }
+      await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+    }
+    if (lastError) throw lastError;
+    await audioBuffersToWav([fs.readFileSync(mediaFile)], outputPath, "mp3");
+  } finally {
+    for (const f of [textFile, mediaFile]) { try { fs.unlinkSync(f); } catch {} }
   }
 }
 
@@ -1780,12 +1807,13 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto", r
   const fullText = scenes.map(scene => String(scene.narration || "").trim()).join(" ").trim();
   if (!fullText) throw new Error("No narration text was available for TTS.");
 
-  const order = engine === "auto" ? ["gemini", "azure", "google"] : [engine];
+  const order = engine === "auto" ? ["gemini", "edge", "azure", "google"] : [engine];
   const errors = [];
 
   for (const name of order) {
     try {
       if (name === "gemini") await generateGeminiTTS(ai, scenes, outputPath, voice, recapStyle);
+      else if (name === "edge") await edgeTts(fullText, outputPath, voice);
       else if (name === "azure") await azureTts(fullText, outputPath, voice);
       else if (name === "google") await googleTranslateTts(fullText, outputPath);
       else throw new Error("မသိတဲ့ voice engine");
