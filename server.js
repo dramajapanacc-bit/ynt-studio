@@ -1739,7 +1739,27 @@ async function edgeTts(text, outputPath, voice) {
     let lastError = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        await runCommand("edge-tts", ["--voice", voiceName, "--file", textFile, "--write-media", mediaFile]);
+        const edgeArgs = ["--voice", voiceName, "--file", textFile, "--write-media", mediaFile];
+        const launchers = [
+          ["edge-tts", edgeArgs],
+          ["python3", ["-m", "edge_tts", ...edgeArgs]],
+          ["python", ["-m", "edge_tts", ...edgeArgs]]
+        ];
+        let launched = false;
+        let launchError = null;
+        for (const [cmd, args] of launchers) {
+          try {
+            await runCommand(cmd, args);
+            launched = true;
+            break;
+          } catch (error) {
+            launchError = error;
+            if (error?.code !== "ENOENT" && !/ENOENT|No module named/i.test(String(error?.message || error) + String(error?.stderr || ""))) throw error;
+          }
+        }
+        if (!launched) {
+          throw new Error("edge-tts မထည့်သွင်းရသေးပါ။ Server မှာ `pip install edge-tts` run ပါ။ (" + String(launchError?.message || launchError).slice(0, 100) + ")");
+        }
         if (fs.existsSync(mediaFile) && fs.statSync(mediaFile).size > 100) { lastError = null; break; }
         lastError = new Error("Edge TTS empty audio");
       } catch (error) {
