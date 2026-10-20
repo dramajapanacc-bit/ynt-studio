@@ -507,7 +507,7 @@ async function callWithModelFallback(operationName, makeCall) {
     } catch (error) {
       lastError = error;
       const message = String(error?.message || error);
-      if (/429|quota|rate limit|per day|404|not found|not supported|NOT_FOUND/i.test(message)) {
+      if (/429|quota|rate limit|per day|404|not found|not supported|NOT_FOUND|503|UNAVAILABLE|high demand|overloaded/i.test(message)) {
         if (/per day|perday|daily/i.test(message)) {
           exhaustedModels.set(model, Date.now() + 3 * 60 * 60 * 1000);
         }
