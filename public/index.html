@@ -282,7 +282,7 @@ textarea:focus{border-color:var(--cyan)}
 const $=id=>document.getElementById(id);
 const STYLE='natural';
 let selectedFile=null,jobId=null,pollTimer=null,voiceName='Kore',busy=false,fails=0,audio=null,scenes=[],t0=0;
-const VOICES=[['Kore','Female','နူးညံ့'],['Aoede','Female','ကြည်လင်'],['Leda','Female','ငယ်ရွယ်'],['Zephyr','Female','တောက်ပ'],['Puck','Male','တက်ကြွ'],['Charon','Male','တည်ငြိမ်'],['Fenrir','Male','ပြင်းထန်'],['Orus','Male','ခိုင်မာ']];
+const VOICES=[['Kore','Female','နူးညံ့'],['Aoede','Female','ကြည်လင်'],['Leda','Female','ငယ်ရွယ်'],['Zephyr','Female','တောက်ပ'],['Puck','Male','တက်ကြွ'],['Charon','Male','တည်ငြိမ်'],['Fenrir','Male','ပြင်းထန်'],['Orus','Male','ခိုင်မာ'],['Thiha','Male','သီဟ · မြန်မာအသံ'],['Nilar','Female','နီလာ · မြန်မာအသံ']];
 const SAMPLE={my:'မင်္ဂလာပါ။ ဒီဇာတ်လမ်းလေးကို အခု ကျွန်တော် ပြန်ပြောပြပါမယ်။',en:'Hello! Let me tell you this story from the very beginning.'};
 const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const store={get(){try{return localStorage.getItem('ynt_job')}catch{return null}},set(v){try{v?localStorage.setItem('ynt_job',v):localStorage.removeItem('ynt_job')}catch{}}};
