@@ -1731,6 +1731,7 @@ async function audioBuffersToWav(buffers, outputPath, ext) {
 
 // Free Microsoft Edge neural voices (same Burmese voices as Azure), no key or
 // card needed. Uses the `edge-tts` command (installed in the Dockerfile via pip).
+let edgeInstallTried = false;
 async function edgeTts(text, outputPath, voice) {
   const voiceName = isMaleVoice(voice) ? "my-MM-ThihaNeural" : "my-MM-NilarNeural";
   const base = `${outputPath}.edge`;
@@ -1757,6 +1758,30 @@ async function edgeTts(text, outputPath, voice) {
           } catch (error) {
             launchError = error;
             if (error?.code !== "ENOENT" && !/ENOENT|No module named/i.test(String(error?.message || error) + String(error?.stderr || ""))) throw error;
+          }
+        }
+        if (!launched && !edgeInstallTried) {
+          // One-time automatic install attempt (needs pip + internet on the server).
+          edgeInstallTried = true;
+          const pipTries = [
+            ["python3", ["-m", "pip", "install", "--user", "--break-system-packages", "edge-tts"]],
+            ["python", ["-m", "pip", "install", "--user", "--break-system-packages", "edge-tts"]],
+            ["pip3", ["install", "--user", "--break-system-packages", "edge-tts"]],
+            ["pip", ["install", "--user", "--break-system-packages", "edge-tts"]]
+          ];
+          for (const [cmd, args] of pipTries) {
+            try {
+              await runCommand(cmd, args);
+              console.log("[EDGE TTS] edge-tts installed automatically");
+              break;
+            } catch (error) {
+              console.warn(`[EDGE TTS] auto-install via ${cmd} failed:`, String(error?.message || error).slice(0, 160));
+            }
+          }
+        }
+        if (!launched && edgeInstallTried) {
+          for (const [cmd, args] of launchers.slice(1)) {
+            try { await runCommand(cmd, args); launched = true; break; } catch (error) { launchError = error; }
           }
         }
         if (!launched) {
