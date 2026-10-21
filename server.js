@@ -2395,16 +2395,14 @@ async function renderSceneSyncVideo(
 
   const fullTTS = path.join(sceneDir, "full-narration.wav");
 
-  updateJob(jobId, { stage: "Voice", progress: 65, message: "Generating one continuous narration voice..." });
+  updateJob(jobId, { stage: "Voice", progress: 65, message: "Generating narration voice..." });
 
   const jobStyle = styleByJob.get(jobId);
   let rawSceneAudio;
-  {
-    // Generate short, scene-local narration chunks for every style. Splitting a
-    // single long TTS recording by estimated text weights can cut Burmese words
-    // mid-syllable and make the voice sound broken or out of sync.
-    // Set TTS_BATCH_SCENES > 1 to trade a little alignment accuracy for fewer API calls.
-    const batchSize = Math.max(1, Number(process.env.TTS_BATCH_SCENES || 1));
+  if (jobStyle === "sync") {
+    // Sync mode uses short scene batches to keep narration aligned to the video.
+    // Keep the original default batch size to avoid multiplying TTS API calls.
+    const batchSize = Math.max(1, Number(process.env.TTS_BATCH_SCENES || 5));
     rawSceneAudio = [];
     for (let i = 0; i < scenePlan.scenes.length; i += batchSize) {
       const batch = scenePlan.scenes.slice(i, i + batchSize);
@@ -2418,6 +2416,10 @@ async function renderSceneSyncVideo(
       const parts = await splitFullTTSForScenes(batchPath, batch, sceneDir);
       rawSceneAudio.push(...parts);
     }
+  } else {
+    // Preserve the original single-request TTS path for other recap styles.
+    await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice, ttsEngineByJob.get(jobId) || "auto", jobStyle);
+    rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
   }
   const renderedScenes = [];
 
