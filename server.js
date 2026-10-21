@@ -3196,7 +3196,7 @@ app.use(
   (err, req, res, next) => {
     console.error(
       "SERVER ERROR:",
-      err
+      { method: req.method, url: req.originalUrl, contentLength: req.headers["content-length"] || null, error: err?.stack || err?.message || String(err) }
     );
 
     if (
