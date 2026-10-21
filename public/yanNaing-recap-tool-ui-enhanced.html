@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YanNaing Recap Tool</title>
+<style>
+:root{
+  --bg:#050b1a;--panel:#0a1429;--panel2:#0c1b32;--line:#20375a;--text:#edf5ff;
+  --muted:#91a7c6;--blue:#159cff;--cyan:#22e5d0;--purple:#a238ff;--pink:#ff3e87;
+  --green:#20e2ae;--gold:#ffb547;--shadow:0 12px 35px #0008;
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 75% -10%,#152e5c 0,transparent 38%),linear-gradient(145deg,#050a17,#071126 60%,#100a25);color:var(--text);font-family:Inter,"Noto Sans Myanmar","Myanmar Text",system-ui,sans-serif;font-size:14px}
+button,input,select,textarea{font:inherit}button{cursor:pointer;color:inherit}
+.app{min-height:100vh}
+.topbar{height:72px;display:flex;align-items:center;gap:25px;padding:0 26px;border-bottom:1px solid #1c2c49;background:#050b18eF;position:sticky;top:0;z-index:10;backdrop-filter:blur(18px)}
+.brand{display:flex;align-items:center;gap:12px;min-width:330px}.logo{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(135deg,#087bff,#b52bff);box-shadow:0 0 25px #643dff80;font-size:25px}
+.brand h1{font-size:21px;line-height:1.2;margin:0;letter-spacing:-.4px}.brand small{display:block;color:#9db2d3;margin-top:5px;font-size:12px}
+.topnav{display:flex;gap:8px;align-items:center;flex:1}.navbtn,.pillbtn{border:1px solid transparent;background:transparent;padding:10px 14px;border-radius:13px;color:#aebed6}.navbtn.active{color:#fff;background:linear-gradient(110deg,#0759bd,#32217b);border-color:#245dba}
+.topright{display:flex;align-items:center;gap:18px}.theme{background:#0b1730;border:1px solid #28466d;padding:10px 14px;border-radius:25px}.profile{display:flex;gap:10px;align-items:center}.avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#08a9ff,#2853c7);font-weight:800}.profile small{display:block;color:var(--green);margin-top:3px}
+.layout{display:grid;grid-template-columns:172px minmax(0,1fr);min-height:calc(100vh - 72px)}
+.sidebar{border-right:1px solid #1b2b48;padding:22px 12px;background:#070e20a8;display:flex;flex-direction:column;gap:7px}
+.side-link{padding:13px 14px;display:flex;align-items:center;gap:12px;border-radius:12px;color:#b6c5de;border:1px solid transparent;background:transparent;text-align:left}
+.side-link .ico{font-size:19px;width:22px;text-align:center}.side-link.active{background:linear-gradient(100deg,#155fe5,#7622b7);box-shadow:0 8px 24px #1b4de755;color:#fff}
+.promo{margin-top:auto;padding:17px 13px;text-align:center;border:1px solid #263b60;border-radius:17px;background:linear-gradient(150deg,#16162b,#09162b)}.promo .crown{font-size:27px}.promo h3{margin:8px 0;color:#ffdb9b}.promo p{color:#9aacc8;font-size:12px;line-height:1.7}.gradient-btn{border:0;background:linear-gradient(100deg,#009dff,#b12df2);padding:11px 16px;border-radius:12px;font-weight:750;box-shadow:0 5px 18px #5a43f855}
+main{padding:18px 21px 26px;min-width:0;max-width:1800px;width:100%;margin:auto}
+.hero{position:relative;overflow:hidden;border:1px solid #29385f;border-radius:18px;padding:21px 25px;min-height:128px;background:linear-gradient(90deg,#101a39 0%,#111c3cdd 42%,#10102b88 100%),radial-gradient(ellipse at 85% 30%,#7132a9,#11264e 45%,#09152c);box-shadow:var(--shadow)}
+.hero:after{content:"✦  ◈  ✦";position:absolute;right:22%;top:20px;font-size:60px;color:#9e8aff20;letter-spacing:18px;pointer-events:none}
+.hero h2{font-size:22px;margin:0 0 8px}.hero p{color:#c1cee5;line-height:1.65;margin:0;max-width:700px}.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.chip{border:1px solid #32476d;background:#08162bce;border-radius:30px;padding:6px 10px;font-size:11px;color:#c8d8f2}.hero-action{position:absolute;right:22px;bottom:23px;z-index:1}
+.steps{display:flex;align-items:center;gap:6px;margin:15px 0;padding:10px;border:1px solid #25365d;border-radius:16px;background:linear-gradient(100deg,#0b1832,#10142c);overflow-x:auto}
+.step{font:inherit;color:inherit;text-align:left;cursor:pointer;background:transparent;flex:1;min-width:145px;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;border:1px solid transparent}.step.active{background:linear-gradient(110deg,#0c367b,#141d53);border-color:#225bc6}.step-num{width:39px;height:39px;flex:0 0 39px;display:grid;place-items:center;border-radius:50%;font-size:20px;font-weight:800;background:#1751b8;border:3px solid #438cff;box-shadow:0 0 16px #287aff66}.step:nth-of-type(3) .step-num{background:#087e65;border-color:#22d6ad}.step:nth-of-type(4) .step-num{background:#93561a;border-color:#ffc25a}.step:nth-of-type(5) .step-num{background:#08629a;border-color:#32b7ff}.step:nth-of-type(6) .step-num{background:#a51e55;border-color:#ff4f8c}.step strong{display:block;white-space:nowrap}.step small{display:block;color:#9db2d1;margin-top:4px;font-size:11px}.arrow{color:#4d6488;font-size:22px}
+.cards{display:grid;grid-template-columns:1.06fr 1.06fr 1fr;gap:14px}
+.card{min-width:0;border:1px solid var(--line);border-radius:17px;background:linear-gradient(150deg,#0d1a31f5,#071326f7);box-shadow:var(--shadow);overflow:hidden}
+.card-head{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid #253a5b;background:linear-gradient(90deg,#102753,#101b35)}.card-head h3{font-size:14px;margin:0;flex:1}.num{width:33px;height:33px;display:grid;place-items:center;border-radius:50%;font-size:17px;font-weight:800;background:#1765e4;border:2px solid #5aa0ff}.green-head{background:linear-gradient(90deg,#073e3c,#10243b)}.green-head .num{background:#07845f;border-color:#34e0ad}.purple-head{background:linear-gradient(90deg,#2a1557,#111c37)}.purple-head .num{background:#076db7;border-color:#46baff}.gold-head{background:linear-gradient(90deg,#492a11,#151c34)}.gold-head .num{background:#b66c18;border-color:#ffc15a}.pink-head{background:linear-gradient(90deg,#4b1638,#151b37)}.pink-head .num{background:#b3215b;border-color:#ff6ba1}
+.card-body{padding:13px}.field{margin-bottom:12px}.field:last-child{margin-bottom:0}label{display:block;color:#d7e4f8;font-size:12px;margin-bottom:6px}select,input[type=text],input[type=number],textarea{width:100%;background:#0a1930;border:1px solid #2b4368;color:#e8f2ff;border-radius:9px;padding:9px 10px;outline:none}select:focus,input:focus,textarea:focus{border-color:#268cff;box-shadow:0 0 0 2px #258aff20}
+.upload{min-height:92px;border:1px dashed #52719e;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#30dfff;background:#07162b;gap:5px;padding:10px}.upload b{font-size:12px}.upload small{color:#8ca5c8;font-size:10px}.upload input{display:none}.upload .cloud{font-size:25px}.two{display:grid;grid-template-columns:1fr 1fr;gap:9px}.segmented{display:flex;gap:7px}.segmented button{flex:1;background:#0a1930;border:1px solid #294365;border-radius:9px;padding:9px 5px;color:#b8c9e2}.segmented button.selected{background:linear-gradient(100deg,#087fe7,#214ec5);border-color:#43a5ff;color:white}
+.inline-control{display:flex;align-items:center;gap:7px}.inline-control select{flex:1;min-width:0}.mini{background:#10223d;border:1px solid #2a4365;border-radius:8px;padding:8px 10px;font-weight:800}.swatches{display:flex;gap:10px;align-items:center}.swatch{width:21px;height:21px;border-radius:50%;border:2px solid #fff;background:#fff;display:inline-block;vertical-align:middle}.swatch.yellow{background:#ffe75b}.swatch.cyan{background:#3ee6ff}
+input[type=range]{width:100%;accent-color:#239cff}input[type=color]{width:26px;height:26px;padding:0;border:0;background:transparent}.range-row{display:grid;grid-template-columns:1fr 42px;gap:9px;align-items:center}.range-row output{text-align:center;background:#10213a;border:1px solid #2a4163;border-radius:7px;padding:5px;font-size:11px}
+.checkrow{display:flex;align-items:center;gap:9px;color:#c5d5ed;font-size:12px;margin:9px 0}.checkrow input{accent-color:#14d9a2;width:15px;height:15px}.switch{margin-left:auto;width:34px;height:18px;border-radius:20px;background:#153a62;position:relative;border:1px solid #2d76b8}.switch:after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#a5c9f3}.switch.on{background:#0876d6}.switch.on:after{left:18px;background:#fff}
+.story-scenes{display:grid;grid-template-columns:1.05fr 1fr;gap:12px}.structure{border:1px solid #283e60;border-radius:12px;padding:11px;background:#08152a}.story-item{display:flex;gap:9px;align-items:center;margin:9px 0;color:#d0def3;font-size:12px}.story-item span{width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#145b8d;font-weight:800}.story-item:nth-child(3) span{background:#b27b20}.story-item:nth-child(4) span{background:#c56c20}.story-item:nth-child(5) span{background:#b63155}.story-item:nth-child(6) span{background:#7039ae}
+textarea{resize:vertical;min-height:98px;line-height:1.6}.scene-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.scene-thumb{height:55px;border-radius:8px;border:1px solid #345074;background:linear-gradient(135deg,#244768,#a25a4a 45%,#0d203d);display:grid;place-items:center;font-size:19px}.scene-thumb:nth-child(2){background:linear-gradient(135deg,#6c4668,#d2a17c,#13284c)}.scene-thumb:nth-child(3){background:linear-gradient(135deg,#255d66,#bd874a,#172b4b)}.scene-thumb:nth-child(4){background:linear-gradient(135deg,#a45c38,#354c69,#09172e)}.scene-labels{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:5px}.scene-labels div{text-align:center;border-radius:7px;background:#0b2a52;padding:7px 2px;font-size:10px;color:#d4e6ff}.scene-labels div:nth-child(2){background:#45227b}.scene-labels div:nth-child(3){background:#08755d}.scene-labels div:nth-child(4){background:#8c4b14}
+.preview-card{margin-top:14px}.preview-layout{display:grid;grid-template-columns:1.3fr .85fr .85fr;gap:13px;padding:13px}.video-placeholder{min-height:150px;border-radius:12px;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;text-align:center;background:radial-gradient(ellipse at 65% 25%,#9e654f,#293b58 30%,#0a172d 70%);border:1px solid #334e75}.play{width:49px;height:49px;border-radius:50%;display:grid;place-items:center;background:#0b1424bd;border:1px solid #90b9e6;font-size:21px}.video-caption{position:absolute;bottom:15px;left:10px;right:10px;color:#ffe66e;font-weight:800;text-shadow:0 2px 5px #000;text-align:center}.video-controls{display:flex;gap:10px;align-items:center;padding:9px 5px;color:#9eb4d3;font-size:11px}.progress{height:4px;background:#243b5b;border-radius:10px;flex:1}.progress span{display:block;width:18%;height:100%;background:linear-gradient(90deg,#b33bff,#16a5ff);border-radius:10px}
+.ready-list{border:1px solid #28466b;border-radius:12px;padding:12px;background:#08162a}.ready-list h4{margin:0 0 12px;font-size:13px}.ready{display:flex;gap:8px;align-items:center;margin:11px 0;font-size:12px;color:#c7d8ef}.ok{color:#24e4ac;font-weight:900}
+.export{border:1px solid #53358b;border-radius:13px;padding:13px;background:linear-gradient(145deg,#21134b,#0b1b39);display:flex;flex-direction:column;gap:10px}.export-title{display:flex;gap:9px;align-items:center}.rocket{font-size:27px}.export-title h3{margin:0;font-size:15px}.export-title small{display:block;color:#9eb2d2;margin-top:4px}.export select{background:#101d3a}.export .gradient-btn{width:100%}
+footer{padding:16px;text-align:center;color:#60799c;font-size:11px}
+@media(max-width:1150px){.brand{min-width:auto}.topnav{display:none}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.voice-card{grid-column:span 2}.preview-layout{grid-template-columns:1fr 1fr}.export{grid-column:span 2}.hero-action{position:static;margin-top:12px}.hero:after{display:none}}
+@media(max-width:760px){.topbar{height:auto;min-height:65px;padding:10px 13px;gap:10px}.brand h1{font-size:16px}.brand small{font-size:10px}.logo{width:40px;height:40px}.topright{margin-left:auto;gap:8px}.theme{padding:8px}.profile div:last-child{display:none}.layout{display:block}.sidebar{position:sticky;top:65px;z-index:8;display:flex;flex-direction:row;overflow-x:auto;padding:8px;gap:5px;border-right:0;border-bottom:1px solid #1b2b48}.side-link{flex:0 0 auto;padding:9px 11px;font-size:12px;gap:7px}.side-link .ico{font-size:16px}.promo{display:none}main{padding:12px 10px}.hero{padding:17px;min-height:auto}.hero h2{font-size:19px}.hero p{font-size:12px}.chips{gap:5px}.chip{font-size:10px}.steps{margin:10px 0}.step{min-width:135px}.cards{grid-template-columns:1fr;gap:11px}.voice-card{grid-column:auto}.story-scenes{grid-template-columns:1fr}.preview-layout{grid-template-columns:1fr}.export{grid-column:auto}.scene-thumb{height:65px}.card-head h3{font-size:13px}.preview-layout{padding:10px}.video-placeholder{min-height:180px}}
+@media(prefers-reduced-motion:no-preference){.card,.side-link,.gradient-btn{transition:transform .18s ease,border-color .18s ease,filter .18s ease}.side-link:hover{filter:brightness(1.18)}.gradient-btn:hover{filter:brightness(1.12);transform:translateY(-1px)}}
+
+/* Real light theme */
+body.light{
+  --bg:#f3f6fc;--panel:#ffffff;--panel2:#f5f8fe;--line:#d7e0ef;--text:#18243a;
+  --muted:#62718a;--blue:#1769e8;--cyan:#078b9d;--purple:#7838c8;--pink:#cf326d;
+  --green:#07865f;--gold:#a85d0b;--shadow:0 10px 28px #23395b14;
+  background:radial-gradient(ellipse at 75% -10%,#e2eaff 0,transparent 38%),linear-gradient(145deg,#f7f9ff,#edf3fc 60%,#f7efff);
+  color:var(--text);filter:none
+}
+body.light .topbar{background:#ffffffed;border-bottom-color:#dce4f1}
+body.light .brand small,body.light .sub,body.light .step small,body.light .hero p{color:#5c6b83}
+body.light .navbtn,body.light .side-link{color:#52627c}
+body.light .navbtn.active{color:#fff}
+body.light .theme{background:#fff;border-color:#d3deef;color:#24344f}
+body.light .sidebar{background:#f8faff;border-right-color:#dce4f1}
+body.light .side-link.active{color:#fff}
+body.light .promo{background:linear-gradient(150deg,#f0eaff,#f4f8ff);border-color:#d9dff0}
+body.light .promo p{color:#64728b}
+body.light .hero{background:linear-gradient(90deg,#e7efff 0%,#e9edffdd 55%,#f4eaff99 100%);border-color:#d2dcf1}
+body.light .hero:after{color:#5546b51a}
+body.light .chip{background:#ffffffd9;border-color:#d3def0;color:#344765}
+body.light .steps{background:linear-gradient(100deg,#fff,#f0f4ff);border-color:#d9e2f1}
+body.light .step.active{background:#e5eeff;border-color:#a9c5fb}
+body.light .step.active strong{color:#173f88} body.light .step{color:#263852}
+body.light .arrow{color:#8192ac}
+body.light .card{background:#fff;border-color:#d9e2ef;box-shadow:0 8px 24px #29436b0d}
+body.light .card-head{background:linear-gradient(90deg,#edf3ff,#f8faff);border-bottom-color:#dce5f1}
+body.light .green-head{background:linear-gradient(90deg,#e2f8f1,#f6fbff)}
+body.light .purple-head{background:linear-gradient(90deg,#f0e8ff,#f8faff)}
+body.light .gold-head{background:linear-gradient(90deg,#fff0dc,#fffaf3)}
+body.light .pink-head{background:linear-gradient(90deg,#ffe8f0,#fff8fb)}
+body.light label{color:#35445d}
+body.light select,body.light input[type=text],body.light input[type=number],body.light textarea{background:#f8faff;border-color:#d1dced;color:#1c2a41}
+body.light .upload{background:#f5f9ff;border-color:#9eb5d8;color:#0879b7}
+body.light .upload small{color:#647793}
+body.light .segmented button{background:#f7f9fe;border-color:#d2deef;color:#50627e}
+body.light .segmented button.selected{color:#fff}
+body.light .mini,body.light .range-row output{background:#f0f4fb;border-color:#d6e0ef;color:#263852}
+body.light .swatch{border-color:#aebbd0}
+body.light .checkrow{color:#40516c}
+body.light .structure,body.light .ready-list{background:#f7faff;border-color:#d7e1f0}
+body.light .story-item{color:#34445d}
+body.light .scene-labels div{color:#fff}
+body.light .video-placeholder{border-color:#c7d5e8}
+body.light .ready{color:#40516a}
+body.light .export{background:linear-gradient(145deg,#f0e9ff,#f3f8ff);border-color:#d4c4f0}
+body.light .export select{background:#fff}
+body.light .export-title small,body.light #status{color:#586b87!important}
+body.light .video-controls{color:#657793}
+body.light footer{color:#7b8ba4}
+
+.step:focus-visible,.side-link:focus-visible,.navbtn:focus-visible,.theme:focus-visible{outline:2px solid var(--blue);outline-offset:2px}\n</style>
+</head>
+<body>
+<div class="app">
+<header class="topbar">
+  <div class="brand"><div class="logo">🎬</div><div><h1>YanNaing Recap Tool</h1><small>Smart Recap&nbsp; • &nbsp;Fast&nbsp; • &nbsp;Professional</small></div></div>
+  <nav class="topnav"><button class="navbtn active">⌂ &nbsp;Home</button><button class="navbtn">◷ &nbsp;History</button><button class="navbtn">⚙ &nbsp;Settings</button><button class="navbtn">ⓘ &nbsp;Help</button></nav>
+  <div class="topright"><button class="theme" id="themeBtn">☾ Dark⌄</button><div class="profile"><div class="avatar">YN</div><div>Yan Naing<small>● Online</small></div></div></div>
+</header>
+<div class="layout">
+<aside class="sidebar">
+  <button class="side-link active"><span class="ico">⌂</span>Dashboard</button>
+  <button class="side-link"><span class="ico">＋</span>New Project</button>
+  <button class="side-link"><span class="ico">▱</span>My Projects</button>
+  <button class="side-link"><span class="ico">▦</span>Templates</button>
+  <button class="side-link"><span class="ico">⚙</span>Settings</button>
+  <button class="side-link"><span class="ico">ⓘ</span>About</button>
+  <div class="promo"><div class="crown">♛</div><h3>Premium Quality</h3><p>Better tools,<br>better results!</p><button class="gradient-btn" type="button">Explore Tools ↗</button></div>
+</aside>
+<main>
+<section class="hero" id="homeSection">
+  <h2>Turn Any Video into a Great Recap!</h2>
+  <p>သင့်ရဲ့ Video ကို အကောင်းဆုံး Recap အဖြစ် ပြောင်းလဲပေးမယ့်<br>YanNaing Recap Tool မှ ကြိုဆိုပါတယ်။</p>
+  <div class="chips"><span class="chip">⚡ Fast Processing</span><span class="chip">▣ HD Quality</span><span class="chip">▤ Myanmar Subtitle</span><span class="chip">♫ Natural Voice</span></div>
+  <button class="gradient-btn hero-action" onclick="document.getElementById('videoFile').click()">▶ &nbsp; Create Amazing Recap &nbsp; →</button>
+</section>
+<div class="steps">
+  <button type="button" class="step active" data-target="videoCard"><span class="step-num">1</span><div><strong>Video</strong><small>Quality & Format</small></div></button><span class="arrow">⟶</span>
+  <button type="button" class="step" data-target="subtitleCard"><span class="step-num">2</span><div><strong>Subtitles</strong><small>Myanmar Text</small></div></button><span class="arrow">⟶</span>
+  <button type="button" class="step" data-target="voiceCard"><span class="step-num">3</span><div><strong>Voice</strong><small>TTS Settings</small></div></button><span class="arrow">⟶</span>
+  <button type="button" class="step" data-target="storyCard"><span class="step-num">4</span><div><strong>Recap</strong><small>Storyline</small></div></button><span class="arrow">⟶</span>
+  <button type="button" class="step" data-target="sceneCard"><span class="step-num">5</span><div><strong>Scene</strong><small>Transitions</small></div></button>
+</div>
+<div class="cards">
+<section class="card">
+  <div class="card-head"><span class="num">1</span><h3>Video Quality & Aspect Ratio</h3><span class="chip">HD</span></div>
+  <div class="card-body">
+    <div class="field"><label>Input Video</label><label class="upload" for="videoFile"><span class="cloud">♧</span><b id="fileLabel">Click to upload or drag & drop</b><small>MP4, MOV, AVI, MKV</small></label><input id="videoFile" type="file" accept="video/*"></div>
+    <div class="field"><label>Resolution</label><select id="resolution"><option>1920 × 1080 (Full HD)</option><option>1280 × 720 (HD)</option><option>3840 × 2160 (4K)</option><option>1080 × 1920 (Vertical Full HD)</option></select></div>
+    <div class="field"><label>Aspect Ratio</label><div class="segmented"><button class="selected" data-ratio="16:9">▣ &nbsp;16:9<br><small>YouTube</small></button><button data-ratio="9:16">▯ &nbsp;9:16<br><small>Shorts</small></button></div></div>
+    <div class="field"><label>Frame Rate (FPS)</label><select><option>30 FPS</option><option>25 FPS</option><option>24 FPS</option><option>60 FPS</option></select></div>
+  </div>
+</section>
+<section class="card">
+  <div class="card-head green-head"><span class="num">2</span><h3>Myanmar Subtitles</h3><span>文</span></div>
+  <div class="card-body">
+    <div class="field"><label>Font Family</label><div class="inline-control"><select><option>Pyidaungsu (Myanmar)</option><option>Noto Sans Myanmar</option><option>Myanmar Text</option></select><button class="mini">B</button><button class="mini"><i>T</i></button></div></div>
+    <div class="field"><label>Font Size</label><div class="inline-control"><select id="fontSize"><option>28px</option><option selected>36px</option><option>42px</option><option>48px</option></select><button class="mini" id="smaller">A−</button><button class="mini" id="bigger">A+</button></div></div>
+    <div class="field"><label>Font Color</label><div class="swatches"><input type="color" value="#ffffff" aria-label="Font color"><span class="swatch"></span><span>#FFFFFF</span><input type="color" value="#ffffff" aria-label="Outline color"></div></div>
+    <div class="field"><label>Position</label><div class="segmented"><button>Top</button><button class="selected">● Center</button><button>Bottom</button></div></div>
+    <div class="field"><label>Background</label><select><option>Semi-Transparent</option><option>None</option><option>Solid Black</option></select></div>
+    <label class="checkrow"><input type="checkbox" checked> Shadow / Outline <span class="switch on"></span></label>
+    <label class="checkrow"><input type="checkbox" checked> Background Box <span class="switch on"></span></label>
+    <label class="checkrow"><input type="checkbox" checked> Auto Sync <span class="switch on"></span></label>
+  </div>
+</section>
+<section class="card voice-card" id="voiceCard">
+  <div class="card-head purple-head"><span class="num">♫</span><h3>Myanmar Voice (Edge TTS)</h3></div>
+  <div class="card-body">
+    <div class="field"><label>Voice Provider</label><select><option>Edge TTS (Free)</option><option>ElevenLabs (if configured)</option></select></div>
+    <div class="field"><label>Voice</label><div class="inline-control"><select><option>my-MM-Naing (Male)</option><option>my-MM-Nilar (Female)</option></select><button class="mini" id="voicePreview" title="Preview voice">▶</button></div></div>
+    <div class="field"><label>Speed</label><div class="range-row"><input type="range" min="0.7" max="1.3" value="1" step=".05" id="speed"><output id="speedOut">1.0</output></div></div>
+    <div class="field"><label>Volume</label><div class="range-row"><input type="range" min="0" max="1" value="1" step=".05" id="volume"><output id="volumeOut">1.0</output></div></div>
+    <label class="checkrow"><input type="checkbox" checked> Auto Adjust Pauses <span class="switch on"></span></label>
+    <label class="checkrow"><input type="checkbox"> Background Music <span class="switch"></span></label>
+    <label class="checkrow"><input type="checkbox"> Voice Preview <span class="switch"></span></label>
+  </div>
+</section>
+</div>
+<div class="cards" style="grid-template-columns:1fr 1fr;margin-top:14px">
+<section class="card">
+  <div class="card-head gold-head"><span class="num">4</span><h3>Recap Storyline</h3><span>▱</span></div>
+  <div class="card-body story-scenes">
+    <div class="structure"><label>Story Structure</label><div class="story-item"><span>1</span>Introduction (ဇာတ်လမ်းမိတ်ဆက်)</div><div class="story-item"><span>2</span>Main Conflict (အဓိကပဋိပက္ခ)</div><div class="story-item"><span>3</span>Key Events (အရေးကြီးဖြစ်ရပ်များ)</div><div class="story-item"><span>4</span>Climax (အထွတ်အထိပ်)</div><div class="story-item"><span>5</span>Ending (အဆုံးသတ်)</div><select aria-label="Story template"><option>Cinematic Recap</option><option>Short & Engaging</option><option>Detailed Story</option></select></div>
+    <div><div class="field"><label>Custom Script (Optional)</label><textarea placeholder="ဇာတ်လမ်းအကျဉ်း သို့မဟုတ် Script ထည့်သွင်းပါ..."></textarea></div><div class="two"><div class="field"><label>Script Length</label><select><option>Standard (2–4 min)</option><option>Short (under 1 min)</option><option>Long (5–10 min)</option></select></div><div class="field"><label>Language</label><select><option>မြန်မာ (Myanmar)</option><option>English</option></select></div></div><label class="checkrow"><input type="checkbox" checked> Auto Generate Recap</label><label class="checkrow"><input type="checkbox" checked> Remove Repetitive Lines</label></div>
+  </div>
+</section>
+<section class="card">
+  <div class="card-head pink-head"><span class="num">5</span><h3>Scene Transitions</h3></div>
+  <div class="card-body">
+    <label>Scene Preview</label><div class="scene-grid"><div class="scene-thumb">▣</div><div class="scene-thumb">▣</div><div class="scene-thumb">▣</div><div class="scene-thumb">▣</div></div>
+    <div class="scene-labels"><div>Scene 1<br>0:00 – 0:20</div><div>Scene 2<br>0:20 – 0:45</div><div>Scene 3<br>0:45 – 1:10</div><div>Scene 4<br>1:10 – 1:33</div></div>
+    <div class="two" style="margin-top:13px"><div class="field"><label>Transition Type</label><select><option>Fade</option><option>Cut</option><option>Dissolve</option><option>Slide</option></select></div><div class="field"><label>Transition Duration</label><select><option>0.5s</option><option>0.25s</option><option>1.0s</option><option>1.5s</option></select></div></div>
+    <label class="checkrow"><input type="checkbox" checked> Auto Scene Detection</label><label class="checkrow"><input type="checkbox" checked> Smooth Transitions</label><label class="checkrow"><input type="checkbox" checked> Sync Audio & Subtitle</label>
+  </div>
+</section>
+</div>
+<section class="card preview-card" id="exportSection">
+  <div class="card-head"><span class="num">▶</span><h3>Preview & Export</h3></div>
+  <div class="preview-layout">
+    <div><div class="video-placeholder" id="videoPreview"><button class="play" id="previewPlay">▶</button><div class="video-caption">မြန်မာ Recap စာတန်း Preview</div></div><div class="video-controls"><span>▶</span><div class="progress"><span></span></div><span>0:00 / 0:00</span><span>🔊</span><span>⛶</span></div></div>
+    <div class="ready-list"><h4>✓ &nbsp;Project Checklist</h4><div class="ready"><span class="ok">✓</span> Video Quality / Format</div><div class="ready"><span class="ok">✓</span> Myanmar Subtitles</div><div class="ready"><span class="ok">✓</span> Edge TTS Voice</div><div class="ready"><span class="ok">✓</span> Recap Storyline</div><div class="ready"><span class="ok">✓</span> Scene Transitions</div></div>
+    <div class="export"><div class="export-title"><span class="rocket">🚀</span><div><h3>Ready to Export!</h3><small>Your video settings preview</small></div></div><select><option>MP4 (H.264)</option><option>WebM</option></select><button class="gradient-btn" id="exportBtn">⇩ &nbsp; Export Video</button><small id="status" style="color:#9bb2d5;line-height:1.5">UI Demo — Export ကို မူလ Backend API နဲ့ ချိတ်ဆက်ရပါမယ်။</small></div>
+  </div>
+</section>
+<footer>YanNaing Recap Tool &nbsp;•&nbsp; Smart Recap · Fast · Professional</footer>
+</main>
+</div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const fileInput=$('#videoFile');
+const uploadLabel=document.querySelector('.upload');
+uploadLabel.addEventListener('dragover',e=>{e.preventDefault();uploadLabel.style.borderColor='var(--blue)'});
+uploadLabel.addEventListener('dragleave',()=>uploadLabel.style.borderColor='');
+uploadLabel.addEventListener('drop',e=>{e.preventDefault();uploadLabel.style.borderColor='';const f=e.dataTransfer.files[0];if(f){try{const dt=new DataTransfer();dt.items.add(f);fileInput.files=dt.files;fileInput.dispatchEvent(new Event('change'))}catch(err){$('#fileLabel').textContent=f.name}}});
+fileInput.addEventListener('change',()=>{$('#fileLabel').textContent=fileInput.files[0]?.name||'Click to upload or drag & drop';if(fileInput.files[0]&&fileInput.files[0].type.startsWith('video/')){const url=URL.createObjectURL(fileInput.files[0]);$('#videoPreview').style.backgroundImage=`linear-gradient(#07132655,#07132655),url("${url}")`;$('#videoPreview').style.backgroundSize='cover';$('#videoPreview').style.backgroundPosition='center';const v=document.createElement('video');v.src=url;v.preload='metadata';v.onloadedmetadata=()=>{document.querySelector('.video-controls span:nth-of-type(2)').textContent='0:00 / '+formatTime(v.duration)};}});
+function formatTime(t){if(!Number.isFinite(t))return '0:00';return Math.floor(t/60)+':'+String(Math.floor(t%60)).padStart(2,'0')}
+document.querySelectorAll('[data-ratio]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-ratio]').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');$('#resolution').value=b.dataset.ratio==='9:16'?'1080 × 1920 (Vertical Full HD)':'1920 × 1080 (Full HD)'}));
+$('#speed').addEventListener('input',e=>$('#speedOut').value=Number(e.target.value).toFixed(2));
+$('#volume').addEventListener('input',e=>$('#volumeOut').value=Number(e.target.value).toFixed(2));
+function changeSize(delta){const s=$('#fontSize');const opts=[...s.options];s.selectedIndex=Math.max(0,Math.min(opts.length-1,s.selectedIndex+delta))}
+$('#smaller').onclick=()=>changeSize(-1);$('#bigger').onclick=()=>changeSize(1);
+document.querySelectorAll('.segmented').forEach(group=>group.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{group.querySelectorAll('button').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');if(group.querySelector('[data-ratio]'))return;const txt=b.textContent.trim();const cap=$('#videoPreview .video-caption');if(cap&&/Top|Center|Bottom/.test(txt)){cap.style.top=txt.includes('Top')?'12px':txt.includes('Center')?'50%':'';cap.style.bottom=txt.includes('Bottom')?'15px':'';cap.style.transform=txt.includes('Center')?'translateY(-50%)':''}})));
+const subtitleCard=$('#subtitleCard');
+const fontSelect=subtitleCard.querySelector('select');
+const fontSize=$('#fontSize');
+function updateSubtitlePreview(){const cap=$('#videoPreview .video-caption');if(!cap)return;cap.style.fontSize=(parseInt(fontSize.value,10)||36)+'px';const color=subtitleCard.querySelector('input[type=color]');if(color)cap.style.color=color.value;const bg=subtitleCard.querySelectorAll('select')[1];cap.style.background=bg&&bg.value==='None'?'transparent':bg&&bg.value==='Solid Black'?'#000':'#0009';cap.style.padding='5px 8px';cap.style.borderRadius='5px';cap.style.left='10px';cap.style.right='10px';}
+fontSize.addEventListener('change',updateSubtitlePreview);
+subtitleCard.querySelectorAll('input[type=color]').forEach(c=>c.addEventListener('input',updateSubtitlePreview));
+subtitleCard.querySelectorAll('select').forEach(c=>c.addEventListener('change',updateSubtitlePreview));
+
+document.querySelectorAll('.checkrow input').forEach(c=>c.addEventListener('change',()=>{const sw=c.parentElement.querySelector('.switch');if(sw)sw.classList.toggle('on',c.checked)}));
+document.querySelectorAll('.switch').forEach(s=>s.addEventListener('click',()=>{s.classList.toggle('on');const c=s.parentElement.querySelector('input');if(c)c.checked=s.classList.contains('on')}));
+const themeBtn=$('#themeBtn');
+function setTheme(mode){document.body.classList.toggle('light',mode==='light');themeBtn.textContent=mode==='light'?'☀ Light':'☾ Dark';try{localStorage.setItem('ynrt-theme',mode)}catch(e){}}
+try{setTheme(localStorage.getItem('ynrt-theme')||'dark')}catch(e){setTheme('dark')}
+themeBtn.onclick=()=>setTheme(document.body.classList.contains('light')?'dark':'light');
+$('#voicePreview').onclick=()=>{const msg='မင်္ဂလာပါ။ YanNaing Recap Tool မှ ကြိုဆိုပါတယ်။';if(!('speechSynthesis'in window)){alert('ဒီ Browser မှာ Voice Preview မရနိုင်ပါ။');return}const u=new SpeechSynthesisUtterance(msg);u.lang='my-MM';u.rate=Number($('#speed').value);u.volume=Number($('#volume').value);speechSynthesis.cancel();speechSynthesis.speak(u)};
+$('#previewPlay').onclick=()=>{if(!fileInput.files[0]){fileInput.click();return}const old=$('#videoPreview').querySelector('video');if(old){old.paused?old.play():old.pause();return}const v=document.createElement('video');v.src=URL.createObjectURL(fileInput.files[0]);v.controls=true;v.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000';$('#videoPreview').appendChild(v);v.play().catch(()=>{})};
+$('#exportBtn').onclick=()=>{$('#status').textContent='ဒီ HTML သည် UI Prototype ဖြစ်သည်။ Video Export အတွက် မူလ Backend API နှင့် ချိတ်ဆက်ရန်လိုသည်။';};
+function goTo(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});}
+const sideTargets=['homeSection','videoCard','exportSection','storyCard','voiceCard','exportSection'];
+document.querySelectorAll('.side-link').forEach((b,i)=>b.addEventListener('click',()=>{document.querySelectorAll('.side-link').forEach(x=>x.classList.remove('active'));b.classList.add('active');goTo(sideTargets[i]||'homeSection')}));
+document.querySelectorAll('.step[data-target]').forEach((b,i)=>b.addEventListener('click',()=>{document.querySelectorAll('.step').forEach(x=>x.classList.remove('active'));b.classList.add('active');goTo(b.dataset.target)}));
+document.querySelectorAll('.topnav .navbtn').forEach((b,i)=>b.addEventListener('click',()=>{document.querySelectorAll('.topnav .navbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(i===0)goTo('homeSection');else if(i===1)goTo('exportSection');else if(i===2)goTo('voiceCard');else {$('#status').textContent='Help: Video ရွေးပါ၊ Settings ပြင်ပါ၊ ပြီးမှ မူလ Backend နဲ့ Generate/Export ချိတ်ဆက်အသုံးပြုပါ။';goTo('exportSection')}}));
+document.querySelector('.promo .gradient-btn').onclick=()=>goTo('storyCard');
+
+</script>
+</body>
+</html>
