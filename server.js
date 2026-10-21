@@ -1421,8 +1421,9 @@ translation of what is said AND what visibly happens, scene by scene.
     styleInstruction = `
 You are a Burmese storyteller telling this movie to a friend, as ONE continuous story from start to finish.
 - Voice: warm, natural, spoken Burmese (ပြောစကား), like a person narrating a story out loud. Never bookish, never robotic, never a list of separate captions.
-- Flow: the scenes must read as one connected story. Link each scene to the previous one with natural spoken connectors (e.g. "အဲဒီအချိန်မှာ", "ဒါပေမဲ့", "နောက်တော့", "တစ်ဖက်မှာတော့", "ဒီလိုနဲ့") and let each scene lead into the next. Do not restart or re-introduce characters in every scene.
-- Sentences: complete, medium-length spoken sentences. Avoid very short broken fragments and avoid overlong run-on sentences.
+- Flow: make this sound like a real YouTube movie recap, not a synopsis, subtitle translation, or a list of scene descriptions. Tell the plot in a connected, engaging spoken-story flow. Link each scene naturally to the previous one with varied conversational transitions (e.g. "အဲဒီအချိန်မှာ", "ဒါပေမဲ့", "နောက်တော့", "ဒီလိုနဲ့") and make each scene lead into the next. Do not restart or re-introduce characters in every scene.
+- Content: focus on what happens, why it matters, what the character wants, and what changes next. Keep important cause-and-effect and twists; avoid generic lines such as "ဒီအဖြစ်အပျက်က သူ့ဘဝကို ပြောင်းလဲစေခဲ့တယ်" unless the movie actually supports them. Do not merely describe visible actions.
+- Sentences: use complete, idiomatic spoken Burmese with natural word order and conversational phrasing. Avoid literal English sentence structure, repetitive sentence openings, very short broken fragments, and overlong run-on sentences.
 - Punctuation for speech rhythm: use "၊" for short breathing pauses and "။" at the end of every sentence, so the voice pauses naturally. Every scene narration must end with "။".
 - Tense: tell it in past tense ("...ခဲ့တယ်"), with a gripping hook in the very first sentence of the first scene.
 - Emotion: let tension, surprise and relief show through word choice, not through exclamation marks.
@@ -2110,7 +2111,7 @@ function getRecapSpeed(recapStyle) {
 }
 
 function recapStyleText(recapStyle) {
-  const base = "Natural cinematic movie recap narration. Clear Burmese pronunciation, smooth natural pacing, emotional but controlled storyteller voice. Speak continuously as one natural movie recap.";
+  const base = "Professional Burmese-language YouTube movie recap, not a plot-summary readout. Clear Burmese pronunciation, idiomatic conversational Myanmar, smooth connected storytelling, natural phrase boundaries, steady medium pace, controlled emotion, no robotic cadence, no clipped syllables, no rushed words. Sound like a skilled human narrator explaining the movie to viewers.";
   switch (String(recapStyle || "").toLowerCase()) {
     case "sync":
       return "Natural spoken Burmese, clear pronunciation, natural conversational pacing, like a dubbing narrator following the scene.";
@@ -2398,12 +2399,12 @@ async function renderSceneSyncVideo(
 
   const jobStyle = styleByJob.get(jobId);
   let rawSceneAudio;
-  if (jobStyle === "sync") {
-    // Exact-ish sync with a small quota cost: scenes are voiced in small
-    // batches (one TTS call per batch) and each batch is split only inside
-    // itself, so any cut error can never drift across the whole video.
-    // TTS_BATCH_SCENES=1 gives one call per scene (most exact, most quota).
-    const batchSize = Math.max(1, Number(process.env.TTS_BATCH_SCENES || 5));
+  {
+    // Generate short, scene-local narration chunks for every style. Splitting a
+    // single long TTS recording by estimated text weights can cut Burmese words
+    // mid-syllable and make the voice sound broken or out of sync.
+    // Set TTS_BATCH_SCENES > 1 to trade a little alignment accuracy for fewer API calls.
+    const batchSize = Math.max(1, Number(process.env.TTS_BATCH_SCENES || 1));
     rawSceneAudio = [];
     for (let i = 0; i < scenePlan.scenes.length; i += batchSize) {
       const batch = scenePlan.scenes.slice(i, i + batchSize);
@@ -2417,10 +2418,6 @@ async function renderSceneSyncVideo(
       const parts = await splitFullTTSForScenes(batchPath, batch, sceneDir);
       rawSceneAudio.push(...parts);
     }
-  } else {
-    // ONE Gemini TTS request for the entire recap.
-    await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice, ttsEngineByJob.get(jobId) || "auto", jobStyle);
-    rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
   }
   const renderedScenes = [];
 
