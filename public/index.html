@@ -1,383 +1,550 @@
 <!doctype html>
 <html lang="my">
 <head>
+<!-- Final video keeps original footage clean. -->
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>YanNaing Recap Tool</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>YNT Recap Tool</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Noto+Sans+Myanmar:wght@400;500;600;700;800&display=swap">
 <style>
-:root{
-  --bg:#050b1a;--panel:#0a1429;--panel2:#0c1b32;--line:#20375a;--text:#edf5ff;
-  --muted:#91a7c6;--blue:#159cff;--cyan:#22e5d0;--purple:#a238ff;--pink:#ff3e87;
-  --green:#20e2ae;--gold:#ffb547;--shadow:0 12px 35px #0008;
-}
+@property --a{syntax:'<angle>';initial-value:0deg;inherits:false}
+:root{--bg:#060918;--panel:#0d1330;--panel2:#141c46;--line:#2c3b82aa;--text:#eef1ff;--muted:#9aa6d6;--violet:#7c5cff;--blue:#3b82f6;--cyan:#22d3ee;--pink:#e879f9;--ok:#2dd4bf;--err:#fb7185;--hero1:#0b1236;--hero2:#0c0a26;--aur:1;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#eef1fd;--panel:#ffffff;--panel2:#eef1ff;--line:#6d5cff40;--text:#12183a;--muted:#5b6492;--aur:.45}}
+:root[data-theme="light"]{--bg:#eef1fd;--panel:#ffffff;--panel2:#eef1ff;--line:#6d5cff40;--text:#12183a;--muted:#5b6492;--aur:.45}
+html{scroll-behavior:smooth;scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box}
-body{margin:0;background:radial-gradient(ellipse at 75% -10%,#152e5c 0,transparent 38%),linear-gradient(145deg,#050a17,#071126 60%,#100a25);color:var(--text);font-family:Inter,"Noto Sans Myanmar","Myanmar Text",system-ui,sans-serif;font-size:14px}
-button,input,select,textarea{font:inherit}button{cursor:pointer;color:inherit}
-.app{min-height:100vh}
-.topbar{height:72px;display:flex;align-items:center;gap:25px;padding:0 26px;border-bottom:1px solid #1c2c49;background:#050b18eF;position:sticky;top:0;z-index:10;backdrop-filter:blur(18px)}
-.brand{display:flex;align-items:center;gap:12px;min-width:330px}.logo{width:48px;height:48px;border-radius:15px;display:grid;place-items:center;background:linear-gradient(135deg,#087bff,#b52bff);box-shadow:0 0 25px #643dff80;font-size:25px}
-.brand h1{font-size:21px;line-height:1.2;margin:0;letter-spacing:-.4px}.brand small{display:block;color:#9db2d3;margin-top:5px;font-size:12px}
-.topnav{display:flex;gap:8px;align-items:center;flex:1}.navbtn,.pillbtn{border:1px solid transparent;background:transparent;padding:10px 14px;border-radius:13px;color:#aebed6}.navbtn.active{color:#fff;background:linear-gradient(110deg,#0759bd,#32217b);border-color:#245dba}
-.topright{display:flex;align-items:center;gap:18px}.theme{background:#0b1730;border:1px solid #28466d;padding:10px 14px;border-radius:25px}.profile{display:flex;gap:10px;align-items:center}.avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#08a9ff,#2853c7);font-weight:800}.profile small{display:block;color:var(--green);margin-top:3px}
-.layout{display:grid;grid-template-columns:172px minmax(0,1fr);min-height:calc(100vh - 72px)}
-.sidebar{border-right:1px solid #1b2b48;padding:22px 12px;background:#070e20a8;display:flex;flex-direction:column;gap:7px}
-.side-link{padding:13px 14px;display:flex;align-items:center;gap:12px;border-radius:12px;color:#b6c5de;border:1px solid transparent;background:transparent;text-align:left}
-.side-link .ico{font-size:19px;width:22px;text-align:center}.side-link.active{background:linear-gradient(100deg,#155fe5,#7622b7);box-shadow:0 8px 24px #1b4de755;color:#fff}
-.promo{margin-top:auto;padding:17px 13px;text-align:center;border:1px solid #263b60;border-radius:17px;background:linear-gradient(150deg,#16162b,#09162b)}.promo .crown{font-size:27px}.promo h3{margin:8px 0;color:#ffdb9b}.promo p{color:#9aacc8;font-size:12px;line-height:1.7}.gradient-btn{border:0;background:linear-gradient(100deg,#009dff,#b12df2);padding:11px 16px;border-radius:12px;font-weight:750;box-shadow:0 5px 18px #5a43f855}
-main{padding:18px 21px 26px;min-width:0;max-width:1800px;width:100%;margin:auto}
-.hero{position:relative;overflow:hidden;border:1px solid #29385f;border-radius:18px;padding:21px 25px;min-height:128px;background:linear-gradient(90deg,#101a39 0%,#111c3cdd 42%,#10102b88 100%),radial-gradient(ellipse at 85% 30%,#7132a9,#11264e 45%,#09152c);box-shadow:var(--shadow)}
-.hero:after{content:"✦  ◈  ✦";position:absolute;right:22%;top:20px;font-size:60px;color:#9e8aff20;letter-spacing:18px;pointer-events:none}
-.hero h2{font-size:22px;margin:0 0 8px}.hero p{color:#c1cee5;line-height:1.65;margin:0;max-width:700px}.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.chip{border:1px solid #32476d;background:#08162bce;border-radius:30px;padding:6px 10px;font-size:11px;color:#c8d8f2}.hero-action{position:absolute;right:22px;bottom:23px;z-index:1}
-.steps{display:flex;align-items:center;gap:6px;margin:15px 0;padding:10px;border:1px solid #25365d;border-radius:16px;background:linear-gradient(100deg,#0b1832,#10142c);overflow-x:auto}
-.step{font:inherit;color:inherit;text-align:left;cursor:pointer;background:transparent;flex:1;min-width:145px;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;border:1px solid transparent}.step.active{background:linear-gradient(110deg,#0c367b,#141d53);border-color:#225bc6}.step-num{width:39px;height:39px;flex:0 0 39px;display:grid;place-items:center;border-radius:50%;font-size:20px;font-weight:800;background:#1751b8;border:3px solid #438cff;box-shadow:0 0 16px #287aff66}.step:nth-of-type(3) .step-num{background:#087e65;border-color:#22d6ad}.step:nth-of-type(4) .step-num{background:#93561a;border-color:#ffc25a}.step:nth-of-type(5) .step-num{background:#08629a;border-color:#32b7ff}.step:nth-of-type(6) .step-num{background:#a51e55;border-color:#ff4f8c}.step strong{display:block;white-space:nowrap}.step small{display:block;color:#9db2d1;margin-top:4px;font-size:11px}.arrow{color:#4d6488;font-size:22px}
-.cards{display:grid;grid-template-columns:1.06fr 1.06fr 1fr;gap:14px}
-.card{min-width:0;border:1px solid var(--line);border-radius:17px;background:linear-gradient(150deg,#0d1a31f5,#071326f7);box-shadow:var(--shadow);overflow:hidden}
-.card-head{display:flex;align-items:center;gap:10px;padding:11px 13px;border-bottom:1px solid #253a5b;background:linear-gradient(90deg,#102753,#101b35)}.card-head h3{font-size:14px;margin:0;flex:1}.num{width:33px;height:33px;display:grid;place-items:center;border-radius:50%;font-size:17px;font-weight:800;background:#1765e4;border:2px solid #5aa0ff}.green-head{background:linear-gradient(90deg,#073e3c,#10243b)}.green-head .num{background:#07845f;border-color:#34e0ad}.purple-head{background:linear-gradient(90deg,#2a1557,#111c37)}.purple-head .num{background:#076db7;border-color:#46baff}.gold-head{background:linear-gradient(90deg,#492a11,#151c34)}.gold-head .num{background:#b66c18;border-color:#ffc15a}.pink-head{background:linear-gradient(90deg,#4b1638,#151b37)}.pink-head .num{background:#b3215b;border-color:#ff6ba1}
-.card-body{padding:13px}.field{margin-bottom:12px}.field:last-child{margin-bottom:0}label{display:block;color:#d7e4f8;font-size:12px;margin-bottom:6px}select,input[type=text],input[type=number],textarea{width:100%;background:#0a1930;border:1px solid #2b4368;color:#e8f2ff;border-radius:9px;padding:9px 10px;outline:none}select:focus,input:focus,textarea:focus{border-color:#268cff;box-shadow:0 0 0 2px #258aff20}
-.upload{min-height:92px;border:1px dashed #52719e;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#30dfff;background:#07162b;gap:5px;padding:10px}.upload b{font-size:12px}.upload small{color:#8ca5c8;font-size:10px}.upload input{display:none}.upload .cloud{font-size:25px}.two{display:grid;grid-template-columns:1fr 1fr;gap:9px}.segmented{display:flex;gap:7px}.segmented button{flex:1;background:#0a1930;border:1px solid #294365;border-radius:9px;padding:9px 5px;color:#b8c9e2}.segmented button.selected{background:linear-gradient(100deg,#087fe7,#214ec5);border-color:#43a5ff;color:white}
-.inline-control{display:flex;align-items:center;gap:7px}.inline-control select{flex:1;min-width:0}.mini{background:#10223d;border:1px solid #2a4365;border-radius:8px;padding:8px 10px;font-weight:800}.swatches{display:flex;gap:10px;align-items:center}.swatch{width:21px;height:21px;border-radius:50%;border:2px solid #fff;background:#fff;display:inline-block;vertical-align:middle}.swatch.yellow{background:#ffe75b}.swatch.cyan{background:#3ee6ff}
-input[type=range]{width:100%;accent-color:#239cff}input[type=color]{width:26px;height:26px;padding:0;border:0;background:transparent}.range-row{display:grid;grid-template-columns:1fr 42px;gap:9px;align-items:center}.range-row output{text-align:center;background:#10213a;border:1px solid #2a4163;border-radius:7px;padding:5px;font-size:11px}
-.checkrow{display:flex;align-items:center;gap:9px;color:#c5d5ed;font-size:12px;margin:9px 0}.checkrow input{accent-color:#14d9a2;width:15px;height:15px}.switch{margin-left:auto;width:34px;height:18px;border-radius:20px;background:#153a62;position:relative;border:1px solid #2d76b8}.switch:after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#a5c9f3}.switch.on{background:#0876d6}.switch.on:after{left:18px;background:#fff}
-.story-scenes{display:grid;grid-template-columns:1.05fr 1fr;gap:12px}.structure{border:1px solid #283e60;border-radius:12px;padding:11px;background:#08152a}.story-item{display:flex;gap:9px;align-items:center;margin:9px 0;color:#d0def3;font-size:12px}.story-item span{width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#145b8d;font-weight:800}.story-item:nth-child(3) span{background:#b27b20}.story-item:nth-child(4) span{background:#c56c20}.story-item:nth-child(5) span{background:#b63155}.story-item:nth-child(6) span{background:#7039ae}
-textarea{resize:vertical;min-height:98px;line-height:1.6}.scene-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.scene-thumb{height:55px;border-radius:8px;border:1px solid #345074;background:linear-gradient(135deg,#244768,#a25a4a 45%,#0d203d);display:grid;place-items:center;font-size:19px}.scene-thumb:nth-child(2){background:linear-gradient(135deg,#6c4668,#d2a17c,#13284c)}.scene-thumb:nth-child(3){background:linear-gradient(135deg,#255d66,#bd874a,#172b4b)}.scene-thumb:nth-child(4){background:linear-gradient(135deg,#a45c38,#354c69,#09172e)}.scene-labels{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:5px}.scene-labels div{text-align:center;border-radius:7px;background:#0b2a52;padding:7px 2px;font-size:10px;color:#d4e6ff}.scene-labels div:nth-child(2){background:#45227b}.scene-labels div:nth-child(3){background:#08755d}.scene-labels div:nth-child(4){background:#8c4b14}
-.preview-card{margin-top:14px}.preview-layout{display:grid;grid-template-columns:1.3fr .85fr .85fr;gap:13px;padding:13px}.video-placeholder{min-height:150px;border-radius:12px;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;text-align:center;background:radial-gradient(ellipse at 65% 25%,#9e654f,#293b58 30%,#0a172d 70%);border:1px solid #334e75}.play{width:49px;height:49px;border-radius:50%;display:grid;place-items:center;background:#0b1424bd;border:1px solid #90b9e6;font-size:21px}.video-caption{position:absolute;bottom:15px;left:10px;right:10px;color:#ffe66e;font-weight:800;text-shadow:0 2px 5px #000;text-align:center}.video-controls{display:flex;gap:10px;align-items:center;padding:9px 5px;color:#9eb4d3;font-size:11px}.progress{height:4px;background:#243b5b;border-radius:10px;flex:1}.progress span{display:block;width:18%;height:100%;background:linear-gradient(90deg,#b33bff,#16a5ff);border-radius:10px}
-.ready-list{border:1px solid #28466b;border-radius:12px;padding:12px;background:#08162a}.ready-list h4{margin:0 0 12px;font-size:13px}.ready{display:flex;gap:8px;align-items:center;margin:11px 0;font-size:12px;color:#c7d8ef}.ok{color:#24e4ac;font-weight:900}
-.export{border:1px solid #53358b;border-radius:13px;padding:13px;background:linear-gradient(145deg,#21134b,#0b1b39);display:flex;flex-direction:column;gap:10px}.export-title{display:flex;gap:9px;align-items:center}.rocket{font-size:27px}.export-title h3{margin:0;font-size:15px}.export-title small{display:block;color:#9eb2d2;margin-top:4px}.export select{background:#101d3a}.export .gradient-btn{width:100%}
-footer{padding:16px;text-align:center;color:#60799c;font-size:11px}
-@media(max-width:1150px){.brand{min-width:auto}.topnav{display:none}.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.voice-card{grid-column:span 2}.preview-layout{grid-template-columns:1fr 1fr}.export{grid-column:span 2}.hero-action{position:static;margin-top:12px}.hero:after{display:none}}
-@media(max-width:760px){.topbar{height:auto;min-height:65px;padding:10px 13px;gap:10px}.brand h1{font-size:16px}.brand small{font-size:10px}.logo{width:40px;height:40px}.topright{margin-left:auto;gap:8px}.theme{padding:8px}.profile div:last-child{display:none}.layout{display:block}.sidebar{position:sticky;top:65px;z-index:8;display:flex;flex-direction:row;overflow-x:auto;padding:8px;gap:5px;border-right:0;border-bottom:1px solid #1b2b48}.side-link{flex:0 0 auto;padding:9px 11px;font-size:12px;gap:7px}.side-link .ico{font-size:16px}.promo{display:none}main{padding:12px 10px}.hero{padding:17px;min-height:auto}.hero h2{font-size:19px}.hero p{font-size:12px}.chips{gap:5px}.chip{font-size:10px}.steps{margin:10px 0}.step{min-width:135px}.cards{grid-template-columns:1fr;gap:11px}.voice-card{grid-column:auto}.story-scenes{grid-template-columns:1fr}.preview-layout{grid-template-columns:1fr}.export{grid-column:auto}.scene-thumb{height:65px}.card-head h3{font-size:13px}.preview-layout{padding:10px}.video-placeholder{min-height:180px}}
-@media(prefers-reduced-motion:no-preference){.card,.side-link,.gradient-btn{transition:transform .18s ease,border-color .18s ease,filter .18s ease}.side-link:hover{filter:brightness(1.18)}.gradient-btn:hover{filter:brightness(1.12);transform:translateY(-1px)}}
-
-/* Real light theme */
-body.light{
-  --bg:#f3f6fc;--panel:#ffffff;--panel2:#f5f8fe;--line:#d7e0ef;--text:#18243a;
-  --muted:#62718a;--blue:#1769e8;--cyan:#078b9d;--purple:#7838c8;--pink:#cf326d;
-  --green:#07865f;--gold:#a85d0b;--shadow:0 10px 28px #23395b14;
-  background:radial-gradient(ellipse at 75% -10%,#e2eaff 0,transparent 38%),linear-gradient(145deg,#f7f9ff,#edf3fc 60%,#f7efff);
-  color:var(--text);filter:none
-}
-body.light .topbar{background:#ffffffed;border-bottom-color:#dce4f1}
-body.light .brand small,body.light .sub,body.light .step small,body.light .hero p{color:#5c6b83}
-body.light .navbtn,body.light .side-link{color:#52627c}
-body.light .navbtn.active{color:#fff}
-body.light .theme{background:#fff;border-color:#d3deef;color:#24344f}
-body.light .sidebar{background:#f8faff;border-right-color:#dce4f1}
-body.light .side-link.active{color:#fff}
-body.light .promo{background:linear-gradient(150deg,#f0eaff,#f4f8ff);border-color:#d9dff0}
-body.light .promo p{color:#64728b}
-body.light .hero{background:linear-gradient(90deg,#e7efff 0%,#e9edffdd 55%,#f4eaff99 100%);border-color:#d2dcf1}
-body.light .hero:after{color:#5546b51a}
-body.light .chip{background:#ffffffd9;border-color:#d3def0;color:#344765}
-body.light .steps{background:linear-gradient(100deg,#fff,#f0f4ff);border-color:#d9e2f1}
-body.light .step.active{background:#e5eeff;border-color:#a9c5fb}
-body.light .step.active strong{color:#173f88} body.light .step{color:#263852}
-body.light .arrow{color:#8192ac}
-body.light .card{background:#fff;border-color:#d9e2ef;box-shadow:0 8px 24px #29436b0d}
-body.light .card-head{background:linear-gradient(90deg,#edf3ff,#f8faff);border-bottom-color:#dce5f1}
-body.light .green-head{background:linear-gradient(90deg,#e2f8f1,#f6fbff)}
-body.light .purple-head{background:linear-gradient(90deg,#f0e8ff,#f8faff)}
-body.light .gold-head{background:linear-gradient(90deg,#fff0dc,#fffaf3)}
-body.light .pink-head{background:linear-gradient(90deg,#ffe8f0,#fff8fb)}
-body.light label{color:#35445d}
-body.light select,body.light input[type=text],body.light input[type=number],body.light textarea{background:#f8faff;border-color:#d1dced;color:#1c2a41}
-body.light .upload{background:#f5f9ff;border-color:#9eb5d8;color:#0879b7}
-body.light .upload small{color:#647793}
-body.light .segmented button{background:#f7f9fe;border-color:#d2deef;color:#50627e}
-body.light .segmented button.selected{color:#fff}
-body.light .mini,body.light .range-row output{background:#f0f4fb;border-color:#d6e0ef;color:#263852}
-body.light .swatch{border-color:#aebbd0}
-body.light .checkrow{color:#40516c}
-body.light .structure,body.light .ready-list{background:#f7faff;border-color:#d7e1f0}
-body.light .story-item{color:#34445d}
-body.light .scene-labels div{color:#fff}
-body.light .video-placeholder{border-color:#c7d5e8}
-body.light .ready{color:#40516a}
-body.light .export{background:linear-gradient(145deg,#f0e9ff,#f3f8ff);border-color:#d4c4f0}
-body.light .export select{background:#fff}
-body.light .export-title small,body.light #status{color:#586b87!important}
-body.light .video-controls{color:#657793}
-body.light footer{color:#7b8ba4}
-
-.step:focus-visible,.side-link:focus-visible,.navbtn:focus-visible,.theme:focus-visible{outline:2px solid var(--blue);outline-offset:2px}\n</style>
+body{margin:0;min-height:100vh;color:var(--text);font:400 14px/1.7 "Plus Jakarta Sans","Noto Sans Myanmar",system-ui,sans-serif;background:var(--bg);overflow-x:hidden}
+body:before{content:"";position:fixed;inset:-25%;z-index:-2;pointer-events:none;opacity:var(--aur);background:radial-gradient(38vmax 38vmax at 15% 12%,#6d5cff66,transparent 62%),radial-gradient(34vmax 34vmax at 88% 22%,#22d3ee44,transparent 62%),radial-gradient(40vmax 40vmax at 50% 105%,#e879f955,transparent 62%);animation:drift 26s ease-in-out infinite alternate}
+body:after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(ellipse at 50% 0,#000,transparent 72%);mask-image:radial-gradient(ellipse at 50% 0,#000,transparent 72%)}
+@keyframes drift{to{transform:translate3d(4%,3%,0) scale(1.08)}}
+.wrap{max-width:780px;margin:auto;padding:14px 14px 60px}
+.top{display:flex;align-items:center;gap:12px;padding:4px 2px 14px}
+.logo{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-size:24px;background:linear-gradient(135deg,var(--violet),var(--cyan));box-shadow:0 0 0 1px #ffffff33 inset,0 10px 28px #6d5cff77}
+.top b{display:block;font-size:17px;font-weight:800;line-height:1.3}
+.top small{color:var(--muted);font-size:11.5px}
+.icon-btn{margin-left:auto;width:40px;height:40px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);color:var(--text);font-size:17px;cursor:pointer}
+.icon-btn:hover{border-color:var(--cyan)}
+.hero{position:relative;overflow:hidden;padding:26px 20px 22px;border-radius:26px;color:#eef1ff;border:1.5px solid transparent;background:linear-gradient(var(--hero1),var(--hero2)) padding-box,conic-gradient(from var(--a),#7c5cff,#22d3ee,#e879f9,#7c5cff) border-box;animation:spin 9s linear infinite;box-shadow:0 24px 70px #5b4bff44}
+@keyframes spin{to{--a:360deg}}
+.hero:before{content:"";position:absolute;width:260px;height:260px;right:-90px;top:-100px;border-radius:50%;background:radial-gradient(circle,#7c5cff77,transparent 68%)}
+.hero:after{content:"";position:absolute;width:220px;height:220px;left:-80px;bottom:-110px;border-radius:50%;background:radial-gradient(circle,#22d3ee55,transparent 68%)}
+.hero>*{position:relative;z-index:1}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:99px;font-size:11px;font-weight:800;letter-spacing:.06em;background:#ffffff14;border:1px solid #ffffff2e}
+.hero h1{margin:12px 0 0;font-size:40px;line-height:1.08;font-weight:800;letter-spacing:-.03em}
+.hero h1 b{background:linear-gradient(90deg,#a78bfa,#38bdf8,#e879f9,#a78bfa);background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 7s linear infinite}
+@keyframes shimmer{to{background-position:250% 0}}
+.tagline{margin:12px 0 0;font-size:15px;font-weight:700;line-height:1.7}
+.desc{margin:6px 0 0;font-size:12.5px;line-height:1.75;color:#b4bdea}
+.wave{display:flex;align-items:flex-end;gap:3px;height:34px;margin-top:16px;opacity:.85}
+.wave s{display:block;width:4px;border-radius:3px;background:linear-gradient(180deg,#22d3ee,#7c5cff);height:30%;animation:eq 1.4s ease-in-out infinite}
+.wave s:nth-child(3n){animation-delay:-.4s}.wave s:nth-child(3n+1){animation-delay:-.9s}.wave s:nth-child(5n){animation-duration:1.9s}
+@keyframes eq{50%{height:100%}}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:14px}
+.flow span{padding:6px 12px;border-radius:99px;font-size:12px;font-weight:700;background:#ffffff12;border:1px solid #ffffff26}
+.flow i{font-style:normal;color:#8fa0ff;font-size:12px}
+.btnp{position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:8px;margin-top:18px;padding:14px 26px;border-radius:99px;color:#fff;text-decoration:none;font-weight:800;font-size:14px;background:linear-gradient(90deg,var(--blue),var(--violet),var(--pink));box-shadow:0 12px 32px #6d5cff77}
+.card{position:relative;margin:16px 0;padding:18px 16px;border-radius:22px;border:1.5px solid transparent;background:linear-gradient(var(--panel),var(--panel)) padding-box,linear-gradient(135deg,#7c5cff99,#22d3ee44,#e879f977) border-box;box-shadow:0 18px 50px #0004;transition:box-shadow .3s}
+.card:hover{box-shadow:0 18px 50px #0004,0 0 44px #6d5cff2e}
+.head{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+.num{flex:0 0 38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:800;color:#fff;background:linear-gradient(135deg,var(--violet),var(--cyan));box-shadow:0 8px 20px #6d5cff55}
+.head h2{margin:0;font-size:16.5px;font-weight:800}
+.head p{margin:2px 0 0;font-size:12px;color:var(--muted);line-height:1.6}
+.drop{text-align:center;cursor:pointer;padding:26px 14px;border-radius:18px;border:2px solid transparent;background:linear-gradient(var(--panel2),var(--panel2)) padding-box,conic-gradient(from var(--a),#7c5cff,#22d3ee,#e879f9,#7c5cff) border-box;animation:spin 7s linear infinite;transition:transform .2s}
+.drop:hover,.drop.drag{transform:scale(1.012)}
+.dropIcon{font-size:40px;display:block;animation:bob 3s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-5px)}}
+.drop strong{display:block;margin-top:6px;font-size:15px}
+.drop small{display:block;margin-top:3px;font-size:11.5px;color:var(--muted)}
+.choose{display:inline-block;margin-top:12px;padding:10px 24px;border-radius:12px;font-size:13px;font-weight:800;color:#fff;background:linear-gradient(90deg,var(--blue),var(--violet))}
+.fileInfo{display:none;margin-top:12px;padding:10px 13px;border-radius:12px;font-size:12px;font-weight:600;background:#2dd4bf1f;border:1px solid var(--ok)}
+.preview{display:none;width:100%;max-height:260px;object-fit:contain;background:#000;border-radius:14px;margin-top:12px;border:1px solid var(--line)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row label{display:block;margin:0 0 5px;font-size:12px;font-weight:700;color:var(--muted)}
+.selectBox{width:100%;padding:12px 38px 12px 13px;border-radius:12px;border:1.5px solid var(--line);color:var(--text);font:600 13.5px "Plus Jakarta Sans","Noto Sans Myanmar";outline:none;appearance:none;-webkit-appearance:none;background:var(--panel2) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='9'><path d='M1 1l6 6 6-6' fill='none' stroke='%2338bdf8' stroke-width='2.5'/></svg>") no-repeat right 13px center}
+.selectBox:focus{border-color:var(--cyan)}
+.voices{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}
+.vc{position:relative;display:flex}
+.vc input{position:absolute;opacity:0}
+.vc label{flex:1;display:flex;align-items:center;gap:9px;margin:0;padding:9px 10px;border-radius:14px 0 0 14px;border:1.5px solid var(--line);border-right:0;background:var(--panel2);cursor:pointer;line-height:1.35;color:var(--text);transition:.2s}
+.av{flex:0 0 32px;height:32px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:14px;font-weight:800;color:#fff}
+.av.f{background:linear-gradient(135deg,#e879f9,#7c5cff)}.av.m{background:linear-gradient(135deg,#22d3ee,#3b82f6)}
+.vt b{display:block;font-size:13px}.vt span{font-size:11px;color:var(--muted);font-weight:500}
+.eq{display:none;align-items:flex-end;gap:2px;height:16px;margin-left:auto}
+.eq s{width:3px;height:40%;border-radius:2px;background:var(--cyan);animation:eq .8s ease-in-out infinite}
+.eq s:nth-child(2){animation-delay:-.3s}.eq s:nth-child(3){animation-delay:-.6s}
+.vc.playing .eq{display:flex}
+.vc input:checked+label{border-color:var(--cyan);background:linear-gradient(135deg,#6d5cff30,#22d3ee18);box-shadow:0 0 0 1px var(--cyan),0 0 22px #22d3ee33}
+.vc input:focus-visible+label{outline:3px solid var(--cyan);outline-offset:2px}
+.play{width:44px;border:0;border-radius:0 14px 14px 0;background:linear-gradient(135deg,var(--blue),var(--violet));color:#fff;cursor:pointer;font-size:13px}
+.play:disabled{opacity:.6;cursor:wait}
+.vmsg{min-height:16px;margin:8px 0 0;font-size:12px;color:var(--err)}
+.hint{margin:2px 0 0;font-size:11.5px;color:var(--muted)}
+.chk{display:flex;gap:9px;align-items:center;margin:0 0 12px;font-size:13px}
+.chk input{width:18px;height:18px;accent-color:var(--violet)}
+.generate{position:relative;overflow:hidden;width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:17px;border:0;border-radius:16px;color:#fff;font:800 16px "Plus Jakarta Sans","Noto Sans Myanmar";cursor:pointer;background:linear-gradient(90deg,var(--blue),var(--violet),var(--pink),var(--violet),var(--blue));background-size:300% 100%;animation:flow 7s linear infinite;box-shadow:0 14px 36px #6d5cff66;transition:transform .15s}
+.generate:after{content:"";position:absolute;top:0;left:-60%;width:35%;height:100%;background:linear-gradient(100deg,transparent,#ffffff55,transparent);transform:skewX(-20deg);animation:sweep 3.4s ease-in-out infinite}
+@keyframes flow{to{background-position:300% 0}}
+@keyframes sweep{0%,55%{left:-60%}100%{left:130%}}
+.generate:hover{transform:translateY(-2px)}.generate:active{transform:scale(.99)}
+.generate:disabled{opacity:.55;cursor:not-allowed;transform:none;animation:none}
+.generate:disabled:after{display:none}
+.ghost{width:100%;margin-top:10px;padding:12px;border-radius:14px;border:1.5px solid var(--line);background:transparent;color:var(--text);font:600 13.5px "Plus Jakarta Sans","Noto Sans Myanmar";cursor:pointer}
+.ghost:hover{border-color:var(--cyan)}
+.note{margin-top:12px;text-align:center;font-size:11.5px;line-height:1.7;color:var(--muted)}
+.progressCard,.scriptCard,.result{display:none}
+.progressTop{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.progressTop strong{font-size:15px}
+.pct{font-size:30px;font-weight:800;line-height:1;background:linear-gradient(90deg,var(--cyan),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
+.barTrack{height:12px;margin:14px 0 20px;border-radius:99px;overflow:hidden;background:var(--panel2);border:1px solid var(--line)}
+.bar{position:relative;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--blue),var(--violet),var(--pink));box-shadow:0 0 20px #7c5cffcc;transition:width .5s}
+.bar:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,#ffffff26 0 10px,transparent 10px 20px);background-size:28px 28px;animation:stripes 1s linear infinite}
+@keyframes stripes{to{background-position:28px 0}}
+.steps{position:relative;display:grid;grid-template-columns:repeat(5,1fr)}
+.steps:before{content:"";position:absolute;left:10%;right:10%;top:19px;height:3px;border-radius:3px;background:var(--line)}
+.step{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:10.5px;font-weight:700;color:var(--muted);text-align:center;transition:.3s}
+.step i{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:17px;background:var(--panel2);border:2px solid var(--line);transition:.3s}
+.step.active{color:var(--text)}
+.step.active i{border-color:var(--violet);box-shadow:0 0 0 5px #7c5cff30,0 0 26px #7c5cff99;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 9px #7c5cff12,0 0 34px #22d3ee88}}
+.step.done{color:var(--ok)}
+.step.done i{background:linear-gradient(135deg,var(--ok),var(--cyan));border-color:transparent;font-size:0}
+.step.done i:before{content:"✓";font-size:17px;font-weight:800;color:#042a26}
+.message{margin-top:14px;font-size:12.5px;line-height:1.65;color:var(--muted)}
+.error{display:none;margin-top:12px;padding:11px 13px;border-radius:12px;font-size:12.5px;line-height:1.65;white-space:pre-line;background:#fb718522;border:1px solid var(--err)}
+.scene{margin:0 0 12px}
+.sh{display:flex;align-items:center;gap:8px;margin:0 0 5px;font-size:12px;color:var(--muted)}
+.sh b{color:var(--text)}
+.mini{margin-left:auto;padding:5px 12px;border-radius:99px;border:1.5px solid var(--line);background:var(--panel2);color:var(--text);font:inherit;font-size:12px;cursor:pointer}
+.mini:hover{border-color:var(--cyan)}
+textarea{width:100%;min-height:78px;padding:10px 12px;resize:vertical;border-radius:12px;border:1.5px solid var(--line);background:var(--panel2);color:var(--text);font:inherit;line-height:1.75;outline:none}
+textarea:focus{border-color:var(--cyan)}
+.video{width:100%;max-height:480px;background:#000;border-radius:16px;border:1px solid var(--line);box-shadow:0 0 40px #6d5cff44}
+.download{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;padding:15px;border-radius:16px;text-decoration:none;color:#fff;font-weight:800;background:linear-gradient(90deg,#10b981,#06b6d4,#3b82f6);box-shadow:0 12px 30px #06b6d444}
+.summary{margin-top:10px;font-size:12px;color:var(--muted)}
+.footer{padding:18px 6px;text-align:center;color:var(--muted);font-size:11px}
+:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}
+@media(max-width:520px){.hero h1{font-size:32px}.row{grid-template-columns:1fr}.step{font-size:9.5px}.step i{width:34px;height:34px}.steps:before{top:17px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+/* ---- subtitle + blur card ---- */
+.stageWrap{display:none;margin-bottom:14px}
+.stage{position:relative;margin:0 auto;width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
+.boxLayer{position:absolute;inset:0;pointer-events:none}
+.bx{position:absolute;pointer-events:auto;touch-action:none;cursor:move;border:2px dashed var(--ok);border-radius:6px;background:#06091840;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.bx.sel{border-style:solid;box-shadow:0 0 0 2px #2dd4bf66}
+.bx b{position:absolute;left:0;top:0;padding:0 7px;border-radius:0 0 8px 0;font-size:11px;line-height:18px;background:var(--ok);color:#042a26}
+.bx .rs{position:absolute;right:0;bottom:0;width:30px;height:30px;border-radius:10px 0 4px 0;background:var(--ok);touch-action:none;cursor:nwse-resize}
+.bx .rs:after{content:"";position:absolute;right:6px;bottom:6px;width:10px;height:10px;border-right:3px solid #042a26;border-bottom:3px solid #042a26}
+.subSample{position:absolute;left:50%;top:84%;width:max-content;max-width:92%;z-index:5;display:none;text-align:center;transform:translate(-50%,-50%);pointer-events:auto;touch-action:none;cursor:grab;outline:1.5px dashed #ffffff88;outline-offset:3px;font-weight:700;line-height:1.35;text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 2px #000}
+.seek{width:100%;margin:12px 0 0;accent-color:var(--violet)}
+.opt{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.sw{position:relative;display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:44px;font-size:14px;font-weight:700;cursor:pointer}
+.sw input{position:absolute;opacity:0;width:1px;height:1px}
+.sw i{flex:0 0 50px;height:28px;border-radius:14px;position:relative;background:var(--panel2);border:1.5px solid var(--line);transition:background .2s}
+.sw i:after{content:"";position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;transition:transform .2s}
+.sw input:checked+i{background:linear-gradient(90deg,var(--blue),var(--violet));border-color:transparent}
+.sw input:checked+i:after{transform:translateX(22px)}
+.sw input:focus-visible+i{outline:3px solid var(--cyan);outline-offset:2px}
+.subbox{transition:opacity .2s}.subbox.off{opacity:.4;pointer-events:none}
+.lab{display:flex;justify-content:space-between;margin:12px 0 6px;font-size:12px;font-weight:700;color:var(--muted)}
+.lab span:last-child{color:var(--text)}
+.rng{width:100%;accent-color:var(--violet);margin:0}
+.cols{display:flex;gap:12px;flex-wrap:wrap}
+.sc{position:relative;display:block;width:44px;height:44px}
+.sc input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.sc b{display:block;width:44px;height:44px;border-radius:50%;background:var(--c);border:3px solid var(--line)}
+.sc input:checked+b{border-color:#fff;box-shadow:0 0 0 2px var(--violet)}
+.sc input:focus-visible+b{outline:3px solid var(--cyan);outline-offset:2px}
+.seg{display:flex;gap:8px}
+.seg label{position:relative;flex:1;display:block}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg span{display:grid;place-items:center;min-height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel2);font-size:13.5px;font-weight:700}
+.seg input:checked+span{border-color:transparent;color:#fff;background:linear-gradient(90deg,var(--blue),var(--violet))}
+.seg input:focus-visible+span{outline:3px solid var(--cyan);outline-offset:2px}
+.brow{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;margin-top:8px;padding:4px 6px 4px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);font-size:13.5px}
+.brow button{min-height:36px;padding:0 14px;border-radius:10px;border:0;background:#fb718522;color:var(--err);font:inherit;font-size:13px;cursor:pointer}
+.dashbtn{width:100%;min-height:48px;margin-top:10px;border-radius:12px;border:1.5px dashed var(--ok);background:transparent;color:var(--ok);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.dashbtn:disabled{opacity:.5;cursor:not-allowed}
+</style>
 </head>
 <body>
-<div class="app">
-<header class="topbar">
-  <div class="brand"><div class="logo">🎬</div><div><h1>YanNaing Recap Tool</h1><small>Smart Recap&nbsp; • &nbsp;Fast&nbsp; • &nbsp;Professional</small></div></div>
-  <nav class="topnav"><button class="navbtn active">⌂ &nbsp;Home</button><button class="navbtn">◷ &nbsp;History</button><button class="navbtn">⚙ &nbsp;Settings</button><button class="navbtn">ⓘ &nbsp;Help</button></nav>
-  <div class="topright"><button class="theme" id="themeBtn">☾ Dark⌄</button><div class="profile"><div class="avatar">YN</div><div>Yan Naing<small>● Online</small></div></div></div>
-</header>
-<div class="layout">
-<aside class="sidebar">
-  <button class="side-link active"><span class="ico">⌂</span>Dashboard</button>
-  <button class="side-link"><span class="ico">＋</span>New Project</button>
-  <button class="side-link"><span class="ico">▱</span>My Projects</button>
-  <button class="side-link"><span class="ico">▦</span>Templates</button>
-  <button class="side-link"><span class="ico">⚙</span>Settings</button>
-  <button class="side-link"><span class="ico">ⓘ</span>About</button>
-  <div class="promo"><div class="crown">♛</div><h3>Premium Quality</h3><p>Better tools,<br>better results!</p><button class="gradient-btn" type="button">Explore Tools ↗</button></div>
-</aside>
-<main>
-<section class="hero" id="homeSection">
-  <h2>Turn Any Video into a Great Recap!</h2>
-  <p>သင့်ရဲ့ Video ကို အကောင်းဆုံး Recap အဖြစ် ပြောင်းလဲပေးမယ့်<br>YanNaing Recap Tool မှ ကြိုဆိုပါတယ်။</p>
-  <div class="chips"><span class="chip">⚡ Fast Processing</span><span class="chip">▣ HD Quality</span><span class="chip">▤ Myanmar Subtitle</span><span class="chip">♫ Natural Voice</span></div>
-  <button class="gradient-btn hero-action" onclick="document.getElementById('videoFile').click()">▶ &nbsp; Create Amazing Recap &nbsp; →</button>
+<main class="wrap">
+<header class="top"><div class="logo">🎬</div><div><b>YNT Recap Tool</b><small>AI Powered · Myanmar Recap</small></div><button class="icon-btn" id="themeBtn" type="button" aria-label="Theme">🌙</button></header>
+
+<section class="hero">
+  <span class="badge">✨ AI POWERED</span>
+  <h1>Myanmar <b>Recap</b></h1>
+  <p class="tagline">ရုပ်ရှင်တစ်ကား လုံးကို မြန်မာလို သဘာဝကျကျ Recap လုပ်ပေးမယ်</p>
+  <p class="desc">Movie တင်လိုက်ရုံနဲ့ AI က ဇာတ်လမ်းကို နားလည်ပြီး မြန်မာ Recap နဲ့ အသံထည့်ကာ Final Video ထုတ်ပေးပါတယ်။</p>
+  <div class="wave" aria-hidden="true"><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s><s></s></div>
+  <div class="flow"><span>📤 Upload</span><i>›</i><span>🧠 AI Script</span><i>›</i><span>🎙️ Voice</span><i>›</i><span>🎬 MP4</span></div>
+  <a class="btnp" href="#upload">☁️ Upload Video →</a>
 </section>
-<div class="steps">
-  <button type="button" class="step active" data-target="videoCard"><span class="step-num">1</span><div><strong>Video</strong><small>Quality & Format</small></div></button><span class="arrow">⟶</span>
-  <button type="button" class="step" data-target="subtitleCard"><span class="step-num">2</span><div><strong>Subtitles</strong><small>Myanmar Text</small></div></button><span class="arrow">⟶</span>
-  <button type="button" class="step" data-target="voiceCard"><span class="step-num">3</span><div><strong>Voice</strong><small>TTS Settings</small></div></button><span class="arrow">⟶</span>
-  <button type="button" class="step" data-target="storyCard"><span class="step-num">4</span><div><strong>Recap</strong><small>Storyline</small></div></button><span class="arrow">⟶</span>
-  <button type="button" class="step" data-target="sceneCard"><span class="step-num">5</span><div><strong>Scene</strong><small>Transitions</small></div></button>
-</div>
-<div class="cards">
-<section class="card" id="videoCard">
-  <div class="card-head"><span class="num">1</span><h3>Video Quality & Aspect Ratio</h3><span class="chip">HD</span></div>
-  <div class="card-body">
-    <div class="field"><label>Input Video</label><label class="upload" for="videoFile"><span class="cloud">♧</span><b id="fileLabel">Click to upload or drag & drop</b><small>MP4, MOV, AVI, MKV</small></label><input id="videoFile" type="file" accept="video/*"></div>
-    <div class="field"><label>Resolution</label><select id="resolution"><option>1920 × 1080 (Full HD)</option><option>1280 × 720 (HD)</option><option>3840 × 2160 (4K)</option><option>1080 × 1920 (Vertical Full HD)</option></select></div>
-    <div class="field"><label>Aspect Ratio</label><div class="segmented"><button class="selected" data-ratio="16:9">▣ &nbsp;16:9<br><small>YouTube</small></button><button data-ratio="9:16">▯ &nbsp;9:16<br><small>Shorts</small></button></div></div>
-    <div class="field"><label>Frame Rate (FPS)</label><select id="fps"><option>30 FPS</option><option>25 FPS</option><option>24 FPS</option><option>60 FPS</option></select></div>
+
+<section class="card" id="upload">
+  <div class="head"><span class="num">1</span><div><h2>Upload Your Movie</h2><p>Movie file တစ်ခုရွေးပြီး စတင်ပါ။</p></div></div>
+  <div class="drop" id="drop"><span class="dropIcon">☁️</span><strong id="dropTitle">Movie ကို ဒီမှာရွေးပါ</strong><small>MP4, MOV, MKV, WEBM • အများဆုံး 500MB</small><span class="choose">📂 Choose File</span><input id="movie" type="file" accept="video/*,.mp4,.mov,.mkv,.webm,.avi" hidden></div>
+  <div class="fileInfo" id="fileInfo"></div>
+  <video class="preview" id="preview" controls></video>
+</section>
+
+<section class="card">
+  <div class="head"><span class="num">2</span><div><h2>Myanmar Voice</h2><p>▶ ကို နှိပ်ပြီး အသံတစ်ခုချင်း နားထောင်ကြည့်ပါ၊ ကြိုက်တာကို ရွေးပါ။</p></div></div>
+  <div class="row">
+    <div><label for="ttsEngine">အသံထုတ်တဲ့နည်း</label><select id="ttsEngine" class="selectBox"><option value="auto" selected>🔁 Auto (Gemini → Edge → Azure → Google)</option><option value="gemini">✨ Gemini TTS</option><option value="edge">🆓 Edge TTS (အခမဲ့၊ key မလို)</option><option value="elevenlabs">🎙️ ElevenLabs v3 (key လို)</option><option value="azure">☁️ Azure Speech</option><option value="google">🌐 Google Translate TTS</option></select></div>
+    <div><label for="language">ဘာသာစကား</label><select id="language" class="selectBox"><option value="my" selected>🇲🇲 မြန်မာ</option><option value="en">🇬🇧 English</option></select></div>
+  </div>
+  <div class="row">
+    <div><label for="recapStyle">Recap ပုံစံ</label><select id="recapStyle" class="selectBox">
+      <option value="natural" selected>📖 သဘာဝကျ ပုံပြင်ပြော (အကြံပြု)</option>
+      <option value="sync">🎯 ကွက်တိ — စကားပြောအပြည့် ဘာသာပြန်</option>
+      <option value="cinematic">🎬 Cinematic Suspense</option>
+      <option value="storytelling">💫 Storytelling (စိတ်ခံစားမှုပါ)</option>
+      <option value="short">⚡ အတို အမြန် (TikTok/Shorts)</option>
+      <option value="detailed">🔍 အသေးစိတ်</option>
+    </select></div>
+  </div>
+  <div class="voices" id="voices"></div>
+  <p class="vmsg" id="voiceMsg"></p>
+  <p class="hint">Azure / Google မှာ အမျိုးသား၊ အမျိုးသမီး နှစ်မျိုးပဲ ကွာပါတယ်။</p>
+</section>
+
+<section class="card" id="burnCard">
+  <div class="head"><span class="num">3</span><div><h2>စာတန်းထိုး &amp; Blur</h2><p>မြန်မာစာတန်းထိုး ထည့်ခြင်း၊ မူရင်းစာတန်းထိုးကို Blur ဖုံးခြင်း (ရွေးချယ်စရာ)။</p></div></div>
+
+  <div class="stageWrap" id="stageWrap">
+    <div class="stage" id="stage"><video id="stageVideo" muted playsinline preload="metadata"></video><div class="boxLayer" id="boxLayer"></div><div class="subSample" id="subSample">ဒီအချိန်မှာ သူ့လျှို့ဝှက်ချက် ပေါ်လာပါတယ်</div></div>
+    <input class="seek" id="seek" type="range" min="0" max="1000" value="100" aria-label="Video ကို ရွှေ့ကြည့်ရန်">
+    <p class="hint">Slider ကို ရွှေ့ပြီး မူရင်းစာတန်းထိုး ပေါ်တဲ့ frame ကို ရှာပါ။</p>
+  </div>
+  <p class="hint" id="noMovie">Movie ရွေးပြီးရင် ဒီမှာ Preview ပေါ်ပါမယ်။</p>
+
+  <div class="opt">
+    <label class="sw"><span>မြန်မာစာတန်းထိုး ထည့်မယ်</span><input type="checkbox" id="subOn"><i></i></label>
+    <div class="subbox off" id="subOpts">
+      <div class="lab"><label for="subSize">စာလုံးအရွယ်</label><span id="subSizeV">အလတ်</span></div>
+      <input class="rng" id="subSize" type="range" min="1" max="10" value="4">
+      <div class="lab"><span>အရောင်</span><span></span></div>
+      <div class="cols">
+        <label class="sc" style="--c:#ffe600"><input type="radio" name="subColor" value="#ffe600" checked aria-label="အဝါ"><b></b></label>
+        <label class="sc" style="--c:#ffffff"><input type="radio" name="subColor" value="#ffffff" aria-label="အဖြူ"><b></b></label>
+        <label class="sc" style="--c:#5eead4"><input type="radio" name="subColor" value="#5eead4" aria-label="အစိမ်းဖျော့"><b></b></label>
+        <label class="sc" style="--c:#fb923c"><input type="radio" name="subColor" value="#fb923c" aria-label="လိမ္မော်"><b></b></label>
+      </div>
+      <div class="lab"><span>နေရာ</span><span></span></div>
+      <div class="seg">
+        <label><input type="radio" name="subPos" value="top"><span>အပေါ်</span></label>
+        <label><input type="radio" name="subPos" value="middle"><span>အလယ်</span></label>
+        <label><input type="radio" name="subPos" value="bottom" checked><span>အောက်</span></label>
+      </div>
+      <div class="lab"><label for="subY">အပေါ်-အောက် (လွတ်လပ်စွာ)</label><span id="subYV">84%</span></div>
+      <input class="rng" id="subY" type="range" min="0" max="100" value="84">
+      <div class="lab"><label for="subX">ဘယ်-ညာ</label><span id="subXV">50%</span></div>
+      <input class="rng" id="subX" type="range" min="0" max="100" value="50">
+      <p class="hint">Preview ပေါ်က စာတန်းကို လက်နဲ့ တိုက်ရိုက်ဆွဲရွှေ့လို့လည်း ရပါတယ်။ Blur အကွက်ပေါ်လည်း တင်လို့ရပါတယ်။</p>
+    </div>
+  </div>
+
+  <div class="opt">
+    <label class="sw"><span>Blur ဖုံးမယ်</span><input type="checkbox" id="blurOn"><i></i></label>
+    <div id="boxList"></div>
+    <button type="button" class="dashbtn" id="addBox">+ Blur အကွက် ထည့်မယ်</button>
+    <div class="subbox off" id="blurOpts">
+      <div class="lab"><label for="blurStr">Blur ပြင်းအား</label><span id="blurStrV">အလတ်</span></div>
+      <input class="rng" id="blurStr" type="range" min="1" max="10" value="3">
+      <p class="hint">Preview ပေါ်က အကွက်ကို ဆွဲရွှေ့ပါ၊ ထောင့်က ပုံစံလေးကို ဆွဲပြီး အရွယ်အစား ပြင်ပါ။</p>
+    </div>
   </div>
 </section>
-<section class="card" id="subtitleCard">
-  <div class="card-head green-head"><span class="num">2</span><h3>Myanmar Subtitles</h3><span>文</span></div>
-  <div class="card-body">
-    <div class="field"><label>Font Family</label><div class="inline-control"><select><option>Pyidaungsu (Myanmar)</option><option>Noto Sans Myanmar</option><option>Myanmar Text</option></select><button class="mini">B</button><button class="mini"><i>T</i></button></div></div>
-    <div class="field"><label>Font Size</label><div class="inline-control"><select id="fontSize"><option>28px</option><option selected>36px</option><option>42px</option><option>48px</option></select><button class="mini" id="smaller">A−</button><button class="mini" id="bigger">A+</button></div></div>
-    <div class="field"><label>Font Color</label><div class="swatches"><input type="color" value="#ffffff" aria-label="Font color"><span class="swatch"></span><span>#FFFFFF</span><input type="color" value="#ffffff" aria-label="Outline color"></div></div>
-    <div class="field"><label>Position</label><div class="segmented"><button>Top</button><button class="selected">● Center</button><button>Bottom</button></div></div>
-    <div class="field"><label>Background</label><select><option>Semi-Transparent</option><option>None</option><option>Solid Black</option></select></div>
-    <label class="checkrow"><input type="checkbox" checked> Shadow / Outline <span class="switch on"></span></label>
-    <label class="checkrow"><input type="checkbox" checked> Background Box <span class="switch on"></span></label>
-    <label class="checkrow"><input type="checkbox" checked> Auto Sync <span class="switch on"></span></label>
-  </div>
+
+<section class="card">
+  <label class="chk"><input type="checkbox" id="reviewChk" checked> Gemini ရေးတဲ့ Script ကို အရင်ကြည့်ပြီး ပြင်မယ် (ပြင်ပြီးမှ အသံ၊ ဗီဒီယိုထုတ်မယ်)</label>
+  <button class="generate" id="generate">⚡ Generate Recap</button>
+  <div class="note">သဘာဝကျကျ စကားပြောပုံစံနဲ့ Story Event + Movie Shot ကို အစဉ်လိုက်ချိတ်ပြီး narration နဲ့ မူရင်း footage ကို synchronize လုပ်ပါတယ်။</div>
 </section>
-<section class="card voice-card" id="voiceCard">
-  <div class="card-head purple-head"><span class="num">♫</span><h3>Myanmar Voice (Edge TTS)</h3></div>
-  <div class="card-body">
-    <div class="field"><label>Voice Provider</label><select id="voiceProvider"><option>Edge TTS (Free)</option><option>ElevenLabs (if configured)</option></select></div>
-    <div class="field"><label>Voice</label><div class="inline-control"><select id="voiceName"><option>my-MM-Naing (Male)</option><option>my-MM-Nilar (Female)</option></select><button class="mini" id="voicePreview" title="Preview voice">▶</button></div></div>
-    <div class="field"><label>Speed</label><div class="range-row"><input type="range" min="0.7" max="1.3" value="1" step=".05" id="speed"><output id="speedOut">1.0</output></div></div>
-    <div class="field"><label>Volume</label><div class="range-row"><input type="range" min="0" max="1" value="1" step=".05" id="volume"><output id="volumeOut">1.0</output></div></div>
-    <label class="checkrow"><input type="checkbox" checked> Auto Adjust Pauses <span class="switch on"></span></label>
-    <label class="checkrow"><input type="checkbox"> Background Music <span class="switch"></span></label>
-    <label class="checkrow"><input type="checkbox"> Voice Preview <span class="switch"></span></label>
-  </div>
+
+<section class="card progressCard" id="progressCard">
+  <div class="progressTop"><strong id="stageTitle">Processing...</strong><span class="pct" id="pct">0%</span></div>
+  <div class="barTrack"><div class="bar" id="bar"></div></div>
+  <div class="steps"><div class="step" data-stage="Upload"><i>📤</i>Upload</div><div class="step" data-stage="Transcript"><i>🎙️</i>Whisper</div><div class="step" data-stage="Recap"><i>🧠</i>Script</div><div class="step" data-stage="Voice"><i>🗣️</i>Voice</div><div class="step" data-stage="FFmpeg"><i>🎞️</i>Render</div></div>
+  <div class="message" id="message">စတင်ရန် ပြင်ဆင်နေပါတယ်...</div>
+  <div class="error" id="error"></div>
 </section>
-</div>
-<div class="cards" style="grid-template-columns:1fr 1fr;margin-top:14px">
-<section class="card" id="storyCard">
-  <div class="card-head gold-head"><span class="num">4</span><h3>Recap Storyline</h3><span>▱</span></div>
-  <div class="card-body story-scenes">
-    <div class="structure"><label>Story Structure</label><div class="story-item"><span>1</span>Introduction (ဇာတ်လမ်းမိတ်ဆက်)</div><div class="story-item"><span>2</span>Main Conflict (အဓိကပဋိပက္ခ)</div><div class="story-item"><span>3</span>Key Events (အရေးကြီးဖြစ်ရပ်များ)</div><div class="story-item"><span>4</span>Climax (အထွတ်အထိပ်)</div><div class="story-item"><span>5</span>Ending (အဆုံးသတ်)</div><select id="storyTemplate" aria-label="Story template"><option>Cinematic Recap</option><option>Short & Engaging</option><option>Detailed Story</option></select></div>
-    <div><div class="field"><label>Custom Script (Optional)</label><textarea id="customScript" placeholder="ဇာတ်လမ်းအကျဉ်း သို့မဟုတ် Script ထည့်သွင်းပါ..."></textarea></div><div class="two"><div class="field"><label>Script Length</label><select id="scriptLength"><option>Standard (2–4 min)</option><option>Short (under 1 min)</option><option>Long (5–10 min)</option></select></div><div class="field"><label>Language</label><select id="language"><option>မြန်မာ (Myanmar)</option><option>English</option></select></div></div><label class="checkrow"><input type="checkbox" checked> Auto Generate Recap</label><label class="checkrow"><input type="checkbox" checked> Remove Repetitive Lines</label></div>
-  </div>
+
+<section class="card scriptCard" id="scriptCard">
+  <div class="head"><span class="num">✍️</span><div><h2>Recap Script</h2><p>စာကို လိုသလို ပြင်ပါ၊ ▶ နဲ့ အသံနားထောင်ကြည့်ပါ။ <span id="scriptCount"></span></p></div></div>
+  <div id="scriptList"></div>
+  <button class="generate" id="renderBtn">✅ Script အတည်ပြုပြီး Video ထုတ်မယ်</button>
 </section>
-<section class="card" id="sceneCard">
-  <div class="card-head pink-head"><span class="num">5</span><h3>Scene Transitions</h3></div>
-  <div class="card-body">
-    <label>Scene Preview</label><div class="scene-grid"><div class="scene-thumb">▣</div><div class="scene-thumb">▣</div><div class="scene-thumb">▣</div><div class="scene-thumb">▣</div></div>
-    <div class="scene-labels"><div>Scene 1<br>0:00 – 0:20</div><div>Scene 2<br>0:20 – 0:45</div><div>Scene 3<br>0:45 – 1:10</div><div>Scene 4<br>1:10 – 1:33</div></div>
-    <div class="two" style="margin-top:13px"><div class="field"><label>Transition Type</label><select id="transitionType"><option>Fade</option><option>Cut</option><option>Dissolve</option><option>Slide</option></select></div><div class="field"><label>Transition Duration</label><select id="transitionDuration"><option>0.5s</option><option>0.25s</option><option>1.0s</option><option>1.5s</option></select></div></div>
-    <label class="checkrow"><input type="checkbox" checked> Auto Scene Detection</label><label class="checkrow"><input type="checkbox" checked> Smooth Transitions</label><label class="checkrow"><input type="checkbox" checked> Sync Audio & Subtitle</label>
-  </div>
+
+<section class="card result" id="result">
+  <div class="head"><span class="num">✓</span><div><h2>Your Recap Video is Ready!</h2><p>ပြီးပါပြီ။ Video ကို ကြည့်ပြီး Download လုပ်နိုင်ပါတယ်။</p></div></div>
+  <video class="video" id="finalVideo" controls></video>
+  <a class="download" id="download" href="#">⬇️ Download MP4</a>
+  <p class="summary" id="summary"></p>
+  <button class="ghost" id="newBtn" type="button">🔄 Movie အသစ်နဲ့ ပြန်စမယ်</button>
 </section>
-</div>
-<section class="card preview-card" id="exportSection">
-  <div class="card-head"><span class="num">▶</span><h3>Preview & Export</h3></div>
-  <div class="preview-layout">
-    <div><div class="video-placeholder" id="videoPreview"><button class="play" id="previewPlay">▶</button><div class="video-caption">မြန်မာ Recap စာတန်း Preview</div></div><div class="video-controls"><span>▶</span><div class="progress"><span></span></div><span>0:00 / 0:00</span><span>🔊</span><span>⛶</span></div></div>
-    <div class="ready-list"><h4>✓ &nbsp;Project Checklist</h4><div class="ready"><span class="ok">✓</span> Video Quality / Format</div><div class="ready"><span class="ok">✓</span> Myanmar Subtitles</div><div class="ready"><span class="ok">✓</span> Edge TTS Voice</div><div class="ready"><span class="ok">✓</span> Recap Storyline</div><div class="ready"><span class="ok">✓</span> Scene Transitions</div></div>
-    <div class="export"><div class="export-title"><span class="rocket">🚀</span><div><h3>Ready to Export!</h3><small>Your video settings preview</small></div></div><select id="exportFormat"><option>MP4 (H.264)</option><option>WebM</option></select><button class="gradient-btn" id="generateBtn" type="button">✨ &nbsp; Generate Recap</button><button class="gradient-btn" id="exportBtn" type="button" disabled style="opacity:.55">⇩ &nbsp; Download Video</button><div id="progressWrap" style="display:none;margin-top:10px"><div style="height:7px;background:#1d2a43;border-radius:99px;overflow:hidden"><div id="progressBar" style="height:100%;width:5%;background:linear-gradient(90deg,#159cff,#22e5d0);transition:width .3s"></div></div><small id="progressText" style="display:block;margin-top:7px;color:#9bb2d5">Starting…</small></div><small id="status" role="status" aria-live="polite" style="display:block;color:#9bb2d5;line-height:1.5;margin-top:9px">Backend ချိတ်ဆက်ရန် Ready — server ကို စတင်ပြီး Generate Recap ကိုနှိပ်ပါ။</small></div>
-  </div>
-</section>
-<footer>YanNaing Recap Tool &nbsp;•&nbsp; Smart Recap · Fast · Professional</footer>
+
+<footer class="footer">YNT Recap Tool · AI Powered · Myanmar Recap</footer>
 </main>
-</div>
-</div>
 <script>
+const $=id=>document.getElementById(id);
+const STYLE_DEFAULT='natural';
+let selectedFile=null,jobId=null,pollTimer=null,voiceName='Kore',busy=false,fails=0,audio=null,scenes=[],t0=0;
+const VOICES=[['Kore','Female','နူးညံ့'],['Aoede','Female','ကြည်လင်'],['Leda','Female','ငယ်ရွယ်'],['Zephyr','Female','တောက်ပ'],['Puck','Male','တက်ကြွ'],['Charon','Male','တည်ငြိမ်'],['Fenrir','Male','ပြင်းထန်'],['Orus','Male','ခိုင်မာ'],['Thiha','Male','သီဟ · မြန်မာအသံ'],['Nilar','Female','နီလာ · မြန်မာအသံ']];
+const SAMPLE={my:'မင်္ဂလာပါ။ ဒီဇာတ်လမ်းလေးကို အခု ကျွန်တော် ပြန်ပြောပြပါမယ်။',en:'Hello! Let me tell you this story from the very beginning.'};
+const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const store={get(){try{return localStorage.getItem('ynt_job')}catch{return null}},set(v){try{v?localStorage.setItem('ynt_job',v):localStorage.removeItem('ynt_job')}catch{}}};
+function friendly(m){
+  m=String(m||'');
+  if(/429|quota|rate limit/i.test(m))m+='\n💡 Gemini အခမဲ့ quota ကန့်သတ်ချက် ပြည့်နေပါတယ်။ နာရီအနည်းငယ် စောင့်ပါ၊ ဒါမှမဟုတ် GEMINI_API_KEY အသစ် ထည့်ပါ။';
+  else if(/Script မတွေ့|Movie file မတွေ့/i.test(m))m+='\n💡 Server ပြန်စတင်သွားလို့ ဖိုင်ပျောက်နိုင်ပါတယ်။ Movie ကို ပြန်တင်ပြီး Start လုပ်ပါ။';
+  return m;
+}
+const drop=$('drop'),movie=$('movie');
+drop.onclick=()=>movie.click();
+['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('drag')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('drag')}));
+drop.addEventListener('drop',ev=>{const f=ev.dataTransfer.files?.[0];if(f){selectedFile=f;showFile()}});
+movie.onchange=()=>{selectedFile=movie.files?.[0]||null;showFile()};
+function showFile(){
+  if(!selectedFile)return;
+  $('dropTitle').textContent='✅ Movie ရွေးပြီးပါပြီ';$('fileInfo').style.display='block';
+  $('fileInfo').textContent=`🎥 ${selectedFile.name} • ${(selectedFile.size/1024/1024).toFixed(1)} MB`;
+  const u=URL.createObjectURL(selectedFile);$('preview').style.display='block';$('preview').src=u;window.onMovieSelected&&window.onMovieSelected(u);
+}
 
-const $ = (s) => document.querySelector(s);
-const $$ = (s) => [...document.querySelectorAll(s)];
-const fileInput = $('#videoFile');
-const uploadLabel = document.querySelector('.upload');
-let activeJobId = null;
-let completedOutput = null;
-let polling = false;
-
-function status(message, isError = false) {
-  const el = $('#status');
-  el.textContent = message;
-  el.style.color = isError ? '#ff7b8e' : '';
-}
-function formatTime(t) {
-  if (!Number.isFinite(t)) return '0:00';
-  return Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
-}
-function goTo(id) {
-  const el = document.getElementById(id);
-  if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
-}
-uploadLabel.addEventListener('dragover', e => { e.preventDefault(); uploadLabel.style.borderColor = 'var(--blue)'; });
-uploadLabel.addEventListener('dragleave', () => uploadLabel.style.borderColor = '');
-uploadLabel.addEventListener('drop', e => {
-  e.preventDefault(); uploadLabel.style.borderColor = '';
-  const f = e.dataTransfer.files[0];
-  if (f) { const dt = new DataTransfer(); dt.items.add(f); fileInput.files = dt.files; fileInput.dispatchEvent(new Event('change')); }
-});
-fileInput.addEventListener('change', () => {
-  const f = fileInput.files[0];
-  $('#fileLabel').textContent = f?.name || 'Click to upload or drag & drop';
-  completedOutput = null; $('#exportBtn').disabled = true; $('#exportBtn').style.opacity = '.55';
-  if (f && f.type.startsWith('video/')) {
-    const url = URL.createObjectURL(f);
-    $('#videoPreview').style.backgroundImage = `linear-gradient(#07132655,#07132655),url("${url}")`;
-    $('#videoPreview').style.backgroundSize = 'cover'; $('#videoPreview').style.backgroundPosition = 'center';
-    const v = document.createElement('video'); v.src = url; v.preload = 'metadata';
-    v.onloadedmetadata = () => { const spans = document.querySelectorAll('.video-controls span'); if (spans[2]) spans[2].textContent = `0:00 / ${formatTime(v.duration)}`; };
-    status(`ရွေးထားသော Video: ${f.name}`);
+/* ---------- subtitle + blur options ---------- */
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const stage=$('stage'),layer=$('boxLayer'),sample=$('subSample'),sv=$('stageVideo');
+let boxes=[],selBox=-1,drag=null,subX=50,subY=84,subDrag=null;
+const PRESET_Y={top:14,middle:50,bottom:84};
+const radioVal=n=>document.querySelector('input[name="'+n+'"]:checked')?.value;
+const subPct=()=>2+0.4*Number($('subSize').value);
+const sigma=()=>Math.round(4+3.4*Number($('blurStr').value));
+const LV=['အနည်းငယ်','အနည်းငယ်','အလတ်','အလတ်','အလတ်','အလတ်','ပြင်းပြင်း','ပြင်းပြင်း','အရမ်းပြင်း','အရမ်းပြင်း'];
+function applySub(){
+  const on=$('subOn').checked;
+  $('subOpts').classList.toggle('off',!on);
+  sample.style.display=on?'block':'none';
+  sample.style.fontSize=(stage.clientHeight*subPct()/100)+'px';
+  sample.style.color=radioVal('subColor')||'#ffe600';
+  if(on&&stage.clientWidth&&stage.clientHeight&&sample.offsetWidth){
+    const hx=Math.min(50,sample.offsetWidth/stage.clientWidth*50),hy=Math.min(50,sample.offsetHeight/stage.clientHeight*50);
+    subX=clamp(subX,hx,100-hx);subY=clamp(subY,hy,100-hy);
   }
+  sample.style.top=subY+'%';sample.style.left=subX+'%';
+  $('subY').value=Math.round(subY);$('subX').value=Math.round(subX);
+  $('subYV').textContent=Math.round(subY)+'%';$('subXV').textContent=Math.round(subX)+'%';
+  const hit=Object.keys(PRESET_Y).find(k=>Math.abs(PRESET_Y[k]-subY)<0.5&&Math.abs(subX-50)<0.5);
+  document.querySelectorAll('input[name="subPos"]').forEach(r=>{r.checked=r.value===hit});
+  $('subSizeV').textContent=LV[Number($('subSize').value)-1];
+}
+function applyBlur(){
+  const on=$('blurOn').checked;
+  $('blurOpts').classList.toggle('off',!on);
+  layer.style.display=on?'block':'none';
+  const px=Math.max(2,Math.round(sigma()*stage.clientWidth/1280));
+  layer.querySelectorAll('.bx').forEach(e=>{e.style.webkitBackdropFilter=e.style.backdropFilter='blur('+px+'px)'});
+  $('blurStrV').textContent=LV[Number($('blurStr').value)-1];
+}
+function renderBoxes(){
+  layer.innerHTML=boxes.map((b,i)=>'<div class="bx'+(i===selBox?' sel':'')+'" data-i="'+i+'" style="left:'+b.x*100+'%;top:'+b.y*100+'%;width:'+b.w*100+'%;height:'+b.h*100+'%"><b>'+(i+1)+'</b><span class="rs" data-rs="1"></span></div>').join('');
+  $('boxList').innerHTML=boxes.map((b,i)=>'<div class="brow"><span>အကွက် '+(i+1)+'</span><button type="button" data-del="'+i+'">ဖျက်မယ်</button></div>').join('');
+  $('addBox').disabled=boxes.length>=6;
+  applyBlur();
+}
+$('addBox').onclick=()=>{
+  if(boxes.length>=6)return;
+  boxes.push({x:.06,y:.78,w:.88,h:.14});selBox=boxes.length-1;
+  $('blurOn').checked=true;renderBoxes();
+};
+$('boxList').onclick=e=>{
+  const d=e.target.closest('[data-del]');if(!d)return;
+  boxes.splice(Number(d.dataset.del),1);selBox=-1;renderBoxes();
+};
+layer.addEventListener('pointerdown',e=>{
+  const bx=e.target.closest('.bx');if(!bx)return;
+  const i=Number(bx.dataset.i),r=stage.getBoundingClientRect();
+  selBox=i;
+  drag={i,mode:e.target.dataset.rs?'resize':'move',sx:e.clientX,sy:e.clientY,o:{...boxes[i]},w:r.width,h:r.height};
+  try{bx.setPointerCapture(e.pointerId)}catch{}
+  layer.querySelectorAll('.bx').forEach(el=>el.classList.toggle('sel',Number(el.dataset.i)===i));
+  e.preventDefault();
 });
-$$('[data-ratio]').forEach(b => b.addEventListener('click', () => {
-  $$('[data-ratio]').forEach(x => x.classList.remove('selected')); b.classList.add('selected');
-  $('#resolution').value = b.dataset.ratio === '9:16' ? '1080 × 1920 (Vertical Full HD)' : '1920 × 1080 (Full HD)';
-}));
-$('#speed').addEventListener('input', e => $('#speedOut').value = Number(e.target.value).toFixed(2));
-$('#volume').addEventListener('input', e => $('#volumeOut').value = Number(e.target.value).toFixed(2));
-function changeSize(delta) { const el = $('#fontSize'); el.selectedIndex = Math.max(0, Math.min(el.options.length - 1, el.selectedIndex + delta)); updateSubtitlePreview(); }
-$('#smaller').onclick = () => changeSize(-1); $('#bigger').onclick = () => changeSize(1);
-$$('.segmented').forEach(group => group.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
-  group.querySelectorAll('button').forEach(x => x.classList.remove('selected')); b.classList.add('selected');
-  const txt = b.textContent.trim(), cap = $('#videoPreview .video-caption');
-  if (cap && /Top|Center|Bottom/.test(txt)) {
-    cap.style.top = txt.includes('Top') ? '12px' : txt.includes('Center') ? '50%' : '';
-    cap.style.bottom = txt.includes('Bottom') ? '15px' : '';
-    cap.style.transform = txt.includes('Center') ? 'translateY(-50%)' : '';
-  }
-})));
-function updateSubtitlePreview() {
-  const cap = $('#videoPreview .video-caption'); if (!cap) return;
-  cap.style.fontSize = (parseInt($('#fontSize').value, 10) || 36) + 'px';
-  const colors = $('#subtitleCard').querySelectorAll('input[type=color]');
-  if (colors[0]) cap.style.color = colors[0].value;
-  const bg = $('#subtitleCard').querySelectorAll('select')[2];
-  cap.style.background = bg && bg.value === 'None' ? 'transparent' : bg && bg.value === 'Solid Black' ? '#000' : '#0009';
-  cap.style.padding = '5px 8px'; cap.style.borderRadius = '5px'; cap.style.left = '10px'; cap.style.right = '10px';
-}
-$('#fontSize').addEventListener('change', updateSubtitlePreview);
-$('#subtitleCard').querySelectorAll('input[type=color], select').forEach(el => el.addEventListener('input', updateSubtitlePreview));
-$('#subtitleCard').querySelectorAll('select').forEach(el => el.addEventListener('change', updateSubtitlePreview));
-$$('.checkrow input').forEach(c => c.addEventListener('change', () => { const sw = c.parentElement.querySelector('.switch'); if (sw) sw.classList.toggle('on', c.checked); }));
-$$('.switch').forEach(sw => sw.addEventListener('click', () => { sw.classList.toggle('on'); const c = sw.parentElement.querySelector('input'); if (c) c.checked = sw.classList.contains('on'); }));
-const themeBtn = $('#themeBtn');
-function setTheme(mode) {
-  document.body.classList.toggle('light', mode === 'light'); themeBtn.textContent = mode === 'light' ? '☀ Light' : '☾ Dark';
-  try { localStorage.setItem('ynrt-theme', mode); } catch {}
-}
-try { setTheme(localStorage.getItem('ynrt-theme') || 'dark'); } catch { setTheme('dark'); }
-themeBtn.onclick = () => setTheme(document.body.classList.contains('light') ? 'dark' : 'light');
-$('#voicePreview').onclick = async () => {
-  try {
-    const r = await fetch('/api/voice-preview', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({voice:$('#voiceName').value, speed:Number($('#speed').value), volume:Number($('#volume').value)})});
-    if (!r.ok) throw new Error((await r.json()).error || 'Voice preview မရပါ');
-    const audio = new Audio(URL.createObjectURL(await r.blob())); audio.play();
-  } catch (e) { status(`Voice Preview Error: ${e.message}`, true); }
+layer.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const dx=(e.clientX-drag.sx)/drag.w,dy=(e.clientY-drag.sy)/drag.h,b=boxes[drag.i],o=drag.o;
+  if(drag.mode==='move'){b.x=clamp(o.x+dx,0,1-o.w);b.y=clamp(o.y+dy,0,1-o.h)}
+  else{b.w=clamp(o.w+dx,.06,1-o.x);b.h=clamp(o.h+dy,.04,1-o.y)}
+  const el=layer.querySelector('.bx[data-i="'+drag.i+'"]');
+  if(el){el.style.left=b.x*100+'%';el.style.top=b.y*100+'%';el.style.width=b.w*100+'%';el.style.height=b.h*100+'%'}
+});
+['pointerup','pointercancel'].forEach(t=>layer.addEventListener(t,()=>{drag=null}));
+['subOn','subSize'].forEach(id=>$(id).addEventListener('input',applySub));
+document.querySelectorAll('input[name="subColor"]').forEach(r=>r.addEventListener('change',applySub));
+document.querySelectorAll('input[name="subPos"]').forEach(r=>r.addEventListener('change',()=>{subY=PRESET_Y[r.value];subX=50;applySub()}));
+$('subY').addEventListener('input',()=>{subY=Number($('subY').value);applySub()});
+$('subX').addEventListener('input',()=>{subX=Number($('subX').value);applySub()});
+sample.addEventListener('pointerdown',e=>{
+  const r=stage.getBoundingClientRect();
+  subDrag={sx:e.clientX,sy:e.clientY,ox:subX,oy:subY,w:r.width,h:r.height};
+  try{sample.setPointerCapture(e.pointerId)}catch{}
+  sample.style.cursor='grabbing';e.preventDefault();
+});
+sample.addEventListener('pointermove',e=>{
+  if(!subDrag)return;
+  subX=clamp(subDrag.ox+(e.clientX-subDrag.sx)/subDrag.w*100,0,100);
+  subY=clamp(subDrag.oy+(e.clientY-subDrag.sy)/subDrag.h*100,0,100);
+  applySub();
+});
+['pointerup','pointercancel'].forEach(t=>sample.addEventListener(t,()=>{subDrag=null;sample.style.cursor='grab'}));
+['blurOn','blurStr'].forEach(id=>$(id).addEventListener('input',applyBlur));
+$('seek').addEventListener('input',()=>{if(sv.duration)sv.currentTime=sv.duration*Number($('seek').value)/1000});
+sv.addEventListener('loadedmetadata',()=>{
+  const r=sv.videoWidth/sv.videoHeight||16/9;
+  stage.style.aspectRatio=String(r);stage.style.width='min(100%,'+Math.round(340*r)+'px)';
+  sv.currentTime=Math.max(0.1,(sv.duration||1)*0.1);
+  applySub();applyBlur();
+});
+if(window.ResizeObserver)new ResizeObserver(()=>{applySub();applyBlur()}).observe(stage);
+window.onMovieSelected=u=>{
+  $('stageWrap').style.display='block';$('noMovie').style.display='none';
+  sv.src=u;
 };
-$('#previewPlay').onclick = () => {
-  if (!fileInput.files[0]) { fileInput.click(); return; }
-  const old = $('#videoPreview').querySelector('video');
-  if (old) { old.paused ? old.play() : old.pause(); return; }
-  const v = document.createElement('video'); v.src = URL.createObjectURL(fileInput.files[0]); v.controls = true;
-  v.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000';
-  $('#videoPreview').appendChild(v); v.play().catch(() => {});
-};
-function collectSettings() {
-  const selected = (selector) => $(selector)?.value || '';
-  const subtitleSelects = $('#subtitleCard').querySelectorAll('select');
-  const subtitleColors = $('#subtitleCard').querySelectorAll('input[type=color]');
-  const selectedPosition = $('#subtitleCard').querySelector('.segmented button.selected')?.textContent.trim() || 'Bottom';
-  const checkboxes = [...document.querySelectorAll('.checkrow input')];
-  const ratio = $('[data-ratio].selected')?.dataset.ratio || '16:9';
-  return {
-    resolution: selected('#resolution'), ratio, fps: selected('#fps') || '30 FPS',
-    subtitle: {
-      fontFamily: subtitleSelects[0]?.value || 'Noto Sans Myanmar',
-      fontSize: parseInt(selected('#fontSize'), 10) || 36,
-      fontColor: subtitleColors[0]?.value || '#ffffff',
-      outlineColor: subtitleColors[1]?.value || '#000000',
-      position: selectedPosition.replace('●','').trim(),
-      background: subtitleSelects[2]?.value || 'Semi-Transparent',
-      outline: checkboxes[0]?.checked ?? true
-    },
-    voice: { provider:selected('#voiceProvider'), name:selected('#voiceName'), speed:Number(selected('#speed'))||1, volume:Number(selected('#volume'))||1 },
-    story: { template:selected('#storyTemplate'), customScript:selected('#customScript'), length:selected('#scriptLength'), language:selected('#language') },
-    scene: { transition:selected('#transitionType'), duration:selected('#transitionDuration'), autoDetect:checkboxes[10]?.checked ?? true },
-    outputFormat:selected('#exportFormat')
+function burnPayload(){
+  const boxesOut=boxes.map(b=>({x:+b.x.toFixed(4),y:+b.y.toFixed(4),w:+b.w.toFixed(4),h:+b.h.toFixed(4)}));
+  return{
+    subtitle:{enabled:$('subOn').checked,sizePct:+subPct().toFixed(2),color:radioVal('subColor')||'#ffe600',position:radioVal('subPos')||'custom',xPct:+subX.toFixed(2),yPct:+subY.toFixed(2)},
+    blur:{enabled:$('blurOn').checked&&boxesOut.length>0,boxes:boxesOut,strength:sigma()}
   };
 }
-async function checkBackend() {
-  try {
-    const r = await fetch('/api/health'); const data = await r.json();
-    if (data.ok) status('Backend Connected ✓ — Video ရွေးပြီး Generate Recap ကိုနှိပ်ပါ။');
-  } catch { status('Backend မတွေ့ပါ။ README ထဲကအတိုင်း `npm start` နဲ့ server ကိုဖွင့်ပါ။', true); }
+applySub();applyBlur();
+$('voices').innerHTML=VOICES.map(([n,g,d],i)=>`<div class="vc"><input type="radio" name="vsel" id="v_${n}" value="${n}"${i===0?' checked':''}><label for="v_${n}"><em class="av ${g==='Female'?'f':'m'}">${n[0]}</em><span class="vt"><b>${n}</b><span>${g} · ${d}</span></span><span class="eq"><s></s><s></s><s></s></span></label><button type="button" class="play" data-v="${n}" aria-label="${n} အသံနားထောင်">▶</button></div>`).join('');
+document.querySelectorAll('input[name="vsel"]').forEach(r=>r.onchange=()=>{voiceName=r.value});
+document.querySelectorAll('.play').forEach(b=>b.onclick=()=>preview(SAMPLE[$('language').value]||SAMPLE.my,b,b.dataset.v));
+async function preview(text,btn,voice){
+  if(audio){audio.pause();audio=null}
+  const old=btn.textContent;btn.textContent='⏳';btn.disabled=true;$('voiceMsg').textContent='';
+  try{
+    const r=await fetch('/api/tts-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice:voice||voiceName,ttsEngine:$('ttsEngine').value})});
+    if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'နမူနာ မထုတ်နိုင်ပါ')}
+    const vc=btn.closest('.vc');document.querySelectorAll('.vc.playing').forEach(x=>x.classList.remove('playing'));
+    audio=new Audio(URL.createObjectURL(await r.blob()));if(vc){vc.classList.add('playing');audio.onended=audio.onpause=()=>vc.classList.remove('playing')}await audio.play();
+  }catch(e){$('voiceMsg').textContent='❌ '+e.message}
+  btn.textContent=old;btn.disabled=false;
 }
-$('#generateBtn').onclick = async () => {
-  const file = fileInput.files[0];
-  if (!file) { status('အရင်ဆုံး Video ဖိုင်တင်ပါ။', true); fileInput.click(); return; }
-  const btn = $('#generateBtn'); btn.disabled = true; btn.style.opacity = '.6';
-  $('#progressWrap').style.display = 'block'; $('#progressBar').style.width = '5%'; $('#progressText').textContent = 'Uploading video…';
-  status('Video ကို Backend ဆီ ပို့နေပါတယ်။');
-  const form = new FormData(); form.append('video', file); form.append('settings', JSON.stringify(collectSettings()));
-  try {
-    const r = await fetch('/api/generate', {method:'POST', body:form});
-    const data = await r.json(); if (!r.ok) throw new Error(data.error || 'Generate request failed');
-    activeJobId = data.jobId; await pollJob(activeJobId);
-  } catch (e) {
-    status(`Generate Error: ${e.message}`, true); $('#progressText').textContent = 'Failed';
-    btn.disabled = false; btn.style.opacity = '1';
+function showErr(m){$('progressCard').style.display='block';$('error').style.display='block';$('error').textContent='❌ '+friendly(m)}
+function stepIndex(p){return p>=100?5:p<12?0:p<56?1:p<64?2:p<68?3:4}
+function elapsed(){if(!t0)return'';const s=Math.floor((Date.now()-t0)/1000);return` ⏱ ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
+function renderStatus(d){
+  const p=Math.max(0,Math.min(100,Number(d.progress)||0));
+  $('progressCard').style.display='block';$('pct').textContent=p+'%';$('bar').style.width=p+'%';
+  $('stageTitle').textContent=d.status==='script_ready'?'Script အဆင်သင့်ပါပြီ ✍️':d.status==='completed'?'ပြီးပါပြီ 🎉':(d.stage||'Processing');
+  $('message').textContent=(d.message||'')+(d.status==='processing'?elapsed():'');
+  const cur=d.status==='script_ready'?3:stepIndex(p);
+  document.querySelectorAll('.step').forEach((el,i)=>{el.classList.remove('active','done');if(i<cur)el.classList.add('done');else if(i===cur&&d.status!=='error')el.classList.add('active')});
+  $('error').style.display=d.error?'block':'none';if(d.error)$('error').textContent='❌ '+friendly(d.error);
+}
+function stop(){clearInterval(pollTimer);busy=false;$('generate').disabled=false;$('renderBtn').disabled=false}
+function startPoll(){clearInterval(pollTimer);fails=0;busy=true;pollTimer=setInterval(poll,1800);poll()}
+async function poll(){
+  if(!jobId)return;
+  try{
+    const r=await fetch('/api/status/'+encodeURIComponent(jobId),{cache:'no-store'});
+    const d=await r.json();
+    if(r.status===404){stop();store.set(null);return}
+    if(!r.ok)throw new Error(d?.error||'Status မဖတ်နိုင်ပါ');
+    fails=0;renderStatus(d);
+    if(d.status==='script_ready'){stop();await loadScript()}
+    else if(d.status==='completed'){stop();showResult(d);confetti()}
+    else if(d.status==='error'){stop()}
+  }catch(e){fails++;if(fails>40){stop();showErr(e.message)}}
+}
+function mmss(s){s=Math.max(0,Math.round(Number(s)||0));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+async function loadScript(){
+  const r=await fetch('/api/script/'+encodeURIComponent(jobId),{cache:'no-store'});const d=await r.json().catch(()=>({}));
+  if(!r.ok){showErr(d?.error||'Script မဖတ်နိုင်ပါ');return}
+  scenes=d.scenes||[];
+  $('scriptList').innerHTML=scenes.map((s,i)=>`<div class="scene"><div class="sh"><b>#${esc(s.index)}</b><span>${mmss(s.start)} – ${mmss(s.end)}</span><button type="button" class="mini" data-i="${i}">▶ နားထောင်</button></div><textarea data-i="${i}" aria-label="Scene ${esc(s.index)} script">${esc(s.narration)}</textarea></div>`).join('');
+  $('scriptList').querySelectorAll('.mini').forEach(b=>b.onclick=()=>preview($('scriptList').querySelector('textarea[data-i="'+b.dataset.i+'"]').value,b,voiceName));
+  $('scriptList').querySelectorAll('textarea').forEach(t=>t.oninput=count);count();
+  $('scriptCard').style.display='block';$('scriptCard').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function count(){const n=[...$('scriptList').querySelectorAll('textarea')].reduce((a,t)=>a+t.value.length,0);$('scriptCount').textContent=scenes.length+' scenes · '+n+' လုံး'}
+function showResult(d){
+  $('result').style.display='block';
+  const url='/api/download/'+encodeURIComponent(jobId);
+  $('finalVideo').src=url;$('download').href=url;
+  $('summary').textContent=`${d.scenePlan?.scenes||scenes.length||0} scenes • သဘာဝကျကျ စကားပြောပုံစံ`;
+  $('result').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function resetAll(){
+  stop();store.set(null);jobId=null;scenes=[];selectedFile=null;t0=0;
+  ['progressCard','scriptCard','result','fileInfo','preview'].forEach(i=>$(i).style.display='none');
+  $('preview').removeAttribute('src');$('finalVideo').removeAttribute('src');movie.value='';
+  $('dropTitle').textContent='Movie ကို ဒီမှာရွေးပါ';$('upload').scrollIntoView({behavior:'smooth'});
+}
+$('newBtn').onclick=resetAll;
+$('generate').onclick=async()=>{
+  if(busy)return;
+  if(!selectedFile){showErr('အရင် Movie ရွေးပါ');return}
+  if(selectedFile.size>500*1024*1024){showErr('Video က 500MB ထက် မကျော်ရပါ');return}
+  busy=true;$('generate').disabled=true;$('result').style.display='none';$('scriptCard').style.display='none';t0=Date.now();
+  renderStatus({stage:'Upload',progress:3,status:'processing',message:'Movie upload စတင်နေပါတယ်...'});
+  const fd=new FormData();fd.append('movie',selectedFile);fd.append('language',$('language').value);fd.append('style',$('recapStyle').value||STYLE_DEFAULT);fd.append('voice',voiceName);fd.append('ttsEngine',$('ttsEngine').value);fd.append('burn',JSON.stringify(burnPayload()));fd.append('reviewScript',$('reviewChk').checked?'1':'');
+  try{
+    const r=await fetch('/api/one-clip',{method:'POST',body:fd});const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d?.error||'Movie processing မစနိုင်ပါ');
+    jobId=d.jobId;if(!jobId)throw new Error('Job ID မရပါ');store.set(jobId);startPoll();
+  }catch(e){
+    const msg = (e && (e.name === 'TypeError' || /failed to fetch|networkerror|load failed/i.test(String(e.message||''))))
+      ? 'Server နဲ့ ချိတ်ဆက်မရပါ (Failed to fetch)။ Hosting server ရပ်သွားခြင်း၊ deploy မအောင်မြင်ခြင်း၊ သို့မဟုတ် upload request ကို hosting က ဖြတ်တောက်ခြင်း ဖြစ်နိုင်ပါတယ်။ Hosting Logs နဲ့ /health ကို စစ်ပါ။'
+      : (e.message || 'Movie processing မစနိုင်ပါ');
+    showErr(msg);stop()
   }
 };
-async function pollJob(jobId) {
-  if (polling) return; polling = true;
-  try {
-    while (true) {
-      const r = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`); const j = await r.json();
-      if (!r.ok) throw new Error(j.error || 'Job status failed');
-      $('#progressBar').style.width = `${Math.max(5, Math.min(100, j.progress || 5))}%`;
-      $('#progressText').textContent = j.message || j.status;
-      status(j.message || j.status, j.status === 'failed');
-      if (j.status === 'completed') {
-        completedOutput = j.downloadUrl; $('#exportBtn').disabled = false; $('#exportBtn').style.opacity = '1';
-        $('#progressBar').style.width = '100%'; $('#generateBtn').disabled = false; $('#generateBtn').style.opacity = '1';
-        status('Recap ပြီးပါပြီ ✓ — Download Video ကိုနှိပ်ပါ။'); break;
-      }
-      if (j.status === 'failed') throw new Error(j.error || j.message || 'Processing failed');
-      await new Promise(resolve => setTimeout(resolve, 1800));
-    }
-  } catch (e) {
-    status(`Processing Error: ${e.message}`, true); $('#generateBtn').disabled = false; $('#generateBtn').style.opacity = '1';
-    $('#progressText').textContent = 'Failed';
-  } finally { polling = false; }
+$('renderBtn').onclick=async()=>{
+  if(!jobId)return;
+  const items=[...$('scriptList').querySelectorAll('textarea')].map(t=>({index:scenes[Number(t.dataset.i)].index,narration:t.value.trim()}));
+  if(items.some(x=>!x.narration)){showErr('Scene တစ်ခုမှာ စာမရှိပါ');return}
+  $('renderBtn').disabled=true;busy=true;$('generate').disabled=true;$('result').style.display='none';t0=Date.now();
+  renderStatus({stage:'Voice',progress:63,status:'processing',message:'Script အတည်ပြုပြီး၊ အသံထုတ်ပါမယ်...'});
+  $('progressCard').scrollIntoView({behavior:'smooth',block:'start'});
+  try{
+    const r=await fetch('/api/render/'+encodeURIComponent(jobId),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes:items,style:$('recapStyle').value||STYLE_DEFAULT,voice:voiceName,ttsEngine:$('ttsEngine').value,burn:burnPayload()})});
+    const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error||'Render မစနိုင်ပါ');startPoll();
+  }catch(e){
+    const msg = (e && (e.name === 'TypeError' || /failed to fetch|networkerror|load failed/i.test(String(e.message||''))))
+      ? 'Render API နဲ့ ချိတ်ဆက်မရပါ။ Hosting server နဲ့ Logs ကို စစ်ပါ။'
+      : (e.message || 'Render မစနိုင်ပါ');
+    showErr(msg);stop()
+  }
+};
+function confetti(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const c=document.createElement('canvas');c.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50';
+  document.body.appendChild(c);const x=c.getContext('2d');c.width=innerWidth;c.height=innerHeight;
+  const cols=['#7c5cff','#22d3ee','#e879f9','#2dd4bf','#fbbf24','#fb7185'];
+  const ps=Array.from({length:120},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height*.4,vx:(Math.random()-.5)*3,vy:2+Math.random()*4,s:5+Math.random()*6,r:Math.random()*6,vr:(Math.random()-.5)*.3,c:cols[Math.random()*6|0]}));
+  let f=0;(function step(){x.clearRect(0,0,c.width,c.height);ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;x.save();x.translate(p.x,p.y);x.rotate(p.r);x.fillStyle=p.c;x.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);x.restore()});if(++f<170)requestAnimationFrame(step);else c.remove()})();
 }
-$('#exportBtn').onclick = () => { if (completedOutput) window.location.href = completedOutput; };
-function navScroll(id) { goTo(id); }
-const sideTargets = ['homeSection','videoCard','exportSection','storyCard','voiceCard','exportSection'];
-$$('.side-link').forEach((b,i) => b.addEventListener('click', () => {
-  $$('.side-link').forEach(x => x.classList.remove('active')); b.classList.add('active'); navScroll(sideTargets[i] || 'homeSection');
-}));
-$$('.step[data-target]').forEach(b => b.addEventListener('click', () => {
-  $$('.step').forEach(x => x.classList.remove('active')); b.classList.add('active'); goTo(b.dataset.target);
-}));
-$$('.topnav .navbtn').forEach((b,i) => b.addEventListener('click', () => {
-  $$('.topnav .navbtn').forEach(x => x.classList.remove('active')); b.classList.add('active');
-  if (i===0) goTo('homeSection'); else if (i===1) goTo('exportSection'); else if (i===2) goTo('voiceCard');
-  else { status('အကူအညီ: Video တင်ပါ → Generate Recap → ပြီးပါက Download Video ကိုနှိပ်ပါ။'); goTo('exportSection'); }
-}));
-document.querySelector('.promo .gradient-btn').onclick = () => goTo('storyCard');
-checkBackend();
-
+const root=document.documentElement;
+function setTheme(t){root.setAttribute('data-theme',t);$('themeBtn').textContent=t==='dark'?'🌙':'☀️';try{localStorage.setItem('ynt_theme',t)}catch{}}
+(function(){let t=null;try{t=localStorage.getItem('ynt_theme')}catch{}if(!t)t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';setTheme(t)})();
+$('themeBtn').onclick=()=>setTheme(root.dataset.theme==='dark'?'light':'dark');
+window.addEventListener('beforeunload',e=>{if(busy&&selectedFile){e.preventDefault();e.returnValue=''}});
+(async function resume(){
+  const saved=store.get();if(!saved)return;
+  try{
+    const r=await fetch('/api/status/'+encodeURIComponent(saved),{cache:'no-store'});
+    if(!r.ok){store.set(null);return}
+    const d=await r.json();jobId=saved;t0=Date.now();renderStatus(d);
+    if(d.status==='processing')startPoll();
+    else if(d.status==='script_ready')await loadScript();
+    else if(d.status==='completed')showResult(d);
+  }catch{}
+})();
 </script>
-</body>
-</html>
+</body></html>
