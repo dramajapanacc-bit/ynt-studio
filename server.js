@@ -1485,6 +1485,13 @@ You are a Burmese storyteller telling this movie to a friend, as ONE continuous 
       "Use detailed but natural movie recap narration.";
   }
 
+  const outputPrefs = outputSettingsByJob.get(jobId) || {};
+  if (outputPrefs.continuity === false) {
+    styleInstruction += "\nTreat each scene narration as a self-contained segment, while preserving factual chronology and never inventing events.";
+  } else {
+    styleInstruction += "\nSTRICT STORY CONTINUITY: preserve character identities and motivations, chronology, cause-and-effect, and unresolved plot threads across all scenes. Do not restart the story at scene boundaries.";
+  }
+
   const prompt = `
 You are creating a PROFESSIONAL SYNCHRONIZED MOVIE RECAP.
 
@@ -2142,6 +2149,7 @@ const recapVoiceSettings = {
 };
 
 const styleByJob = new Map();
+const outputSettingsByJob = new Map();
 
 // Speed (ffmpeg atempo) per recap style. Default recap speed is 1.1x.
 function getRecapSpeed(recapStyle) {
@@ -2271,6 +2279,32 @@ async function fitAudioToScene(
 }
 
 
+function normalizeOutputSettings(raw = {}) {
+  const r = String(raw.resolution || "1080");
+  const a = String(raw.aspect || "9:16");
+  return { resolution: ["source", "720", "1080"].includes(r) ? r : "1080", aspect: ["source", "9:16", "16:9", "1:1", "4:5"].includes(a) ? a : "9:16", voiceSpeed: Math.min(1.25, Math.max(0.8, Number(raw.voiceSpeed) || 1)), continuity: raw.continuity !== false, transition: raw.transition === "fade" ? "fade" : "cut" };
+}
+
+function makeOutputVideoFilter(settings = {}, duration = 0) {
+  const res = String(settings.resolution || "source");
+  const aspect = String(settings.aspect || "source");
+  let w = 0, h = 0;
+  const baseH = res === "720" ? 720 : 1080;
+  if (aspect === "9:16") { h = baseH * 16 / 9; w = baseH; }
+  else if (aspect === "16:9") { w = baseH * 16 / 9; h = baseH; }
+  else if (aspect === "1:1") { w = baseH; h = baseH; }
+  else if (aspect === "4:5") { w = baseH * 4 / 5; h = baseH; }
+  if (w && h) {
+    w = Math.round(w / 2) * 2; h = Math.round(h / 2) * 2;
+    if (res === "source") { /* aspect target still uses a standard output canvas */ }
+    const base = `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},setsar=1`;
+    return settings.transition === "fade" && duration > 0.5 ? `${base},fade=t=in:st=0:d=0.18,fade=t=out:st=${Math.max(0.1, duration - 0.18).toFixed(3)}:d=0.18` : base;
+  }
+  let base = res === "720" ? "scale=-2:720,setsar=1" : res === "1080" ? "scale=-2:1080,setsar=1" : "setsar=1";
+  if (settings.transition === "fade" && duration > 0.5) base += `,fade=t=in:st=0:d=0.18,fade=t=out:st=${Math.max(0.1, duration - 0.18).toFixed(3)}:d=0.18`;
+  return base;
+}
+
 /* =========================================================
    CUT VIDEO SCENE — ORIGINAL VIDEO ONLY
 ========================================================= */
@@ -2279,7 +2313,8 @@ async function renderSceneVideo(
   moviePath,
   scene,
   outputPath,
-  filterComplex = null
+  filterComplex = null,
+  outputSettings = {}
 ) {
   const duration = Math.max(0.05, scene.end - scene.start);
 
@@ -2294,8 +2329,8 @@ async function renderSceneVideo(
       "-t",
       duration.toFixed(3),
       ...(filterComplex
-        ? ["-filter_complex", filterComplex, "-map", "[vout]"]
-        : []),
+        ? ["-filter_complex", `${filterComplex};[vout]${makeOutputVideoFilter(outputSettings, duration)}[finalv]`, "-map", "[finalv]"]
+        : ["-vf", makeOutputVideoFilter(outputSettings, duration)]),
       "-an",
       "-c:v",
       "libx264",
@@ -2494,7 +2529,7 @@ async function renderSceneSyncVideo(
     const sceneVideo = path.join(sceneDir, `scene-${number}-video.mp4`);
     const sceneFinal = path.join(sceneDir, `scene-${number}-final.mp4`);
 
-    const fit = await fitAudioToScene(rawTTS, fittedTTS, scene.duration, getRecapSpeed(styleByJob.get(jobId)));
+    const fit = await fitAudioToScene(rawTTS, fittedTTS, scene.duration, getRecapSpeed(styleByJob.get(jobId)) * ((outputSettingsByJob.get(jobId) || {}).voiceSpeed || 1));
     const sceneForVideo = fit.finalDuration > scene.duration + 0.05
       ? { ...scene, end: scene.start + fit.finalDuration }
       : scene;
@@ -2518,7 +2553,7 @@ async function renderSceneSyncVideo(
       filterComplex = buildBurnFilter(burn, videoSize, assPath);
     }
 
-    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, filterComplex);
+    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, filterComplex, outputSettingsByJob.get(jobId) || {});
     await muxScene(sceneVideo, fittedTTS, sceneFinal);
     renderedScenes.push(sceneFinal);
   }
@@ -2972,6 +3007,7 @@ app.post("/api/render/:id", async (req, res) => {
     }
     fs.writeFileSync(planPath, JSON.stringify(plan, null, 2), "utf8");
     saveBurn(folder, req.body?.burn);
+    outputSettingsByJob.set(job.id, normalizeOutputSettings(req.body?.burn?.output));
 
     const voice = String(req.body?.voice || "female");
     const engine = String(req.body?.ttsEngine || "auto").toLowerCase();
@@ -3090,6 +3126,7 @@ app.post(
       );
 
       saveBurn(jobFolder, req.body?.burn);
+      outputSettingsByJob.set(job.id, normalizeOutputSettings(req.body?.burn?.output));
 
       const language =
         req.body?.language ||
