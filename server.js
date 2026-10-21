@@ -1397,12 +1397,12 @@ You are a professional cinematic recap narrator and scriptwriter. Write engaging
 suspenseful, fast-paced movie recap narration.
 - Tone & voice: mysterious, thrilling and engaging, suitable for a suspense/crime recap.
 - Hook: the very first sentence of the FIRST scene must be a strong attention-grabbing hook.
-- Sentence structure: medium-length sentences in PAST tense (spoken Burmese past tense,
-  e.g. "...ခဲ့တယ်"), a steady gripping narrative flow, no unnecessary filler.
-- Pacing: concise, with smooth transitions between scenes, as if matching a fast-paced
-  video edit. Each scene should end in a way that pulls the viewer into the next one.
-- Language: natural, fluent, professional voice-over Burmese (spoken style, not bookish).
-- The length budget in rule 21 still applies: never write more than can be spoken in the scene.`;
+- Sentence structure: complete medium-length sentences in natural spoken Burmese, mainly past tense (e.g. "...ခဲ့တယ်").
+- FLOW IS CRITICAL: write one connected story, not separate scene captions. Continue the same thought across scene boundaries when appropriate; avoid restarting sentences, repeating character names, or using a full-stop cadence after every tiny event.
+- Use natural linking phrases only when they fit the story, and vary them. Each line should explain what happened, why it mattered, and what happened next.
+- Language: fluent, idiomatic everyday Burmese that a skilled Myanmar YouTube narrator would actually say aloud; never literal translation, bookish wording, or clipped fragments.
+- Keep the narration active through most of each scene. Avoid leaving long empty stretches after a short sentence, but do not invent events or add meaningless filler.
+- Follow the narration length budget in rule 21.`;
 
   const syncMode = style === "sync";
   if (syncMode) {
@@ -1481,11 +1481,11 @@ RULES:
 18. Keep the ending.
 19. Avoid meaningless filler.
 20. Narration must sound natural when spoken.
-21. NARRATION LENGTH BUDGET (very important): the narration of each scene must be speakable in LESS than that scene's duration at a normal speaking pace.
-    - Myanmar: about 9 to 11 characters per second of the scene (a 10 second scene is about 100 characters). Never go above 13 characters per second.
-    - English: about 2 words per second.
-    - ${syncMode ? "In sync mode all dialogue in the scene MUST still be translated; if it is too long, choose a shorter natural Burmese wording of the same meaning instead of dropping lines." : "Do NOT describe every small action. Summarize only the key story events and skip minor details."}
-    - Leave short natural pauses. It is better to say less than to rush.
+21. NARRATION LENGTH AND FLOW (very important): aim for narration that naturally occupies about 75–90% of each scene, leaving only a brief breathing pause. Do not make scenes so short that the video becomes silent for several seconds.
+    - Myanmar: target roughly 12–14 Burmese characters per second of scene duration (a 10 second scene usually needs around 120–140 characters); do not exceed 16 characters per second. Prefer natural complete phrasing over padding or repetitive wording.
+    - English: target about 2.2–2.6 words per second of scene duration.
+    - ${syncMode ? "In sync mode all dialogue in the scene MUST still be translated; if it is too long, choose a shorter natural Burmese wording of the same meaning instead of dropping lines." : "Do NOT describe every small action. Summarize key story events with enough connected detail to sustain narration through the scene; skip minor details."}
+    - Keep pauses brief and natural. Never add filler just to hit the length target, and never rush speech unnaturally.
 22. Do not use Markdown.
 23. Do not use headings in narration.
 24. Do not mention AI.
@@ -1916,10 +1916,20 @@ async function googleTranslateTts(text, outputPath) {
 // Join scene narrations into one text. A scene that does not end with
 // sentence punctuation gets "။" so the voice pauses instead of running on.
 function joinNarrationsForTts(scenes) {
-  return scenes
+  const narrations = scenes
     .map(scene => String(scene.narration || "").trim())
-    .filter(Boolean)
-    .map(text => (/[။!?.…။၊]$/.test(text) ? text : `${text}။`))
+    .filter(Boolean);
+
+  // A scene boundary is not necessarily the end of a spoken thought. Use a
+  // light Burmese comma at boundaries so TTS flows into the next scene rather
+  // than inserting a full-stop pause after every scene. Keep the final stop.
+  return narrations
+    .map((text, index) => {
+      if (index === narrations.length - 1) {
+        return /[။!?…]$/.test(text) ? text : `${text}။`;
+      }
+      return text.replace(/[။!?…]+$/u, "၊").replace(/[၊,]+$/u, "၊");
+    })
     .join(" ")
     .trim();
 }
