@@ -1,23 +1,17 @@
 {
-  "name": "ynt-one-clips",
+  "name": "yan-naing-recap-tool",
   "version": "1.0.0",
-  "description": "YNT One Clips - AI Movie Recap Generator",
+  "private": true,
   "type": "module",
-  "main": "server.js",
+  "description": "YanNaing Recap Tool frontend and recap video processing backend",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
-  },
-  "engines": {
-    "node": ">=20"
+    "check": "node --check server.js"
   },
   "dependencies": {
-    "@google/genai": "^2.24.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "groq-sdk": "^0.37.0",
-    "multer": "^1.4.5-lts.1",
-    "pg": "^8.16.3",
-    "@expo-google-fonts/noto-sans-myanmar": "*"
+    "groq-sdk": "^0.30.0",
+    "multer": "^1.4.5-lts.2"
   }
 }
