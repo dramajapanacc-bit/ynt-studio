@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 
 const execFileAsync = promisify(execFile);
 
-const SUBTITLE_FONT = process.env.SUBTITLE_FONT || "Padauk";
+const SUBTITLE_FONT = process.env.SUBTITLE_FONT || "Noto Sans Myanmar";
 const SUBTITLE_FONT_SCALE = Number(process.env.SUBTITLE_FONT_SCALE) || 1;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // Project "fonts" folder first (drop NotoSansMyanmar-Regular/Bold.ttf in there),
@@ -57,7 +57,7 @@ const hasFontFiles = dir => {
   try { return fs.readdirSync(dir).some(name => /\.(ttf|otf)$/i.test(name)); } catch { return false; }
 };
 
-// Warn loudly at startup if no Myanmar font is installed (subtitles would be □□□). Padauk is the default because its Myanmar glyph shaping is reliable in FFmpeg/libass.
+// Warn loudly at startup if no Myanmar font is installed (subtitles would be □□□). Noto Sans Myanmar is the default and matches the bundled npm runtime fonts.
 export async function checkSubtitleFont() {
   if (prepareNpmFonts()) { console.log("[FONT] Myanmar font ready from npm package (fonts-runtime)"); return true; }
   try {
@@ -65,7 +65,7 @@ export async function checkSubtitleFont() {
     if (stdout.trim()) { console.log(`[FONT] Myanmar font OK: ${stdout.split("\n")[0].trim()}`); return true; }
   } catch {}
   if (hasFontFiles(FONT_DIRS[0])) { console.log("[FONT] using fonts from ./fonts"); return true; }
-  console.warn("[FONT] ⚠ No Myanmar font found — burned subtitles will show □□□. Install `fonts-sil-padauk` (apt) or put Padauk-Regular.ttf and Padauk-Bold.ttf into the ./fonts folder.");
+  console.warn("[FONT] ⚠ No Myanmar font found — burned subtitles will show □□□. Install a Myanmar font or put NotoSansMyanmar-Regular.ttf and NotoSansMyanmar-Bold.ttf into the ./fonts folder.");
   return false;
 }
 const PRESET_Y = { top: 14, middle: 50, bottom: 84 };
