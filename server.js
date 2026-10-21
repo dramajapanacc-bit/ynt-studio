@@ -27,6 +27,34 @@ const execFileAsync = promisify(execFile);
 
 const app = express();
 
+// CORS: allow the separately hosted frontend to call this API.
+// Set CORS_ORIGIN to a comma-separated list of trusted frontend origins.
+// Defaults to "*" for compatibility with existing public frontend deployments.
+const CORS_ORIGINS = String(process.env.CORS_ORIGIN || "*")
+  .split(",")
+  .map(origin => origin.trim())
+  .filter(Boolean);
+
+app.use((req, res, next) => {
+  const requestOrigin = req.headers.origin;
+  const allowOrigin = CORS_ORIGINS.includes("*")
+    ? "*"
+    : (requestOrigin && CORS_ORIGINS.includes(requestOrigin) ? requestOrigin : "");
+
+  if (allowOrigin) {
+    res.setHeader("Access-Control-Allow-Origin", allowOrigin);
+    if (allowOrigin !== "*") res.setHeader("Vary", "Origin");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+  res.setHeader("Access-Control-Max-Age", "86400");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+  next();
+});
+
 /* =========================================================
    PORT
 ========================================================= */
