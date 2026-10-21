@@ -100,6 +100,18 @@ app.use(
   })
 );
 
+// Lightweight API request logging helps identify hosting/network failures
+// without logging uploaded content, API keys, or request bodies.
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/") || req.path === "/health") {
+    const startedAt = Date.now();
+    res.on("finish", () => {
+      console.log(`[HTTP] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${Date.now() - startedAt}ms)`);
+    });
+  }
+  next();
+});
+
 /* =========================================================
    MULTER
 ========================================================= */
@@ -3199,25 +3211,18 @@ app.use(
       { method: req.method, url: req.originalUrl, contentLength: req.headers["content-length"] || null, error: err?.stack || err?.message || String(err) }
     );
 
-    if (
-      err instanceof
-      multer.MulterError
-    ) {
-      return res
-        .status(400)
-        .json({
-          error:
-            err.message
-        });
+    if (err instanceof multer.MulterError) {
+      const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+      return res.status(status).json({
+        error: err.code === "LIMIT_FILE_SIZE"
+          ? "Video ဖိုင်အရွယ်အစား 500MB ထက် မကျော်ရပါ။"
+          : err.message
+      });
     }
 
-    return res
-      .status(500)
-      .json({
-        error:
-          err.message ||
-          "Server error."
-      });
+    return res.status(500).json({
+      error: err.message || "Server error."
+    });
   }
 );
 
