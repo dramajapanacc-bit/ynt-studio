@@ -498,7 +498,12 @@ $('generate').onclick=async()=>{
     const r=await fetch('/api/one-clip',{method:'POST',body:fd});const d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d?.error||'Movie processing မစနိုင်ပါ');
     jobId=d.jobId;if(!jobId)throw new Error('Job ID မရပါ');store.set(jobId);startPoll();
-  }catch(e){showErr(e.message);stop()}
+  }catch(e){
+    const msg = (e && (e.name === 'TypeError' || /failed to fetch|networkerror|load failed/i.test(String(e.message||''))))
+      ? 'Server နဲ့ ချိတ်ဆက်မရပါ (Failed to fetch)။ Hosting server ရပ်သွားခြင်း၊ deploy မအောင်မြင်ခြင်း၊ သို့မဟုတ် upload request ကို hosting က ဖြတ်တောက်ခြင်း ဖြစ်နိုင်ပါတယ်။ Hosting Logs နဲ့ /health ကို စစ်ပါ။'
+      : (e.message || 'Movie processing မစနိုင်ပါ');
+    showErr(msg);stop()
+  }
 };
 $('renderBtn').onclick=async()=>{
   if(!jobId)return;
@@ -510,7 +515,12 @@ $('renderBtn').onclick=async()=>{
   try{
     const r=await fetch('/api/render/'+encodeURIComponent(jobId),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes:items,style:$('recapStyle').value||STYLE_DEFAULT,voice:voiceName,ttsEngine:$('ttsEngine').value,burn:burnPayload()})});
     const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error||'Render မစနိုင်ပါ');startPoll();
-  }catch(e){showErr(e.message);stop()}
+  }catch(e){
+    const msg = (e && (e.name === 'TypeError' || /failed to fetch|networkerror|load failed/i.test(String(e.message||''))))
+      ? 'Render API နဲ့ ချိတ်ဆက်မရပါ။ Hosting server နဲ့ Logs ကို စစ်ပါ။'
+      : (e.message || 'Render မစနိုင်ပါ');
+    showErr(msg);stop()
+  }
 };
 function confetti(){
   if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
