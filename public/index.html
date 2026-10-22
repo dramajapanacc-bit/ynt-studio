@@ -189,19 +189,8 @@ textarea:focus{border-color:var(--cyan)}
   <video class="preview" id="preview" controls></video>
 </section>
 
-<section class="card" id="qualityCard">
-  <div class="head"><span class="num">2</span><div><h2>Video Quality & Story Flow</h2><p>Resolution၊ ပုံအချိုး၊ အသံအမြန်နှုန်း၊ ဇာတ်ကြောင်းအဆက်အစပ်နဲ့ Scene ပြောင်းလဲမှုကို သတ်မှတ်ပါ။</p></div></div>
-  <div class="row">
-    <div><label for="videoResolution">Video Resolution</label><select id="videoResolution" class="selectBox"><option value="source">မူရင်း Resolution</option><option value="720">HD 720p</option><option value="1080" selected>Full HD 1080p</option></select></div>
-    <div><label for="videoAspect">Aspect Ratio</label><select id="videoAspect" class="selectBox"><option value="source">မူရင်းအချိုး</option><option value="9:16" selected>9:16 · TikTok / Shorts</option><option value="16:9">16:9 · YouTube</option><option value="1:1">1:1 · Square</option><option value="4:5">4:5 · Portrait</option></select></div>
-  </div>
-  <div class="opt"><div class="lab"><label for="voiceSpeed">Myanmar Voice — အသံအမြန်နှုန်း</label><span id="voiceSpeedV">1.0×</span></div><input class="rng" id="voiceSpeed" type="range" min="0.8" max="1.25" step="0.05" value="1"><p class="hint">Edge TTS အသံကို မြန်/နှေး ချိန်ညှိပေးမယ်။</p></div>
-  <div class="opt"><label class="sw"><span>Recap Storyline အဆက်အစပ်ကို ဦးစားပေးမယ်</span><input type="checkbox" id="storyContinuity" checked><i></i></label><p class="hint">ဇာတ်ကောင်အမည်၊ ဖြစ်ရပ်အစီအစဉ်နဲ့ အကြောင်း-အကျိုး ဆက်စပ်မှုကို မပျောက်စေပါ။</p></div>
-  <div class="opt"><div class="row"><div><label for="sceneTransition">Scene Transitions</label><select id="sceneTransition" class="selectBox"><option value="cut" selected>Clean Cut · အသံ/ရုပ်ပုံကိုက်ညီ</option><option value="fade">Soft Fade · နူးညံ့စွာပြောင်း</option></select></div></div><p class="hint">အသံနဲ့ ရုပ်ပုံ အချိန်ကိုက်မှုကို ထိန်းထားပြီး Scene ပြောင်းလဲမှုကို သတ်မှတ်ပါ။</p></div>
-</section>
-
 <section class="card">
-  <div class="head"><span class="num">3</span><div><h2>Myanmar Voice</h2><p>▶ ကို နှိပ်ပြီး အသံတစ်ခုချင်း နားထောင်ကြည့်ပါ၊ ကြိုက်တာကို ရွေးပါ။</p></div></div>
+  <div class="head"><span class="num">2</span><div><h2>Myanmar Voice</h2><p>▶ ကို နှိပ်ပြီး အသံတစ်ခုချင်း နားထောင်ကြည့်ပါ၊ ကြိုက်တာကို ရွေးပါ။</p></div></div>
   <div class="row">
     <div><label for="ttsEngine">အသံထုတ်တဲ့နည်း</label><select id="ttsEngine" class="selectBox"><option value="auto" selected>🔁 Auto (Gemini → Edge → Azure → Google)</option><option value="gemini">✨ Gemini TTS</option><option value="edge">🆓 Edge TTS (အခမဲ့၊ key မလို)</option><option value="elevenlabs">🎙️ ElevenLabs v3 (key လို)</option><option value="azure">☁️ Azure Speech</option><option value="google">🌐 Google Translate TTS</option></select></div>
     <div><label for="language">ဘာသာစကား</label><select id="language" class="selectBox"><option value="my" selected>🇲🇲 မြန်မာ</option><option value="en">🇬🇧 English</option></select></div>
@@ -222,7 +211,7 @@ textarea:focus{border-color:var(--cyan)}
 </section>
 
 <section class="card" id="burnCard">
-  <div class="head"><span class="num">4</span><div><h2>စာတန်းထိုး &amp; Blur</h2><p>မြန်မာစာတန်းထိုး ထည့်ခြင်း၊ မူရင်းစာတန်းထိုးကို Blur ဖုံးခြင်း (ရွေးချယ်စရာ)။</p></div></div>
+  <div class="head"><span class="num">3</span><div><h2>စာတန်းထိုး &amp; Blur</h2><p>မြန်မာစာတန်းထိုး ထည့်ခြင်း၊ မူရင်းစာတန်းထိုးကို Blur ဖုံးခြင်း (ရွေးချယ်စရာ)။</p></div></div>
 
   <div class="stageWrap" id="stageWrap">
     <div class="stage" id="stage"><video id="stageVideo" muted playsinline preload="metadata"></video><div class="boxLayer" id="boxLayer"></div><div class="subSample" id="subSample">ဒီအချိန်မှာ သူ့လျှို့ဝှက်ချက် ပေါ်လာပါတယ်</div></div>
@@ -428,12 +417,10 @@ function burnPayload(){
   const boxesOut=boxes.map(b=>({x:+b.x.toFixed(4),y:+b.y.toFixed(4),w:+b.w.toFixed(4),h:+b.h.toFixed(4)}));
   return{
     subtitle:{enabled:$('subOn').checked,sizePct:+subPct().toFixed(2),color:radioVal('subColor')||'#ffe600',position:radioVal('subPos')||'custom',xPct:+subX.toFixed(2),yPct:+subY.toFixed(2)},
-    blur:{enabled:$('blurOn').checked&&boxesOut.length>0,boxes:boxesOut,strength:sigma()},
-    output:{resolution:$('videoResolution').value,aspect:$('videoAspect').value,voiceSpeed:Number($('voiceSpeed').value),continuity:$('storyContinuity').checked,transition:$('sceneTransition').value}
+    blur:{enabled:$('blurOn').checked&&boxesOut.length>0,boxes:boxesOut,strength:sigma()}
   };
 }
 applySub();applyBlur();
-$('voiceSpeed').addEventListener('input',()=>{$('voiceSpeedV').textContent=Number($('voiceSpeed').value).toFixed(2).replace(/0$/,'')+'×'});
 $('voices').innerHTML=VOICES.map(([n,g,d],i)=>`<div class="vc"><input type="radio" name="vsel" id="v_${n}" value="${n}"${i===0?' checked':''}><label for="v_${n}"><em class="av ${g==='Female'?'f':'m'}">${n[0]}</em><span class="vt"><b>${n}</b><span>${g} · ${d}</span></span><span class="eq"><s></s><s></s><s></s></span></label><button type="button" class="play" data-v="${n}" aria-label="${n} အသံနားထောင်">▶</button></div>`).join('');
 document.querySelectorAll('input[name="vsel"]').forEach(r=>r.onchange=()=>{voiceName=r.value});
 document.querySelectorAll('.play').forEach(b=>b.onclick=()=>preview(SAMPLE[$('language').value]||SAMPLE.my,b,b.dataset.v));
