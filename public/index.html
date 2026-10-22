@@ -221,6 +221,16 @@ textarea:focus{border-color:var(--cyan)}
   <p class="hint" id="noMovie">Movie ရွေးပြီးရင် ဒီမှာ Preview ပေါ်ပါမယ်။</p>
 
   <div class="opt">
+    <div class="lab"><label for="outputRatio">Video Size / Aspect Ratio</label><span>Final MP4</span></div>
+    <select class="selectBox" id="outputRatio" aria-label="Video aspect ratio">
+      <option value="original">မူရင်းအချိုးအစားအတိုင်း</option>
+      <option value="9:16">9:16 — TikTok / Shorts / Reels</option>
+      <option value="16:9">16:9 — YouTube</option>
+    </select>
+    <p class="hint">9:16 / 16:9 ရွေးနိုင်ပါတယ်။ ပုံကို မဖြတ်ဘဲ အချိုးအစားမကိုက်တဲ့နေရာမှာ အနက်ရောင်အနားဖြည့်ပေးပါမယ်။</p>
+  </div>
+
+  <div class="opt">
     <label class="sw"><span>မြန်မာစာတန်းထိုး ထည့်မယ်</span><input type="checkbox" id="subOn"><i></i></label>
     <div class="subbox off" id="subOpts">
       <div class="lab"><label for="subSize">စာလုံးအရွယ်</label><span id="subSizeV">အလတ်</span></div>
@@ -416,6 +426,7 @@ window.onMovieSelected=u=>{
 function burnPayload(){
   const boxesOut=boxes.map(b=>({x:+b.x.toFixed(4),y:+b.y.toFixed(4),w:+b.w.toFixed(4),h:+b.h.toFixed(4)}));
   return{
+    aspectRatio:$('outputRatio')?.value||'original',
     subtitle:{enabled:$('subOn').checked,sizePct:+subPct().toFixed(2),color:radioVal('subColor')||'#ffe600',position:radioVal('subPos')||'custom',xPct:+subX.toFixed(2),yPct:+subY.toFixed(2)},
     blur:{enabled:$('blurOn').checked&&boxesOut.length>0,boxes:boxesOut,strength:sigma()}
   };
