@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 
 const execFileAsync = promisify(execFile);
 
-const SUBTITLE_FONT = process.env.SUBTITLE_FONT || "Padauk";
+const SUBTITLE_FONT = process.env.SUBTITLE_FONT || "Noto Sans Myanmar";
 const SUBTITLE_FONT_SCALE = Number(process.env.SUBTITLE_FONT_SCALE) || 1;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // Project "fonts" folder first (drop NotoSansMyanmar-Regular/Bold.ttf in there),
@@ -59,12 +59,13 @@ const hasFontFiles = dir => {
 
 // Warn loudly at startup if no Myanmar font is installed (subtitles would be □□□). Noto Sans Myanmar is the default and matches the bundled npm runtime fonts.
 export async function checkSubtitleFont() {
-  if (prepareNpmFonts()) { console.log("[FONT] Myanmar font ready from npm package (fonts-runtime)"); return true; }
+  if (prepareNpmFonts()) { console.log("[FONT] Myanmar font ready from npm package (fonts-runtime; Noto Sans Myanmar)"); return true; }
   try {
-    const { stdout } = await execFileAsync("fc-match", [SUBTITLE_FONT, "-f", "%{family}|%{file}\n"]);
+    const { stdout } = await execFileAsync("fc-match", [SUBTITLE_FONT, "-f", "%{family}|%{file}|%{lang}\n"]);
     const match = stdout.trim();
-    if (match && !/\/usr\/share\/fonts\/.*\/DejaVuSans/i.test(match)) {
-      console.log(`[FONT] Subtitle font resolved: ${match}`);
+    // Accept only a real Myanmar-capable font, not a generic Latin fallback.
+    if (match && /my|mymr/i.test(match) && !/DejaVuSans/i.test(match)) {
+      console.log(`[FONT] Myanmar subtitle font resolved: ${match}`);
       return true;
     }
   } catch {}
@@ -267,7 +268,12 @@ export function buildBurnFilter(burn, size, assPath) {
   }
 
   if (assPath) {
-    const fontsDir = FONT_DIRS.find(hasFontFiles);
+    // Prefer bundled Noto Myanmar font files; a generic ./fonts directory may
+    // contain unrelated Latin fonts and cause Burmese characters to render as boxes.
+    const preferredFontDirs = [RUNTIME_FONT_DIR, path.join(HERE, "fonts"), ...FONT_DIRS.filter(dir => dir !== RUNTIME_FONT_DIR && dir !== path.join(HERE, "fonts"))];
+    const fontsDir = preferredFontDirs.find(dir => {
+      try { return fs.readdirSync(dir).some(name => /NotoSansMyanmar.*\.(ttf|otf)$/i.test(name) || /Padauk.*\.(ttf|otf)$/i.test(name)); } catch { return false; }
+    }) || FONT_DIRS.find(hasFontFiles);
     parts.push(
       `[${current}]subtitles=filename=${quote(assPath)}${fontsDir ? `:fontsdir=${quote(fontsDir)}` : ""}[withsub]`
     );
