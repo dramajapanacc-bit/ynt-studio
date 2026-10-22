@@ -7,17 +7,17 @@ import { fileURLToPath } from "url";
 
 const execFileAsync = promisify(execFile);
 
-const SUBTITLE_FONT = process.env.SUBTITLE_FONT || "Noto Sans Myanmar";
+const SUBTITLE_FONT = process.env.SUBTITLE_FONT || "Padauk";
 const SUBTITLE_FONT_SCALE = Number(process.env.SUBTITLE_FONT_SCALE) || 1;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // Project "fonts" folder first (drop NotoSansMyanmar-Regular/Bold.ttf in there),
 // then common system locations.
 const FONT_DIRS = [
   path.join(HERE, "fonts"),
+  "/usr/share/fonts/truetype/padauk",
   path.join(HERE, "fonts-runtime"),
   "/usr/share/fonts/truetype/noto",
   "/usr/share/fonts/opentype/noto",
-  "/usr/share/fonts/truetype/padauk",
   "/usr/share/fonts/truetype",
   "/usr/share/fonts"
 ];
@@ -60,6 +60,14 @@ const hasFontFiles = dir => {
 // Warn loudly at startup if no Myanmar font is installed (subtitles would be □□□). Noto Sans Myanmar is the default and matches the bundled npm runtime fonts.
 export async function checkSubtitleFont() {
   if (prepareNpmFonts()) { console.log("[FONT] Myanmar font ready from npm package (fonts-runtime)"); return true; }
+  try {
+    const { stdout } = await execFileAsync("fc-match", [SUBTITLE_FONT, "-f", "%{family}|%{file}\n"]);
+    const match = stdout.trim();
+    if (match && !/\/usr\/share\/fonts\/.*\/DejaVuSans/i.test(match)) {
+      console.log(`[FONT] Subtitle font resolved: ${match}`);
+      return true;
+    }
+  } catch {}
   try {
     const { stdout } = await execFileAsync("fc-list", [":lang=my", "family"]);
     if (stdout.trim()) { console.log(`[FONT] Myanmar font OK: ${stdout.split("\n")[0].trim()}`); return true; }
