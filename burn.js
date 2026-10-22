@@ -86,6 +86,7 @@ export function normalizeBurn(raw) {
 
   const sub = b.subtitle || {};
   const blur = b.blur || {};
+  const aspectRatio = ["9:16", "16:9"].includes(b.aspectRatio) ? b.aspectRatio : "original";
 
   const boxes = (Array.isArray(blur.boxes) ? blur.boxes : [])
     .slice(0, 6)
@@ -102,6 +103,7 @@ export function normalizeBurn(raw) {
     .filter(item => item.w > 0.01 && item.h > 0.01);
 
   return {
+    aspectRatio,
     subtitle: {
       enabled: sub.enabled === true,
       sizePct: num(sub.sizePct, 3.6, 1, 12),
@@ -118,7 +120,7 @@ export function normalizeBurn(raw) {
 }
 
 export function burnActive(burn) {
-  return !!burn && (burn.subtitle.enabled || burn.blur.enabled);
+  return !!burn && (burn.subtitle.enabled || burn.blur.enabled || burn.aspectRatio !== "original");
 }
 
 /* ---------- video size (as displayed, rotation aware) ---------- */
@@ -259,8 +261,14 @@ export function buildBurnFilter(burn, size, assPath) {
   if (assPath) {
     const fontsDir = FONT_DIRS.find(hasFontFiles);
     parts.push(
-      `[${current}]subtitles=filename=${quote(assPath)}${fontsDir ? `:fontsdir=${quote(fontsDir)}` : ""}[vout]`
+      `[${current}]subtitles=filename=${quote(assPath)}${fontsDir ? `:fontsdir=${quote(fontsDir)}` : ""}[withsub]`
     );
+    current = "withsub";
+  }
+  if (burn.aspectRatio === "9:16") {
+    parts.push(`[${current}]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1[vout]`);
+  } else if (burn.aspectRatio === "16:9") {
+    parts.push(`[${current}]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1[vout]`);
   } else if (parts.length) {
     parts.push(`[${current}]null[vout]`);
   } else {
