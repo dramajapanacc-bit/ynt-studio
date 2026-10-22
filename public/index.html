@@ -280,6 +280,8 @@ textarea:focus{border-color:var(--cyan)}
   <div class="steps"><div class="step" data-stage="Upload"><i>📤</i>Upload</div><div class="step" data-stage="Transcript"><i>🎙️</i>Whisper</div><div class="step" data-stage="Recap"><i>🧠</i>Script</div><div class="step" data-stage="Voice"><i>🗣️</i>Voice</div><div class="step" data-stage="FFmpeg"><i>🎞️</i>Render</div></div>
   <div class="message" id="message">စတင်ရန် ပြင်ဆင်နေပါတယ်...</div>
   <div class="error" id="error"></div>
+  <button class="ghost" id="restartJobBtn" type="button">🔄 အလုပ်ရပ်သွားရင် Movie အသစ်နဲ့ ပြန်စမယ်</button>
+  <p class="hint" style="margin-top:8px">Progress အချိန်ကြာကြာ မတိုးတော့ပါက ဒီခလုတ်ကိုနှိပ်ပြီး Movie ကို ပြန်ရွေးကာ အစကနေ စနိုင်ပါတယ်။ လက်ရှိ server အလုပ်ကို ဒီခလုတ်က အတိအကျ cancel မလုပ်နိုင်ပါ။</p>
 </section>
 
 <section class="card scriptCard" id="scriptCard">
@@ -498,6 +500,9 @@ function resetAll(){
   $('dropTitle').textContent='Movie ကို ဒီမှာရွေးပါ';$('upload').scrollIntoView({behavior:'smooth'});
 }
 $('newBtn').onclick=resetAll;
+$('restartJobBtn').onclick=()=>{
+  if(confirm('လက်ရှိအလုပ်ကို ဒီစာမျက်နှာမှာ ရှင်းပြီး Movie အသစ်နဲ့ အစကနေ ပြန်စမလား? မူလ server process ကိုတော့ အလိုအလျောက် cancel မလုပ်နိုင်ပါ။')) resetAll();
+};
 $('generate').onclick=async()=>{
   if(busy)return;
   if(!selectedFile){showErr('အရင် Movie ရွေးပါ');return}
