@@ -86,7 +86,6 @@ export function normalizeBurn(raw) {
 
   const sub = b.subtitle || {};
   const blur = b.blur || {};
-  const aspectRatio = ["9:16", "16:9"].includes(b.aspectRatio) ? b.aspectRatio : "original";
 
   const boxes = (Array.isArray(blur.boxes) ? blur.boxes : [])
     .slice(0, 6)
@@ -103,10 +102,8 @@ export function normalizeBurn(raw) {
     .filter(item => item.w > 0.01 && item.h > 0.01);
 
   return {
-    aspectRatio,
     subtitle: {
       enabled: sub.enabled === true,
-      fontFamily: ["Noto Sans Myanmar", "Padauk"].includes(sub.fontFamily) ? sub.fontFamily : SUBTITLE_FONT,
       sizePct: num(sub.sizePct, 3.6, 1, 12),
       color: /^#[0-9a-f]{6}$/i.test(String(sub.color)) ? String(sub.color) : "#ffe600",
       x: num(sub.xPct, 50, 0, 100),
@@ -121,7 +118,7 @@ export function normalizeBurn(raw) {
 }
 
 export function burnActive(burn) {
-  return !!burn && (burn.subtitle.enabled || burn.blur.enabled || burn.aspectRatio !== "original");
+  return !!burn && (burn.subtitle.enabled || burn.blur.enabled);
 }
 
 /* ---------- video size (as displayed, rotation aware) ---------- */
@@ -221,7 +218,7 @@ export function writeAss(assPath, size, sub, narration, duration) {
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,${sub.fontFamily || SUBTITLE_FONT},${fontSize},${assColor(sub.color)},&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,${Math.max(2, outline + 1)},2,5,${margin},${margin},0,1`,
+    `Style: Default,${SUBTITLE_FONT},${fontSize},${assColor(sub.color)},&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,${outline},1,5,${margin},${margin},0,1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -242,11 +239,19 @@ export function buildBurnFilter(burn, size, assPath) {
   const { width: W, height: H } = size;
   const parts = [];
   let current = "0:v";
+  const adj = burn.adjust || {};
+  const brightness = Math.max(-0.30, Math.min(0.30, Number(adj.brightness) || 0));
+  const contrast = Math.max(0.50, Math.min(1.80, Number(adj.contrast) || 1));
+  const saturation = Math.max(0, Math.min(2, Number(adj.saturation ?? 1)));
+  if (Math.abs(brightness) > 0.001 || Math.abs(contrast - 1) > 0.001 || Math.abs(saturation - 1) > 0.001) {
+    parts.push(`[${current}]eq=brightness=${brightness.toFixed(3)}:contrast=${contrast.toFixed(3)}:saturation=${saturation.toFixed(3)}[adjusted]`);
+    current = "adjusted";
+  }
 
   if (burn.blur.enabled) {
     const boxes = burn.blur.boxes;
     const sigma = Math.max(1.5, burn.blur.strength * W / 1280).toFixed(2);
-    parts.push(`[0:v]split=${boxes.length + 1}[base]${boxes.map((_, i) => `[s${i}]`).join("")}`);
+    parts.push(`[${current}]split=${boxes.length + 1}[base]${boxes.map((_, i) => `[s${i}]`).join("")}`);
     current = "base";
     boxes.forEach((box, i) => {
       const x = Math.min(W - 4, Math.round(box.x * W));
@@ -262,14 +267,8 @@ export function buildBurnFilter(burn, size, assPath) {
   if (assPath) {
     const fontsDir = FONT_DIRS.find(hasFontFiles);
     parts.push(
-      `[${current}]subtitles=filename=${quote(assPath)}${fontsDir ? `:fontsdir=${quote(fontsDir)}` : ""}[withsub]`
+      `[${current}]subtitles=filename=${quote(assPath)}${fontsDir ? `:fontsdir=${quote(fontsDir)}` : ""}[vout]`
     );
-    current = "withsub";
-  }
-  if (burn.aspectRatio === "9:16") {
-    parts.push(`[${current}]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1[vout]`);
-  } else if (burn.aspectRatio === "16:9") {
-    parts.push(`[${current}]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1[vout]`);
   } else if (parts.length) {
     parts.push(`[${current}]null[vout]`);
   } else {
