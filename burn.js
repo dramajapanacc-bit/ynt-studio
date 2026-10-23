@@ -14,10 +14,10 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 // then common system locations.
 const FONT_DIRS = [
   path.join(HERE, "fonts"),
-  "/usr/share/fonts/truetype/padauk",
   path.join(HERE, "fonts-runtime"),
   "/usr/share/fonts/truetype/noto",
   "/usr/share/fonts/opentype/noto",
+  "/usr/share/fonts/truetype/padauk",
   "/usr/share/fonts/truetype",
   "/usr/share/fonts"
 ];
@@ -59,16 +59,7 @@ const hasFontFiles = dir => {
 
 // Warn loudly at startup if no Myanmar font is installed (subtitles would be □□□). Noto Sans Myanmar is the default and matches the bundled npm runtime fonts.
 export async function checkSubtitleFont() {
-  if (prepareNpmFonts()) { console.log("[FONT] Myanmar font ready from npm package (fonts-runtime; Noto Sans Myanmar)"); return true; }
-  try {
-    const { stdout } = await execFileAsync("fc-match", [SUBTITLE_FONT, "-f", "%{family}|%{file}|%{lang}\n"]);
-    const match = stdout.trim();
-    // Accept only a real Myanmar-capable font, not a generic Latin fallback.
-    if (match && /my|mymr/i.test(match) && !/DejaVuSans/i.test(match)) {
-      console.log(`[FONT] Myanmar subtitle font resolved: ${match}`);
-      return true;
-    }
-  } catch {}
+  if (prepareNpmFonts()) { console.log("[FONT] Myanmar font ready from npm package (fonts-runtime)"); return true; }
   try {
     const { stdout } = await execFileAsync("fc-list", [":lang=my", "family"]);
     if (stdout.trim()) { console.log(`[FONT] Myanmar font OK: ${stdout.split("\n")[0].trim()}`); return true; }
@@ -115,6 +106,7 @@ export function normalizeBurn(raw) {
     aspectRatio,
     subtitle: {
       enabled: sub.enabled === true,
+      fontFamily: ["Noto Sans Myanmar", "Padauk"].includes(sub.fontFamily) ? sub.fontFamily : SUBTITLE_FONT,
       sizePct: num(sub.sizePct, 3.6, 1, 12),
       color: /^#[0-9a-f]{6}$/i.test(String(sub.color)) ? String(sub.color) : "#ffe600",
       x: num(sub.xPct, 50, 0, 100),
@@ -229,7 +221,7 @@ export function writeAss(assPath, size, sub, narration, duration) {
     "",
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
-    `Style: Default,${SUBTITLE_FONT},${fontSize},${assColor(sub.color)},&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,${outline},1,5,${margin},${margin},0,1`,
+    `Style: Default,${sub.fontFamily || SUBTITLE_FONT},${fontSize},${assColor(sub.color)},&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,${Math.max(2, outline + 1)},2,5,${margin},${margin},0,1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -268,12 +260,7 @@ export function buildBurnFilter(burn, size, assPath) {
   }
 
   if (assPath) {
-    // Prefer bundled Noto Myanmar font files; a generic ./fonts directory may
-    // contain unrelated Latin fonts and cause Burmese characters to render as boxes.
-    const preferredFontDirs = [RUNTIME_FONT_DIR, path.join(HERE, "fonts"), ...FONT_DIRS.filter(dir => dir !== RUNTIME_FONT_DIR && dir !== path.join(HERE, "fonts"))];
-    const fontsDir = preferredFontDirs.find(dir => {
-      try { return fs.readdirSync(dir).some(name => /NotoSansMyanmar.*\.(ttf|otf)$/i.test(name) || /Padauk.*\.(ttf|otf)$/i.test(name)); } catch { return false; }
-    }) || FONT_DIRS.find(hasFontFiles);
+    const fontsDir = FONT_DIRS.find(hasFontFiles);
     parts.push(
       `[${current}]subtitles=filename=${quote(assPath)}${fontsDir ? `:fontsdir=${quote(fontsDir)}` : ""}[withsub]`
     );
