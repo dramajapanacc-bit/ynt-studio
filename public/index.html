@@ -211,24 +211,49 @@ textarea:focus{border-color:var(--cyan)}
 </section>
 
 <section class="card" id="burnCard">
-  <div class="head"><span class="num">3</span><div><h2>Video Adjust &amp; Blur</h2><p>Video အလင်းအမှောင်နဲ့ မူရင်းစာတန်း/အမှတ်အသားကို Blur ဖုံးနိုင်ပါတယ်။</p></div></div>
+  <div class="head"><span class="num">3</span><div><h2>စာတန်းထိုး &amp; Blur</h2><p>မြန်မာစာတန်းထိုး ထည့်ခြင်း၊ မူရင်းစာတန်းထိုးကို Blur ဖုံးခြင်း (ရွေးချယ်စရာ)။</p></div></div>
 
   <div class="stageWrap" id="stageWrap">
-    <div class="stage" id="stage"><video id="stageVideo" muted playsinline preload="metadata"></video><div class="boxLayer" id="boxLayer"></div></div>
+    <div class="stage" id="stage"><video id="stageVideo" muted playsinline preload="metadata"></video><div class="boxLayer" id="boxLayer"></div><div class="subSample" id="subSample">ဒီအချိန်မှာ သူ့လျှို့ဝှက်ချက် ပေါ်လာပါတယ်</div></div>
     <input class="seek" id="seek" type="range" min="0" max="1000" value="100" aria-label="Video ကို ရွှေ့ကြည့်ရန်">
     <p class="hint">Slider ကို ရွှေ့ပြီး မူရင်းစာတန်းထိုး ပေါ်တဲ့ frame ကို ရှာပါ။</p>
   </div>
   <p class="hint" id="noMovie">Movie ရွေးပြီးရင် ဒီမှာ Preview ပေါ်ပါမယ်။</p>
 
-  <div class="opt" id="videoAdjustOpt">
-    <div class="lab"><label for="adjBrightness">အလင်း (Brightness)</label><span id="adjBrightnessV">0.00</span></div>
-    <input class="rng" id="adjBrightness" type="range" min="-0.30" max="0.30" step="0.01" value="0">
-    <div class="lab"><label for="adjContrast">Contrast — အလင်းအမှောင် ကွာခြားမှု</label><span id="adjContrastV">1.00</span></div>
-    <input class="rng" id="adjContrast" type="range" min="0.50" max="1.80" step="0.05" value="1">
-    <div class="lab"><label for="adjSaturation">Saturation — အရောင်ပြင်းအား</label><span id="adjSaturationV">1.00</span></div>
-    <input class="rng" id="adjSaturation" type="range" min="0" max="2" step="0.05" value="1">
-    <button type="button" class="dashbtn" id="resetAdjust">↺ Adjust မူလအတိုင်း ပြန်ထားမယ်</button>
-    <p class="hint">ဒီတန်ဖိုးတွေကို Final MP4 Render မှာပါ အသုံးပြုပါမယ်။</p>
+  <div class="opt">
+    <div class="lab"><label for="outputRatio">Video Size / Aspect Ratio</label><span>Final MP4</span></div>
+    <select class="selectBox" id="outputRatio" aria-label="Video aspect ratio">
+      <option value="original">မူရင်းအချိုးအစားအတိုင်း</option>
+      <option value="9:16">9:16 — TikTok / Shorts / Reels</option>
+      <option value="16:9">16:9 — YouTube</option>
+    </select>
+    <p class="hint">9:16 / 16:9 ရွေးနိုင်ပါတယ်။ ပုံကို မဖြတ်ဘဲ အချိုးအစားမကိုက်တဲ့နေရာမှာ အနက်ရောင်အနားဖြည့်ပေးပါမယ်။</p>
+  </div>
+
+  <div class="opt">
+    <label class="sw"><span>မြန်မာစာတန်းထိုး ထည့်မယ်</span><input type="checkbox" id="subOn"><i></i></label>
+    <div class="subbox off" id="subOpts">
+      <div class="lab"><label for="subSize">စာလုံးအရွယ်</label><span id="subSizeV">အလတ်</span></div>
+      <input class="rng" id="subSize" type="range" min="1" max="10" value="4">
+      <div class="lab"><span>အရောင်</span><span></span></div>
+      <div class="cols">
+        <label class="sc" style="--c:#ffe600"><input type="radio" name="subColor" value="#ffe600" checked aria-label="အဝါ"><b></b></label>
+        <label class="sc" style="--c:#ffffff"><input type="radio" name="subColor" value="#ffffff" aria-label="အဖြူ"><b></b></label>
+        <label class="sc" style="--c:#5eead4"><input type="radio" name="subColor" value="#5eead4" aria-label="အစိမ်းဖျော့"><b></b></label>
+        <label class="sc" style="--c:#fb923c"><input type="radio" name="subColor" value="#fb923c" aria-label="လိမ္မော်"><b></b></label>
+      </div>
+      <div class="lab"><span>နေရာ</span><span></span></div>
+      <div class="seg">
+        <label><input type="radio" name="subPos" value="top"><span>အပေါ်</span></label>
+        <label><input type="radio" name="subPos" value="middle"><span>အလယ်</span></label>
+        <label><input type="radio" name="subPos" value="bottom" checked><span>အောက်</span></label>
+      </div>
+      <div class="lab"><label for="subY">အပေါ်-အောက် (လွတ်လပ်စွာ)</label><span id="subYV">84%</span></div>
+      <input class="rng" id="subY" type="range" min="0" max="100" value="84">
+      <div class="lab"><label for="subX">ဘယ်-ညာ</label><span id="subXV">50%</span></div>
+      <input class="rng" id="subX" type="range" min="0" max="100" value="50">
+      <p class="hint">Preview ပေါ်က စာတန်းကို လက်နဲ့ တိုက်ရိုက်ဆွဲရွှေ့လို့လည်း ရပါတယ်။ Blur အကွက်ပေါ်လည်း တင်လို့ရပါတယ်။</p>
+    </div>
   </div>
 
   <div class="opt">
@@ -255,6 +280,8 @@ textarea:focus{border-color:var(--cyan)}
   <div class="steps"><div class="step" data-stage="Upload"><i>📤</i>Upload</div><div class="step" data-stage="Transcript"><i>🎙️</i>Whisper</div><div class="step" data-stage="Recap"><i>🧠</i>Script</div><div class="step" data-stage="Voice"><i>🗣️</i>Voice</div><div class="step" data-stage="FFmpeg"><i>🎞️</i>Render</div></div>
   <div class="message" id="message">စတင်ရန် ပြင်ဆင်နေပါတယ်...</div>
   <div class="error" id="error"></div>
+  <button class="ghost" id="restartJobBtn" type="button">🔄 အလုပ်ရပ်သွားရင် Movie အသစ်နဲ့ ပြန်စမယ်</button>
+  <p class="hint" style="margin-top:8px">Progress အချိန်ကြာကြာ မတိုးတော့ပါက ဒီခလုတ်ကိုနှိပ်ပြီး Movie ကို ပြန်ရွေးကာ အစကနေ စနိုင်ပါတယ်။ လက်ရှိ server အလုပ်ကို ဒီခလုတ်က အတိအကျ cancel မလုပ်နိုင်ပါ။</p>
 </section>
 
 <section class="card scriptCard" id="scriptCard">
@@ -269,23 +296,6 @@ textarea:focus{border-color:var(--cyan)}
   <a class="download" id="download" href="#">⬇️ Download MP4</a>
   <p class="summary" id="summary"></p>
   <button class="ghost" id="newBtn" type="button">🔄 Movie အသစ်နဲ့ ပြန်စမယ်</button>
-</section>
-
-<section class="card" id="thumbnailCard">
-  <div class="head"><span class="num">🖼️</span><div><h2>Thumbnail Generator</h2><p>ရုပ်ရှင်ပုံကို Upload လုပ်ပြီး မြန်မာခေါင်းစဉ်ပါ Thumbnail ထုတ်ပါ။</p></div></div>
-  <div class="row">
-    <div><label for="thumbImage">ရုပ်ရှင် Scene ပုံ</label><input class="selectBox" style="padding:9px" id="thumbImage" type="file" accept="image/*"></div>
-    <div><label for="thumbRatio">ပုံအချိုး / Size</label><select class="selectBox" id="thumbRatio"><option value="16:9" selected>YouTube 16:9 — 1280 × 720</option><option value="9:16">Shorts / TikTok 9:16 — 720 × 1280</option></select></div>
-  </div>
-  <div style="margin-top:12px"><label for="thumbTitle">Thumbnail ခေါင်းစဉ် (မြန်မာ)</label><textarea id="thumbTitle" rows="2" placeholder="ဥပမာ - သူ့ဘဝကို ပြောင်းလဲသွားစေတဲ့ လျှို့ဝှက်ချက်"></textarea></div>
-  <div class="row" style="margin-top:12px">
-    <div><label for="thumbTheme">ပုံစံ</label><select class="selectBox" id="thumbTheme"><option value="Cinematic" selected>Cinematic</option><option value="Action">Action / Thriller</option><option value="Mystery">Mystery</option><option value="Emotional">Emotional</option><option value="Horror">Horror</option></select></div>
-    <div><label for="thumbColor">ခေါင်းစဉ်အရောင်</label><select class="selectBox" id="thumbColor"><option value="#ffe600" selected>အဝါ + အနက်အနားသတ်</option><option value="#ffffff">အဖြူ + အနက်အနားသတ်</option><option value="#ff4d4d">အနီ + အနက်အနားသတ်</option></select></div>
-  </div>
-  <button class="generate" id="makeThumbnail" type="button" style="margin-top:14px">✨ Thumbnail ထုတ်မယ်</button>
-  <p class="hint" id="thumbMsg">16:9 အတွက် 1280×720၊ 9:16 အတွက် 720×1280 PNG ထုတ်ပေးပါမယ်။</p>
-  <img id="thumbPreview" class="preview" alt="Generated thumbnail preview" style="max-height:none;display:none">
-  <a class="download" id="thumbDownload" download="ynt-thumbnail.png" style="display:none">⬇️ Thumbnail PNG Download</a>
 </section>
 
 <footer class="footer">YNT Recap Tool · AI Powered · Myanmar Recap</footer>
@@ -319,13 +329,30 @@ function showFile(){
 
 /* ---------- subtitle + blur options ---------- */
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
-const stage=$('stage'),layer=$('boxLayer'),sv=$('stageVideo');
-let boxes=[],selBox=-1,drag=null;
+const stage=$('stage'),layer=$('boxLayer'),sample=$('subSample'),sv=$('stageVideo');
+let boxes=[],selBox=-1,drag=null,subX=50,subY=84,subDrag=null;
 const PRESET_Y={top:14,middle:50,bottom:84};
 const radioVal=n=>document.querySelector('input[name="'+n+'"]:checked')?.value;
 const subPct=()=>2+0.4*Number($('subSize').value);
 const sigma=()=>Math.round(4+3.4*Number($('blurStr').value));
 const LV=['အနည်းငယ်','အနည်းငယ်','အလတ်','အလတ်','အလတ်','အလတ်','ပြင်းပြင်း','ပြင်းပြင်း','အရမ်းပြင်း','အရမ်းပြင်း'];
+function applySub(){
+  const on=$('subOn').checked;
+  $('subOpts').classList.toggle('off',!on);
+  sample.style.display=on?'block':'none';
+  sample.style.fontSize=(stage.clientHeight*subPct()/100)+'px';
+  sample.style.color=radioVal('subColor')||'#ffe600';
+  if(on&&stage.clientWidth&&stage.clientHeight&&sample.offsetWidth){
+    const hx=Math.min(50,sample.offsetWidth/stage.clientWidth*50),hy=Math.min(50,sample.offsetHeight/stage.clientHeight*50);
+    subX=clamp(subX,hx,100-hx);subY=clamp(subY,hy,100-hy);
+  }
+  sample.style.top=subY+'%';sample.style.left=subX+'%';
+  $('subY').value=Math.round(subY);$('subX').value=Math.round(subX);
+  $('subYV').textContent=Math.round(subY)+'%';$('subXV').textContent=Math.round(subX)+'%';
+  const hit=Object.keys(PRESET_Y).find(k=>Math.abs(PRESET_Y[k]-subY)<0.5&&Math.abs(subX-50)<0.5);
+  document.querySelectorAll('input[name="subPos"]').forEach(r=>{r.checked=r.value===hit});
+  $('subSizeV').textContent=LV[Number($('subSize').value)-1];
+}
 function applyBlur(){
   const on=$('blurOn').checked;
   $('blurOpts').classList.toggle('off',!on);
@@ -367,15 +394,33 @@ layer.addEventListener('pointermove',e=>{
   if(el){el.style.left=b.x*100+'%';el.style.top=b.y*100+'%';el.style.width=b.w*100+'%';el.style.height=b.h*100+'%'}
 });
 ['pointerup','pointercancel'].forEach(t=>layer.addEventListener(t,()=>{drag=null}));
+['subOn','subSize'].forEach(id=>$(id).addEventListener('input',applySub));
+document.querySelectorAll('input[name="subColor"]').forEach(r=>r.addEventListener('change',applySub));
+document.querySelectorAll('input[name="subPos"]').forEach(r=>r.addEventListener('change',()=>{subY=PRESET_Y[r.value];subX=50;applySub()}));
+$('subY').addEventListener('input',()=>{subY=Number($('subY').value);applySub()});
+$('subX').addEventListener('input',()=>{subX=Number($('subX').value);applySub()});
+sample.addEventListener('pointerdown',e=>{
+  const r=stage.getBoundingClientRect();
+  subDrag={sx:e.clientX,sy:e.clientY,ox:subX,oy:subY,w:r.width,h:r.height};
+  try{sample.setPointerCapture(e.pointerId)}catch{}
+  sample.style.cursor='grabbing';e.preventDefault();
+});
+sample.addEventListener('pointermove',e=>{
+  if(!subDrag)return;
+  subX=clamp(subDrag.ox+(e.clientX-subDrag.sx)/subDrag.w*100,0,100);
+  subY=clamp(subDrag.oy+(e.clientY-subDrag.sy)/subDrag.h*100,0,100);
+  applySub();
+});
+['pointerup','pointercancel'].forEach(t=>sample.addEventListener(t,()=>{subDrag=null;sample.style.cursor='grab'}));
 ['blurOn','blurStr'].forEach(id=>$(id).addEventListener('input',applyBlur));
 $('seek').addEventListener('input',()=>{if(sv.duration)sv.currentTime=sv.duration*Number($('seek').value)/1000});
 sv.addEventListener('loadedmetadata',()=>{
   const r=sv.videoWidth/sv.videoHeight||16/9;
   stage.style.aspectRatio=String(r);stage.style.width='min(100%,'+Math.round(340*r)+'px)';
   sv.currentTime=Math.max(0.1,(sv.duration||1)*0.1);
-  applyBlur();
+  applySub();applyBlur();
 });
-if(window.ResizeObserver)new ResizeObserver(()=>{applyBlur()}).observe(stage);
+if(window.ResizeObserver)new ResizeObserver(()=>{applySub();applyBlur()}).observe(stage);
 window.onMovieSelected=u=>{
   $('stageWrap').style.display='block';$('noMovie').style.display='none';
   sv.src=u;
@@ -383,40 +428,12 @@ window.onMovieSelected=u=>{
 function burnPayload(){
   const boxesOut=boxes.map(b=>({x:+b.x.toFixed(4),y:+b.y.toFixed(4),w:+b.w.toFixed(4),h:+b.h.toFixed(4)}));
   return{
-    adjust:{brightness:+$('adjBrightness').value,contrast:+$('adjContrast').value,saturation:+$('adjSaturation').value},
+    aspectRatio:$('outputRatio')?.value||'original',
+    subtitle:{enabled:$('subOn').checked,sizePct:+subPct().toFixed(2),color:radioVal('subColor')||'#ffe600',position:radioVal('subPos')||'custom',xPct:+subX.toFixed(2),yPct:+subY.toFixed(2)},
     blur:{enabled:$('blurOn').checked&&boxesOut.length>0,boxes:boxesOut,strength:sigma()}
   };
 }
 applySub();applyBlur();
-function updateAdjust(){
-  $('adjBrightnessV').textContent=Number($('adjBrightness').value).toFixed(2);
-  $('adjContrastV').textContent=Number($('adjContrast').value).toFixed(2);
-  $('adjSaturationV').textContent=Number($('adjSaturation').value).toFixed(2);
-}
-['adjBrightness','adjContrast','adjSaturation'].forEach(id=>$(id).addEventListener('input',updateAdjust));
-$('resetAdjust').onclick=()=>{$('adjBrightness').value='0';$('adjContrast').value='1';$('adjSaturation').value='1';updateAdjust()};updateAdjust();
-$('makeThumbnail').onclick=async()=>{
- const file=$('thumbImage').files?.[0], title=$('thumbTitle').value.trim();
- if(!file){$('thumbMsg').textContent='❌ Thumbnail အတွက် ရုပ်ရှင် Scene ပုံကို အရင်ရွေးပါ။';return}
- if(!title){$('thumbMsg').textContent='❌ Thumbnail ခေါင်းစဉ်ကို ထည့်ပါ။';return}
- const btn=$('makeThumbnail');btn.disabled=true;btn.textContent='⏳ ပုံထုတ်နေပါတယ်...';$('thumbMsg').textContent='AI Thumbnail ထုတ်နေပါတယ်။ ခဏစောင့်ပါ...';
- try{
-  const fd=new FormData();fd.append('image',file);fd.append('theme',$('thumbTheme').value);fd.append('ratio',$('thumbRatio').value);
-  const r=await fetch('/api/thumbnail',{method:'POST',body:fd});const d=await r.json().catch(()=>({}));if(!r.ok||!d.image)throw new Error(d.error||'Thumbnail ထုတ်မရပါ');
-  const im=new Image();im.src=d.image;await im.decode();
-  const ratio=$('thumbRatio').value, w=ratio==='9:16'?720:1280, hgt=ratio==='9:16'?1280:720;
-  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=hgt;const ctx=canvas.getContext('2d');
-  const scale=Math.max(w/im.width,hgt/im.height),dw=im.width*scale,dh=im.height*scale;ctx.drawImage(im,(w-dw)/2,(hgt-dh)/2,dw,dh);
-  const lines=wrapMyanmar(ctx,title,w*.86,ratio==='9:16'?w*.09:w*.065);const fontSize=ratio==='9:16'?58:52;ctx.font=`800 ${fontSize}px "Noto Sans Myanmar",sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
-  const lineH=fontSize*1.35, pad=22, total=lines.length*lineH, y0=hgt-total-pad*2;
-  ctx.fillStyle='rgba(0,0,0,.48)';ctx.fillRect(w*.04,y0,w*.92,total+pad*2);
-  ctx.lineJoin='round';ctx.lineWidth=fontSize*.13;ctx.strokeStyle='#080808';ctx.fillStyle=$('thumbColor').value;
-  lines.forEach((line,i)=>{const y=y0+pad+lineH*(i+.5);ctx.strokeText(line,w/2,y,w*.88);ctx.fillText(line,w/2,y,w*.88)});
-  const url=canvas.toDataURL('image/png');$('thumbPreview').src=url;$('thumbPreview').style.display='block';$('thumbPreview').style.aspectRatio=ratio.replace(':','/');$('thumbDownload').href=url;$('thumbDownload').download=ratio==='9:16'?'ynt-thumbnail-9x16.png':'ynt-thumbnail-1280x720.png';$('thumbDownload').style.display='flex';$('thumbMsg').textContent=`✅ ပြီးပါပြီ — ${w} × ${hgt} PNG`;
- }catch(e){$('thumbMsg').textContent='❌ '+e.message}finally{btn.disabled=false;btn.textContent='✨ Thumbnail ထုတ်မယ်'}
-};
-function wrapMyanmar(ctx,text,maxWidth,fontSize){ctx.font=`800 ${fontSize}px "Noto Sans Myanmar",sans-serif`;const words=text.split(/\s+/),lines=[];let line='';for(const word of words){const test=line?line+' '+word:word;if(ctx.measureText(test).width>maxWidth&&line){lines.push(line);line=word}else line=test}if(line)lines.push(line);return lines.slice(0,5)}
-
 $('voices').innerHTML=VOICES.map(([n,g,d],i)=>`<div class="vc"><input type="radio" name="vsel" id="v_${n}" value="${n}"${i===0?' checked':''}><label for="v_${n}"><em class="av ${g==='Female'?'f':'m'}">${n[0]}</em><span class="vt"><b>${n}</b><span>${g} · ${d}</span></span><span class="eq"><s></s><s></s><s></s></span></label><button type="button" class="play" data-v="${n}" aria-label="${n} အသံနားထောင်">▶</button></div>`).join('');
 document.querySelectorAll('input[name="vsel"]').forEach(r=>r.onchange=()=>{voiceName=r.value});
 document.querySelectorAll('.play').forEach(b=>b.onclick=()=>preview(SAMPLE[$('language').value]||SAMPLE.my,b,b.dataset.v));
@@ -483,6 +500,9 @@ function resetAll(){
   $('dropTitle').textContent='Movie ကို ဒီမှာရွေးပါ';$('upload').scrollIntoView({behavior:'smooth'});
 }
 $('newBtn').onclick=resetAll;
+$('restartJobBtn').onclick=()=>{
+  if(confirm('လက်ရှိအလုပ်ကို ဒီစာမျက်နှာမှာ ရှင်းပြီး Movie အသစ်နဲ့ အစကနေ ပြန်စမလား? မူလ server process ကိုတော့ အလိုအလျောက် cancel မလုပ်နိုင်ပါ။')) resetAll();
+};
 $('generate').onclick=async()=>{
   if(busy)return;
   if(!selectedFile){showErr('အရင် Movie ရွေးပါ');return}
