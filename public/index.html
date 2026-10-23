@@ -233,6 +233,12 @@ textarea:focus{border-color:var(--cyan)}
   <div class="opt">
     <label class="sw"><span>မြန်မာစာတန်းထိုး ထည့်မယ်</span><input type="checkbox" id="subOn"><i></i></label>
     <div class="subbox off" id="subOpts">
+      <div class="lab"><label for="subFont">မြန်မာဖောင့်</label><span>Video ထဲတွင်ပါမည်</span></div>
+      <select class="selectBox" id="subFont" aria-label="မြန်မာစာတန်းထိုးဖောင့်">
+        <option value="Noto Sans Myanmar" selected>Noto Sans Myanmar — ထူထူရှင်းရှင်း</option>
+        <option value="Padauk">Padauk — ရိုးရိုးသန့်သန့်</option>
+      </select>
+      <p class="hint">စာတန်းထိုးဖောင့်ကို ပြောင်းပြီး Preview စာသားကို ကြည့်နိုင်ပါတယ်။ Final Video တွင်လည်း ဒီဖောင့်ကို အသုံးပြုပါမယ်။</p>
       <div class="lab"><label for="subSize">စာလုံးအရွယ်</label><span id="subSizeV">အလတ်</span></div>
       <input class="rng" id="subSize" type="range" min="1" max="10" value="4">
       <div class="lab"><span>အရောင်</span><span></span></div>
@@ -280,8 +286,6 @@ textarea:focus{border-color:var(--cyan)}
   <div class="steps"><div class="step" data-stage="Upload"><i>📤</i>Upload</div><div class="step" data-stage="Transcript"><i>🎙️</i>Whisper</div><div class="step" data-stage="Recap"><i>🧠</i>Script</div><div class="step" data-stage="Voice"><i>🗣️</i>Voice</div><div class="step" data-stage="FFmpeg"><i>🎞️</i>Render</div></div>
   <div class="message" id="message">စတင်ရန် ပြင်ဆင်နေပါတယ်...</div>
   <div class="error" id="error"></div>
-  <button class="ghost" id="restartJobBtn" type="button">🔄 အလုပ်ရပ်သွားရင် Movie အသစ်နဲ့ ပြန်စမယ်</button>
-  <p class="hint" style="margin-top:8px">Progress အချိန်ကြာကြာ မတိုးတော့ပါက ဒီခလုတ်ကိုနှိပ်ပြီး Movie ကို ပြန်ရွေးကာ အစကနေ စနိုင်ပါတယ်။ လက်ရှိ server အလုပ်ကို ဒီခလုတ်က အတိအကျ cancel မလုပ်နိုင်ပါ။</p>
 </section>
 
 <section class="card scriptCard" id="scriptCard">
@@ -342,6 +346,9 @@ function applySub(){
   sample.style.display=on?'block':'none';
   sample.style.fontSize=(stage.clientHeight*subPct()/100)+'px';
   sample.style.color=radioVal('subColor')||'#ffe600';
+  sample.style.fontFamily='"'+($('subFont')?.value||'Noto Sans Myanmar')+'", sans-serif';
+  sample.style.fontWeight='700';
+  sample.style.webkitTextStroke='0.35px #111';
   if(on&&stage.clientWidth&&stage.clientHeight&&sample.offsetWidth){
     const hx=Math.min(50,sample.offsetWidth/stage.clientWidth*50),hy=Math.min(50,sample.offsetHeight/stage.clientHeight*50);
     subX=clamp(subX,hx,100-hx);subY=clamp(subY,hy,100-hy);
@@ -394,7 +401,7 @@ layer.addEventListener('pointermove',e=>{
   if(el){el.style.left=b.x*100+'%';el.style.top=b.y*100+'%';el.style.width=b.w*100+'%';el.style.height=b.h*100+'%'}
 });
 ['pointerup','pointercancel'].forEach(t=>layer.addEventListener(t,()=>{drag=null}));
-['subOn','subSize'].forEach(id=>$(id).addEventListener('input',applySub));
+['subOn','subSize','subFont'].forEach(id=>$(id).addEventListener('input',applySub));
 document.querySelectorAll('input[name="subColor"]').forEach(r=>r.addEventListener('change',applySub));
 document.querySelectorAll('input[name="subPos"]').forEach(r=>r.addEventListener('change',()=>{subY=PRESET_Y[r.value];subX=50;applySub()}));
 $('subY').addEventListener('input',()=>{subY=Number($('subY').value);applySub()});
@@ -429,7 +436,7 @@ function burnPayload(){
   const boxesOut=boxes.map(b=>({x:+b.x.toFixed(4),y:+b.y.toFixed(4),w:+b.w.toFixed(4),h:+b.h.toFixed(4)}));
   return{
     aspectRatio:$('outputRatio')?.value||'original',
-    subtitle:{enabled:$('subOn').checked,sizePct:+subPct().toFixed(2),color:radioVal('subColor')||'#ffe600',position:radioVal('subPos')||'custom',xPct:+subX.toFixed(2),yPct:+subY.toFixed(2)},
+    subtitle:{enabled:$('subOn').checked,fontFamily:$('subFont')?.value||'Noto Sans Myanmar',sizePct:+subPct().toFixed(2),color:radioVal('subColor')||'#ffe600',position:radioVal('subPos')||'custom',xPct:+subX.toFixed(2),yPct:+subY.toFixed(2)},
     blur:{enabled:$('blurOn').checked&&boxesOut.length>0,boxes:boxesOut,strength:sigma()}
   };
 }
@@ -500,9 +507,6 @@ function resetAll(){
   $('dropTitle').textContent='Movie ကို ဒီမှာရွေးပါ';$('upload').scrollIntoView({behavior:'smooth'});
 }
 $('newBtn').onclick=resetAll;
-$('restartJobBtn').onclick=()=>{
-  if(confirm('လက်ရှိအလုပ်ကို ဒီစာမျက်နှာမှာ ရှင်းပြီး Movie အသစ်နဲ့ အစကနေ ပြန်စမလား? မူလ server process ကိုတော့ အလိုအလျောက် cancel မလုပ်နိုင်ပါ။')) resetAll();
-};
 $('generate').onclick=async()=>{
   if(busy)return;
   if(!selectedFile){showErr('အရင် Movie ရွေးပါ');return}
