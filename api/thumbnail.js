@@ -37,6 +37,8 @@ module.exports = async function handler(req, res) {
     const theme = Array.isArray(fields.theme)
       ? fields.theme[0]
       : fields.theme || "Cinematic";
+    const ratioField = Array.isArray(fields.ratio) ? fields.ratio[0] : fields.ratio;
+    const ratio = ratioField === "9:16" ? "9:16" : "16:9";
 
     let uploadedImage = null;
 
@@ -77,7 +79,7 @@ from the provided reference image.
 Theme: ${theme}
 
 Requirements:
-- 16:9 landscape thumbnail
+- ${ratio === "9:16" ? "9:16 vertical portrait thumbnail for Shorts/TikTok" : "16:9 landscape thumbnail for YouTube"}
 - Professional movie thumbnail style
 - Cinematic lighting
 - Dramatic composition
@@ -113,7 +115,7 @@ Requirements:
       config: {
         responseFormat: {
           image: {
-            aspectRatio: "16:9",
+            aspectRatio: ratio,
           },
         },
       },
