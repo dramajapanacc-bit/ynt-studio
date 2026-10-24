@@ -1511,6 +1511,7 @@ RULES:
 8. Cover the complete movie from 0 to ${duration.toFixed(2)} seconds.
 9. ${syncMode ? "Scene length follows the dialogue and events, not a fixed size." : "Prefer scenes around 6 to 14 seconds."}
 10. ${syncMode ? `Create one scene per spoken line or visible event, up to ${SYNC_MAX_SCENES} scenes. Scenes may be as short as 1.5 seconds.` : `Create approximately 8 to ${MAX_SCENES} scenes.`}
+CRITICAL ANTI-REPETITION RULE: NEVER reuse the same source moment for multiple scenes. Every scene must use its own unique chronological start_sec/end_sec interval from the original video. Do not repeat a scene just because the same character or location appears again; only revisit a location when a genuinely new event occurs there. Never output duplicate or near-duplicate timestamp ranges.
 11. Match narration to what is actually visible.
 12. Use Whisper transcript as supporting information.
 13. Do not invent events.
