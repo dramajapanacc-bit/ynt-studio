@@ -86,6 +86,7 @@ export function normalizeBurn(raw) {
 
   const sub = b.subtitle || {};
   const blur = b.blur || {};
+  const watermark = b.watermark || {};
 
   const boxes = (Array.isArray(blur.boxes) ? blur.boxes : [])
     .slice(0, 6)
@@ -113,12 +114,19 @@ export function normalizeBurn(raw) {
       enabled: blur.enabled === true && boxes.length > 0,
       boxes,
       strength: num(blur.strength, 20, 1, 60)
+    },
+    watermark: {
+      enabled: watermark.enabled === true && typeof watermark.logoPath === "string" && watermark.logoPath.length > 0,
+      logoPath: typeof watermark.logoPath === "string" ? watermark.logoPath : "",
+      sizePct: num(watermark.sizePct, 12, 4, 25),
+      opacity: num(watermark.opacity, 0.9, 0.1, 1),
+      marginPct: num(watermark.marginPct, 3, 0.5, 10)
     }
   };
 }
 
 export function burnActive(burn) {
-  return !!burn && (burn.subtitle.enabled || burn.blur.enabled);
+  return !!burn && (burn.subtitle.enabled || burn.blur.enabled || burn.watermark.enabled);
 }
 
 /* ---------- video size (as displayed, rotation aware) ---------- */
@@ -235,7 +243,7 @@ export function writeAss(assPath, size, sub, narration, duration) {
 const quote = value => `'${String(value).replace(/\\/g, "/").replace(/'/g, "")}'`;
 
 // Returns a filter_complex string ending in [vout], or null when nothing to do.
-export function buildBurnFilter(burn, size, assPath) {
+export function buildBurnFilter(burn, size, assPath, hasWatermarkInput = false) {
   const { width: W, height: H } = size;
   const parts = [];
   let current = "0:v";
@@ -267,8 +275,18 @@ export function buildBurnFilter(burn, size, assPath) {
   if (assPath) {
     const fontsDir = FONT_DIRS.find(hasFontFiles);
     parts.push(
-      `[${current}]subtitles=filename=${quote(assPath)}${fontsDir ? `:fontsdir=${quote(fontsDir)}` : ""}[vout]`
+      `[${current}]subtitles=filename=${quote(assPath)}${fontsDir ? `:fontsdir=${quote(fontsDir)}` : ""}[subbed]`
     );
+    current = "subbed";
+  }
+
+  if (hasWatermarkInput && burn.watermark?.enabled) {
+    const wm = burn.watermark;
+    const logoWidth = Math.max(24, Math.round(W * wm.sizePct / 100));
+    const margin = Math.max(2, Math.round(Math.min(W, H) * wm.marginPct / 100));
+    const opacity = Math.max(0.1, Math.min(1, Number(wm.opacity) || 0.9)).toFixed(2);
+    parts.push(`[1:v]scale=${logoWidth}:-1:force_original_aspect_ratio=decrease,format=rgba,colorchannelmixer=aa=${opacity}[watermark]`);
+    parts.push(`[${current}][watermark]overlay=W-w-${margin}:${margin}:eof_action=repeat[vout]`);
   } else if (parts.length) {
     parts.push(`[${current}]null[vout]`);
   } else {
