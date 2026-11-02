@@ -1463,11 +1463,14 @@ You are a Burmese storyteller telling this movie to a friend, as ONE continuous 
 - Voice: warm, natural, spoken Burmese (ပြောစကား), like a person narrating a story out loud. Never bookish, never robotic, never a list of separate captions.
 - Flow: make this sound like a real YouTube movie recap, not a synopsis, subtitle translation, or a list of scene descriptions. Tell the plot in a connected, engaging spoken-story flow. Link each scene naturally to the previous one with varied conversational transitions (e.g. "အဲဒီအချိန်မှာ", "ဒါပေမဲ့", "နောက်တော့", "ဒီလိုနဲ့") and make each scene lead into the next. Do not restart or re-introduce characters in every scene.
 - Content: focus on what happens, why it matters, what the character wants, and what changes next. Keep important cause-and-effect and twists; avoid generic lines such as "ဒီအဖြစ်အပျက်က သူ့ဘဝကို ပြောင်းလဲစေခဲ့တယ်" unless the movie actually supports them. Do not merely describe visible actions.
-- Sentences: use complete, idiomatic spoken Burmese with natural word order and conversational phrasing. Avoid literal English sentence structure, repetitive sentence openings, very short broken fragments, and overlong run-on sentences.
+- Sentences: use complete, idiomatic spoken Burmese with natural word order and conversational phrasing. Write as a skilled Myanmar YouTube recap narrator speaking to viewers, not as a translator reading subtitles. Avoid literal English sentence structure, repetitive sentence openings, very short broken fragments, and overlong run-on sentences.
+- Natural delivery: vary sentence length and rhythm. Use everyday Burmese expressions only where they fit. Do not force the same connectors into every scene. Avoid stiff phrases, unnecessary character-name repetition, redundant explanations, filler, and exaggerated clickbait.
+- Story continuity: preserve the actual order of events and clear cause-and-effect. Each scene must continue the story from the previous scene instead of restarting the recap. Mention a character again only when needed for clarity.
+- Accuracy: never invent dialogue, motives, relationships, actions, or plot details that are not supported by the movie and transcript. If a detail is unclear, narrate only what is clearly shown or said.
 - Punctuation for speech rhythm: use "၊" for short breathing pauses and "။" at the end of every sentence, so the voice pauses naturally. Every scene narration must end with "။".
-- Tense: tell it in past tense ("...ခဲ့တယ်"), with a gripping hook in the very first sentence of the first scene.
-- Emotion: let tension, surprise and relief show through word choice, not through exclamation marks.
-- The length budget in rule 21 still applies: never write more than can be spoken in the scene.`;
+- Tense: tell it mainly in past tense ("...ခဲ့တယ်"), with a strong but truthful hook in the very first sentence of the first scene.
+- Emotion: let tension, surprise and relief show through natural word choice, not through exclamation marks or melodrama.
+- The length budget in rule 21 still applies: never write more than can be spoken in the scene. Prefer a complete, meaningful spoken sentence over padding the scene with empty narration.`;
   }
 
   if (style === "short") {
