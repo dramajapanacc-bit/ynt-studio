@@ -10,14 +10,6 @@ import { promisify } from "util";
 import Groq from "groq-sdk";
 import { GoogleGenAI } from "@google/genai";
 import pg from "pg";
-import {
-  normalizeBurn,
-  burnActive,
-  probeVideoSize,
-  writeAss,
-  buildBurnFilter,
-  checkSubtitleFont
-} from "./burn.js";
 
 const { Pool } = pg;
 
@@ -26,34 +18,6 @@ dotenv.config();
 const execFileAsync = promisify(execFile);
 
 const app = express();
-
-// CORS: allow the separately hosted frontend to call this API.
-// Set CORS_ORIGIN to a comma-separated list of trusted frontend origins.
-// Defaults to "*" for compatibility with existing public frontend deployments.
-const CORS_ORIGINS = String(process.env.CORS_ORIGIN || "*")
-  .split(",")
-  .map(origin => origin.trim())
-  .filter(Boolean);
-
-app.use((req, res, next) => {
-  const requestOrigin = req.headers.origin;
-  const allowOrigin = CORS_ORIGINS.includes("*")
-    ? "*"
-    : (requestOrigin && CORS_ORIGINS.includes(requestOrigin) ? requestOrigin : "");
-
-  if (allowOrigin) {
-    res.setHeader("Access-Control-Allow-Origin", allowOrigin);
-    if (allowOrigin !== "*") res.setHeader("Vary", "Origin");
-  }
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
-  res.setHeader("Access-Control-Max-Age", "86400");
-
-  if (req.method === "OPTIONS") {
-    return res.status(204).end();
-  }
-  next();
-});
 
 /* =========================================================
    PORT
@@ -104,8 +68,6 @@ const GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts";
 const AUDIO_CHUNK_SECONDS = 90;
 const SCENE_FPS = 2;
 const MAX_SCENES = 18;
-// "sync" style (faithful dialogue + events) needs many more, shorter scenes.
-const SYNC_MAX_SCENES = Number(process.env.SYNC_MAX_SCENES || 40);
 const MIN_SCENE_SECONDS = 3;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 
@@ -128,30 +90,24 @@ app.use(
   })
 );
 
-// Lightweight API request logging helps identify hosting/network failures
-// without logging uploaded content, API keys, or request bodies.
-app.use((req, res, next) => {
-  if (req.path.startsWith("/api/") || req.path === "/health") {
-    const startedAt = Date.now();
-    res.on("finish", () => {
-      console.log(`[HTTP] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${Date.now() - startedAt}ms)`);
-    });
-  }
-  next();
-});
-
 /* =========================================================
    MULTER
 ========================================================= */
 
 const upload = multer({
   dest: UPLOAD_DIR,
-
   limits: {
     fileSize: MAX_VIDEO_SIZE
   },
-
   fileFilter: (req, file, cb) => {
+    if (file.fieldname === "logo") {
+      if (["image/png", "image/jpeg", "image/webp"].includes(file.mimetype)) {
+        cb(null, true);
+        return;
+      }
+      cb(new Error("Logo က PNG, JPG သို့မဟုတ် WEBP ဖြစ်ရပါမယ်။"));
+      return;
+    }
     const allowed = [
       "video/mp4",
       "video/webm",
@@ -547,7 +503,7 @@ async function callWithModelFallback(operationName, makeCall) {
     } catch (error) {
       lastError = error;
       const message = String(error?.message || error);
-      if (/429|quota|rate limit|per day|404|not found|not supported|NOT_FOUND|503|UNAVAILABLE|high demand|overloaded/i.test(message)) {
+      if (/429|quota|rate limit|per day|404|not found|not supported|NOT_FOUND/i.test(message)) {
         if (/per day|perday|daily/i.test(message)) {
           exhaustedModels.set(model, Date.now() + 3 * 60 * 60 * 1000);
         }
@@ -1087,8 +1043,7 @@ function parseGeminiJSON(text) {
 
 function normalizeScenes(
   rawScenes,
-  duration,
-  maxScenes = MAX_SCENES
+  duration
 ) {
   if (!Array.isArray(rawScenes)) {
     throw new Error(
@@ -1272,7 +1227,7 @@ function normalizeScenes(
 
   while (
     merged.length >
-    maxScenes
+    MAX_SCENES
   ) {
     let smallestIndex = 0;
     let smallestDuration =
@@ -1386,6 +1341,49 @@ function normalizeScenes(
   );
 }
 
+function normalizeHighlightScenes(rawScenes, duration) {
+  if (!Array.isArray(rawScenes)) {
+    throw new Error("Gemini did not return a scene list.");
+  }
+
+  const cleaned = rawScenes
+    .map(scene => ({
+      start: Number(scene.start_sec),
+      end: Number(scene.end_sec),
+      visual: String(scene.visual_summary || "").trim(),
+      event: String(scene.event_summary || "").trim(),
+      narration: String(scene.narration || "").trim()
+    }))
+    .filter(scene => Number.isFinite(scene.start) && Number.isFinite(scene.end) && scene.narration)
+    .map(scene => ({
+      ...scene,
+      start: Math.max(0, Math.min(duration, scene.start)),
+      end: Math.max(0, Math.min(duration, scene.end))
+    }))
+    .filter(scene => scene.end > scene.start)
+    .sort((a, b) => a.start - b.start);
+
+  const result = [];
+  for (const scene of cleaned) {
+    const previous = result[result.length - 1];
+    if (previous && scene.start < previous.end) scene.start = previous.end;
+    if (scene.end - scene.start > 20) scene.end = scene.start + 20;
+    if (scene.end - scene.start < 2.5) continue;
+    result.push(scene);
+    if (result.length >= 40) break;
+  }
+
+  return result.map((scene, index) => ({
+    index: index + 1,
+    start: Number(scene.start.toFixed(3)),
+    end: Number(scene.end.toFixed(3)),
+    duration: Number((scene.end - scene.start).toFixed(3)),
+    visual: scene.visual,
+    event: scene.event,
+    narration: scene.narration
+  }));
+}
+
 /* =========================================================
    GEMINI SCENE PLAN
 ========================================================= */
@@ -1431,43 +1429,27 @@ async function generateScenePlan(
       "Write natural spoken English.";
   }
 
-  // Default narrator persona (suspense / crime recap voice).
-  let styleInstruction = `
-You are a professional cinematic recap narrator and scriptwriter. Write engaging,
-suspenseful, fast-paced movie recap narration.
-- Tone & voice: mysterious, thrilling and engaging, suitable for a suspense/crime recap.
-- Hook: the very first sentence of the FIRST scene must be a strong attention-grabbing hook.
-- Sentence structure: complete medium-length sentences in natural spoken Burmese, mainly past tense (e.g. "...ခဲ့တယ်").
-- FLOW IS CRITICAL: write one connected story, not separate scene captions. Continue the same thought across scene boundaries when appropriate; avoid restarting sentences, repeating character names, or using a full-stop cadence after every tiny event.
-- Use natural linking phrases only when they fit the story, and vary them. Each line should explain what happened, why it mattered, and what happened next.
-- Language: fluent, idiomatic everyday Burmese that a skilled Myanmar YouTube narrator would actually say aloud; never literal translation, bookish wording, or clipped fragments.
-- Keep the narration active through most of each scene. Avoid leaving long empty stretches after a short sentence, but do not invent events or add meaningless filler.
-- Follow the narration length budget in rule 21.`;
-
-  const syncMode = style === "sync";
-  if (syncMode) {
-    styleInstruction = `
-FAITHFUL SYNC MODE. This is NOT a summary. The narration is a natural Burmese
-translation of what is said AND what visibly happens, scene by scene.
-- Every scene must start and end where a spoken line (WHISPER TIMELINE segment) or a visible event starts and ends. Use the segment timestamps as the scene boundaries.
-- Translate EVERY spoken line inside the scene into natural spoken Burmese (meaning-for-meaning, not word-for-word, no bookish language). Do not skip, merge or reorder dialogue.
-- Keep who-says-what clear (e.g. "သူက ... ပြောတယ်"), and add a short description only for important visible actions that happen in silent moments.
-- Never describe events from another scene. The narration of a scene must only contain what happens between its start_sec and end_sec.
-- Do NOT summarize and do NOT add events or dialogue that are not in the video.
-- Even though every line is translated, it must still SOUND like one person telling the story, not like separate subtitles: use natural spoken Burmese, link scenes with spoken connectors (e.g. "အဲဒီအချိန်မှာ", "ဒါပေမဲ့", "နောက်တော့"), use "၊" for short pauses and end every scene with "။".`;
-  }
+  let styleInstruction =
+    "Use cinematic movie recap narration.";
 
   if (style === "natural") {
-    styleInstruction = `
-You are a Burmese storyteller telling this movie to a friend, as ONE continuous story from start to finish.
-- Voice: warm, natural, spoken Burmese (ပြောစကား), like a person narrating a story out loud. Never bookish, never robotic, never a list of separate captions.
-- Flow: make this sound like a real YouTube movie recap, not a synopsis, subtitle translation, or a list of scene descriptions. Tell the plot in a connected, engaging spoken-story flow. Link each scene naturally to the previous one with varied conversational transitions (e.g. "အဲဒီအချိန်မှာ", "ဒါပေမဲ့", "နောက်တော့", "ဒီလိုနဲ့") and make each scene lead into the next. Do not restart or re-introduce characters in every scene.
-- Content: focus on what happens, why it matters, what the character wants, and what changes next. Keep important cause-and-effect and twists; avoid generic lines such as "ဒီအဖြစ်အပျက်က သူ့ဘဝကို ပြောင်းလဲစေခဲ့တယ်" unless the movie actually supports them. Do not merely describe visible actions.
-- Sentences: use complete, idiomatic spoken Burmese with natural word order and conversational phrasing. Avoid literal English sentence structure, repetitive sentence openings, very short broken fragments, and overlong run-on sentences.
-- Punctuation for speech rhythm: use "၊" for short breathing pauses and "။" at the end of every sentence, so the voice pauses naturally. Every scene narration must end with "။".
-- Tense: tell it in past tense ("...ခဲ့တယ်"), with a gripping hook in the very first sentence of the first scene.
-- Emotion: let tension, surprise and relief show through word choice, not through exclamation marks.
-- The length budget in rule 21 still applies: never write more than can be spoken in the scene.`;
+    styleInstruction =
+      "Tell the story like a friend casually telling a movie to another friend, in everyday spoken Myanmar: warm, conversational, curious, easy to follow. Avoid formal or literary words. Use short sentences, natural reactions and questions that keep the listener interested.";
+  }
+
+  if (style === "suspense") {
+    styleInstruction =
+      "Use suspenseful narration that builds curiosity around secrets and twists.";
+  }
+
+  if (style === "emotional") {
+    styleInstruction =
+      "Use emotional narration that highlights feelings and relationships.";
+  }
+
+  if (style === "fast") {
+    styleInstruction =
+      "Use fast-paced, punchy narration with only the key events.";
   }
 
   if (style === "short") {
@@ -1485,6 +1467,13 @@ You are a Burmese storyteller telling this movie to a friend, as ONE continuous 
       "Use detailed but natural movie recap narration.";
   }
 
+  const options = jobOptions.get(jobId) || {};
+  const recapPct = options.recapPct ?? 1;
+  const highlightMode = recapPct < 0.95 && duration >= 45;
+  const targetSeconds = Math.min(240, Math.max(25, duration * recapPct));
+  const minScenes = Math.max(3, Math.round(targetSeconds / 12));
+  const maxScenesHighlight = Math.min(40, Math.max(minScenes + 2, Math.round(targetSeconds / 5)));
+
   const prompt = `
 You are creating a PROFESSIONAL SYNCHRONIZED MOVIE RECAP.
 
@@ -1497,7 +1486,11 @@ You also have the original Whisper transcript with timestamps.
 Your output will be used to create a final video where each narration
 is placed directly over its selected video scene.
 
-SYNCHRONIZATION IS EXTREMELY IMPORTANT.
+${highlightMode ? `THIS IS A HIGHLIGHT RECAP, NOT A FULL RETELLING.
+Condense the movie into its most important and most engaging moments so that viewers stay interested.
+The first scene narration must be a short hook that grabs attention.
+Connect the scenes like a story (cause and effect). The last scene must close the story and leave curiosity.
+` : ""}SYNCHRONIZATION IS EXTREMELY IMPORTANT.
 
 RULES:
 
@@ -1507,11 +1500,13 @@ RULES:
 4. Use real timestamps from the movie.
 5. Keep scenes chronological.
 6. Do not overlap scenes.
-7. Do not leave gaps.
+${highlightMode ? `7. Gaps between scenes are allowed and expected. Skip filler, repetition and unimportant parts.
+8. The TOTAL duration of all selected scenes must be about ${targetSeconds.toFixed(0)} seconds (between ${(targetSeconds * 0.85).toFixed(0)} and ${(targetSeconds * 1.15).toFixed(0)} seconds). The full video is ${duration.toFixed(2)} seconds long.
+9. Each selected scene (clip) should be 4 to 12 seconds long.
+10. Create approximately ${minScenes} to ${maxScenesHighlight} scenes.` : `7. Do not leave gaps.
 8. Cover the complete movie from 0 to ${duration.toFixed(2)} seconds.
-9. ${syncMode ? "Scene length follows the dialogue and events, not a fixed size." : "Prefer scenes around 6 to 14 seconds."}
-10. ${syncMode ? `Create one scene per spoken line or visible event, up to ${SYNC_MAX_SCENES} scenes. Scenes may be as short as 1.5 seconds.` : `Create approximately 8 to ${MAX_SCENES} scenes.`}
-CRITICAL ANTI-REPETITION RULE: NEVER reuse the same source moment for multiple scenes. Every scene must use its own unique chronological start_sec/end_sec interval from the original video. Do not repeat a scene just because the same character or location appears again; only revisit a location when a genuinely new event occurs there. Never output duplicate or near-duplicate timestamp ranges.
+9. Prefer scenes around 6 to 14 seconds.
+10. Create approximately 8 to ${MAX_SCENES} scenes.`}
 11. Match narration to what is actually visible.
 12. Use Whisper transcript as supporting information.
 13. Do not invent events.
@@ -1522,11 +1517,11 @@ CRITICAL ANTI-REPETITION RULE: NEVER reuse the same source moment for multiple s
 18. Keep the ending.
 19. Avoid meaningless filler.
 20. Narration must sound natural when spoken.
-21. NARRATION LENGTH AND FLOW (very important): aim for narration that naturally occupies about 75–90% of each scene, leaving only a brief breathing pause. Do not make scenes so short that the video becomes silent for several seconds.
-    - Myanmar: target roughly 12–14 Burmese characters per second of scene duration (a 10 second scene usually needs around 120–140 characters); do not exceed 16 characters per second. Prefer natural complete phrasing over padding or repetitive wording.
-    - English: target about 2.2–2.6 words per second of scene duration.
-    - ${syncMode ? "In sync mode all dialogue in the scene MUST still be translated; if it is too long, choose a shorter natural Burmese wording of the same meaning instead of dropping lines." : "Do NOT describe every small action. Summarize key story events with enough connected detail to sustain narration through the scene; skip minor details."}
-    - Keep pauses brief and natural. Never add filler just to hit the length target, and never rush speech unnaturally.
+21. NARRATION LENGTH BUDGET (very important): the narration of each scene must be speakable in LESS than that scene's duration at a normal speaking pace.
+    - Myanmar: about 9 to 11 characters per second of the scene (a 10 second scene is about 100 characters). Never go above 13 characters per second.
+    - English: about 2 words per second.
+    - Do NOT describe every small action. Summarize only the key story events and skip minor details.
+    - Leave short natural pauses. It is better to say less than to rush.
 22. Do not use Markdown.
 23. Do not use headings in narration.
 24. Do not mention AI.
@@ -1611,12 +1606,9 @@ ${timeline}
       outputText
     );
 
-  const scenes =
-    normalizeScenes(
-      parsed.scenes,
-      duration,
-      style === "sync" ? SYNC_MAX_SCENES : MAX_SCENES
-    );
+  const scenes = highlightMode
+    ? normalizeHighlightScenes(parsed.scenes, duration)
+    : normalizeScenes(parsed.scenes, duration);
 
   if (!scenes.length) {
     throw new Error(
@@ -1625,7 +1617,7 @@ ${timeline}
   }
 
   console.log(
-    `[SCENE SYNC] ${scenes.length} scenes created`
+    `[SCENE SYNC] ${scenes.length} scenes created (${highlightMode ? "highlight " + targetSeconds.toFixed(0) + "s target, total " + scenes.reduce((a, b) => a + b.duration, 0).toFixed(0) + "s" : "full coverage"})`
   );
 
   {
@@ -1645,8 +1637,6 @@ ${timeline}
 ========================================================= */
 
 function resolveVoice(voice) {
-  if (voice === "Thiha") return "Puck";
-  if (voice === "Nilar") return "Kore";
   if (voice === "male") {
     return "Puck";
   }
@@ -1703,8 +1693,7 @@ async function generateGeminiTTS(
   ai,
   scenes,
   outputPath,
-  voice,
-  recapStyle
+  voice
 ) {
   const actualVoice = resolveVoice(voice);
   const narrations = scenes.map(scene => String(scene.narration || "").trim());
@@ -1726,7 +1715,7 @@ async function generateGeminiTTS(
         parts: [{
           text: fullText,
           speech_metadata: {
-            style: recapStyleText(recapStyle)
+            style: "Natural cinematic movie recap narration. Clear Burmese pronunciation, smooth natural pacing, emotional but controlled storyteller voice. Speak continuously as one natural movie recap."
           }
         }]
       }],
@@ -1750,9 +1739,10 @@ async function generateGeminiTTS(
 ========================================================= */
 
 const ttsEngineByJob = new Map();
-const MALE_VOICES = new Set(["male","Thiha","Puck","Charon","Fenrir","Orus","Enceladus","Iapetus","Umbriel","Algenib","Rasalgethi","Alnilam","Schedar","Achird","Zubenelgenubi","Sadachbia","Sadaltager"]);
+const jobOptions = new Map();
+const MALE_VOICES = new Set(["male","Puck","Charon","Fenrir","Orus","Enceladus","Iapetus","Umbriel","Algenib","Rasalgethi","Alnilam","Schedar","Achird","Zubenelgenubi","Sadachbia","Sadaltager"]);
 function isMaleVoice(voice) { return MALE_VOICES.has(String(voice)); }
-const TTS_ENGINES = ["auto", "gemini", "edge", "azure", "google", "elevenlabs"];
+const TTS_ENGINES = ["auto", "gemini", "azure", "google"];
 
 function splitTtsText(text, maxChars) {
   const pieces = String(text).split(/(?<=[။!?.\n])\s*/).filter(Boolean);
@@ -1782,126 +1772,6 @@ async function audioBuffersToWav(buffers, outputPath, ext) {
     await runCommand("ffmpeg", ["-y", "-i", tempPath, "-vn", "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le", "-f", "wav", outputPath]);
   } finally {
     try { fs.unlinkSync(tempPath); } catch {}
-  }
-}
-
-// Free Microsoft Edge neural voices (same Burmese voices as Azure), no key or
-// card needed. Uses the `edge-tts` command (installed in the Dockerfile via pip).
-// ElevenLabs (paid/credit based). Burmese is supported by eleven_v3 only
-// (NOT eleven_multilingual_v2 / flash). Needs ELEVENLABS_API_KEY + ELEVENLABS_VOICE_ID
-// (optional ELEVENLABS_VOICE_ID_MALE / ELEVENLABS_VOICE_ID_FEMALE).
-async function elevenLabsTts(text, outputPath, voice) {
-  const key = (process.env.ELEVENLABS_API_KEY || "").trim();
-  const male = (process.env.ELEVENLABS_VOICE_ID_MALE || "").trim();
-  const female = (process.env.ELEVENLABS_VOICE_ID_FEMALE || "").trim();
-  const voiceId = ((isMaleVoice(voice) ? male : female) || process.env.ELEVENLABS_VOICE_ID || "").trim();
-  if (!key || !voiceId) throw new Error("ELEVENLABS_API_KEY / ELEVENLABS_VOICE_ID မထည့်ရသေးပါ");
-  const model = (process.env.ELEVENLABS_MODEL || "eleven_v3").trim();
-  // eleven_v3 only accepts stability 0.0 (Creative) / 0.5 (Natural) / 1.0 (Robust).
-  const isV3 = /v3/i.test(model);
-  const voice_settings = {
-    stability: Number(process.env.ELEVENLABS_STABILITY || (isV3 ? 0.5 : 0.35)),
-    similarity_boost: 0.8,
-    style: 0.2,
-    use_speaker_boost: true
-  };
-  const buffers = [];
-  for (const part of splitTtsText(text, 2500)) {
-    let audio = null;
-    let lastError = null;
-    for (let attempt = 0; attempt < 3 && !audio; attempt++) {
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`, {
-        method: "POST",
-        headers: { "xi-api-key": key, "Content-Type": "application/json", Accept: "audio/mpeg" },
-        body: JSON.stringify({ text: part, model_id: model, voice_settings })
-      });
-      if (res.ok) {
-        audio = Buffer.from(await res.arrayBuffer());
-      } else {
-        const detail = (await res.text().catch(() => "")).slice(0, 160);
-        lastError = new Error(`ElevenLabs HTTP ${res.status} ${detail}`);
-        if (res.status !== 429 && res.status < 500) break;
-        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
-      }
-    }
-    if (!audio || audio.length < 100) throw lastError || new Error("ElevenLabs empty audio");
-    buffers.push(audio);
-  }
-  await audioBuffersToWav(buffers, outputPath, "mp3");
-}
-
-let edgeInstallTried = false;
-async function edgeTts(text, outputPath, voice) {
-  const voiceName = isMaleVoice(voice) ? "my-MM-ThihaNeural" : "my-MM-NilarNeural";
-  const base = `${outputPath}.edge`;
-  const textFile = `${base}.txt`;
-  const mediaFile = `${base}.mp3`;
-  fs.writeFileSync(textFile, String(text), "utf8");
-  try {
-    let lastError = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const edgeArgs = ["--voice", voiceName, "--file", textFile, "--write-media", mediaFile];
-        // Optional tuning, e.g. EDGE_RATE=-5% (slower) / EDGE_PITCH=-2Hz (calmer).
-        const edgeRate = (process.env.EDGE_RATE || "").trim();
-        const edgePitch = (process.env.EDGE_PITCH || "").trim();
-        if (edgeRate) edgeArgs.push(`--rate=${edgeRate}`);
-        if (edgePitch) edgeArgs.push(`--pitch=${edgePitch}`);
-        const launchers = [
-          ["edge-tts", edgeArgs],
-          ["python3", ["-m", "edge_tts", ...edgeArgs]],
-          ["python", ["-m", "edge_tts", ...edgeArgs]]
-        ];
-        let launched = false;
-        let launchError = null;
-        for (const [cmd, args] of launchers) {
-          try {
-            await runCommand(cmd, args);
-            launched = true;
-            break;
-          } catch (error) {
-            launchError = error;
-            if (error?.code !== "ENOENT" && !/ENOENT|No module named/i.test(String(error?.message || error) + String(error?.stderr || ""))) throw error;
-          }
-        }
-        if (!launched && !edgeInstallTried) {
-          // One-time automatic install attempt (needs pip + internet on the server).
-          edgeInstallTried = true;
-          const pipTries = [
-            ["python3", ["-m", "pip", "install", "--user", "--break-system-packages", "edge-tts"]],
-            ["python", ["-m", "pip", "install", "--user", "--break-system-packages", "edge-tts"]],
-            ["pip3", ["install", "--user", "--break-system-packages", "edge-tts"]],
-            ["pip", ["install", "--user", "--break-system-packages", "edge-tts"]]
-          ];
-          for (const [cmd, args] of pipTries) {
-            try {
-              await runCommand(cmd, args);
-              console.log("[EDGE TTS] edge-tts installed automatically");
-              break;
-            } catch (error) {
-              console.warn(`[EDGE TTS] auto-install via ${cmd} failed:`, String(error?.message || error).slice(0, 160));
-            }
-          }
-        }
-        if (!launched && edgeInstallTried) {
-          for (const [cmd, args] of launchers.slice(1)) {
-            try { await runCommand(cmd, args); launched = true; break; } catch (error) { launchError = error; }
-          }
-        }
-        if (!launched) {
-          throw new Error("edge-tts မထည့်သွင်းရသေးပါ။ Server မှာ `pip install edge-tts` run ပါ။ (" + String(launchError?.message || launchError).slice(0, 100) + ")");
-        }
-        if (fs.existsSync(mediaFile) && fs.statSync(mediaFile).size > 100) { lastError = null; break; }
-        lastError = new Error("Edge TTS empty audio");
-      } catch (error) {
-        lastError = error;
-      }
-      await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
-    }
-    if (lastError) throw lastError;
-    await audioBuffersToWav([fs.readFileSync(mediaFile)], outputPath, "mp3");
-  } finally {
-    for (const f of [textFile, mediaFile]) { try { fs.unlinkSync(f); } catch {} }
   }
 }
 
@@ -1954,42 +1824,16 @@ async function googleTranslateTts(text, outputPath) {
   await audioBuffersToWav(buffers, outputPath, "mp3");
 }
 
-// Join scene narrations into one text. A scene that does not end with
-// sentence punctuation gets "။" so the voice pauses instead of running on.
-function joinNarrationsForTts(scenes) {
-  const narrations = scenes
-    .map(scene => String(scene.narration || "").trim())
-    .filter(Boolean);
-
-  // A scene boundary is not necessarily the end of a spoken thought. Use a
-  // light Burmese comma at boundaries so TTS flows into the next scene rather
-  // than inserting a full-stop pause after every scene. Keep the final stop.
-  return narrations
-    .map((text, index) => {
-      if (index === narrations.length - 1) {
-        return /[။!?…]$/.test(text) ? text : `${text}။`;
-      }
-      return text.replace(/[။!?…]+$/u, "၊").replace(/[၊,]+$/u, "၊");
-    })
-    .join(" ")
-    .trim();
-}
-
-async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto", recapStyle) {
-  const fullText = joinNarrationsForTts(scenes);
+async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto") {
+  const fullText = scenes.map(scene => String(scene.narration || "").trim()).join(" ").trim();
   if (!fullText) throw new Error("No narration text was available for TTS.");
 
-  const nativeBurmese = voice === "Thiha" || voice === "Nilar";
-  const order = engine === "auto"
-    ? (nativeBurmese ? ["edge", "azure", "gemini", "google"] : ["gemini", "edge", "azure", "google"])
-    : [engine];
+  const order = engine === "auto" ? ["gemini", "azure", "google"] : [engine];
   const errors = [];
 
   for (const name of order) {
     try {
-      if (name === "gemini") await generateGeminiTTS(ai, scenes, outputPath, voice, recapStyle);
-      else if (name === "edge") await edgeTts(fullText, outputPath, voice);
-      else if (name === "elevenlabs") await elevenLabsTts(fullText, outputPath, voice);
+      if (name === "gemini") await generateGeminiTTS(ai, scenes, outputPath, voice);
       else if (name === "azure") await azureTts(fullText, outputPath, voice);
       else if (name === "google") await googleTranslateTts(fullText, outputPath);
       else throw new Error("မသိတဲ့ voice engine");
@@ -2129,66 +1973,6 @@ async function getAudioDuration(
 }
 
 /* =========================================================
-   RECAP VOICE SETTINGS + SPEED BY STYLE
-========================================================= */
-
-// Reference voice settings for stability-based TTS APIs (e.g. ElevenLabs).
-// Gemini TTS does not take these numbers, so for Gemini the same intent is
-// sent as the style prompt below (see recapStyleText).
-const recapVoiceSettings = {
-  stability: 0.35,          // more expressive / emotional delivery
-  similarity_boost: 0.75,
-  style_exaggeration: 0.25, // more "recap" feel
-  use_speaker_boost: true
-};
-
-const styleByJob = new Map();
-
-// Speed (ffmpeg atempo) per recap style. Default recap speed is 1.1x.
-function getRecapSpeed(recapStyle) {
-  switch (String(recapStyle || "").toLowerCase()) {
-    case "sync":
-    case "natural":
-      return 1.0; // storyteller / faithful dialogue: keep natural speed
-    case "fast":
-    case "short":
-      return 1.25; // Shorts / TikTok pace
-    case "dramatic":
-    case "cinematic":
-      return 1.05; // tense, clear storytelling
-    default:
-      return 1.1;
-  }
-}
-
-function recapStyleText(recapStyle) {
-  const base = "Professional Burmese-language YouTube movie recap, not a plot-summary readout. Clear Burmese pronunciation, idiomatic conversational Myanmar, smooth connected storytelling, natural phrase boundaries, steady medium pace, controlled emotion, no robotic cadence, no clipped syllables, no rushed words. Sound like a skilled human narrator explaining the movie to viewers.";
-  switch (String(recapStyle || "").toLowerCase()) {
-    case "sync":
-      return "Natural spoken Burmese, clear pronunciation, natural conversational pacing, like a dubbing narrator following the scene.";
-    case "fast":
-    case "short":
-      return base + " Energetic, punchy, fast TikTok/Shorts-style delivery.";
-    case "dramatic":
-    case "cinematic":
-      return base + " Tense, dramatic, expressive delivery with emphasis on key moments.";
-    default:
-      return base + " Slightly expressive, recap-style energy.";
-  }
-}
-
-// Standalone speed change (keeps pitch) for any audio file.
-async function adjustAudioSpeed(inputAudioPath, outputAudioPath, recapStyle) {
-  const filters = buildAtempoFilters(getRecapSpeed(recapStyle));
-  await runCommand("ffmpeg", [
-    "-y", "-i", inputAudioPath,
-    ...(filters.length ? ["-filter:a", filters.join(",")] : []),
-    "-vn", outputAudioPath
-  ]);
-  return outputAudioPath;
-}
-
-/* =========================================================
    ATEMPO
 ========================================================= */
 
@@ -2236,8 +2020,7 @@ const MAX_TEMPO = Number(process.env.MAX_TEMPO || 1.3);
 async function fitAudioToScene(
   inputAudio,
   outputAudio,
-  targetDuration,
-  recapSpeed = 1
+  targetDuration
 ) {
   const sourceDuration = await getAudioDuration(inputAudio);
 
@@ -2248,16 +2031,13 @@ async function fitAudioToScene(
   // Natural speed: never stretch the voice a lot. Short narration keeps its
   // normal speed (silence is added after it); long narration is sped up only
   // a little and the scene video is extended instead of cutting words off.
-  // recapSpeed (style based) is applied first, then the usual fit-to-scene
-  // adjustment on top of it.
-  const factor = (sourceDuration / recapSpeed) / targetDuration;
-  const fitTempo = Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, factor));
-  const tempo = fitTempo * recapSpeed;
+  const factor = sourceDuration / targetDuration;
+  const tempo = Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, factor));
   const speechDuration = sourceDuration / tempo;
   const finalDuration = Math.max(targetDuration, speechDuration);
 
   const filters = [];
-  filters.push(...buildAtempoFilters(tempo));
+  if (Math.abs(tempo - 1) > 0.01) filters.push(`atempo=${tempo.toFixed(4)}`);
   filters.push("apad");
   filters.push(`atrim=duration=${finalDuration.toFixed(3)}`);
 
@@ -2280,9 +2060,31 @@ async function renderSceneVideo(
   moviePath,
   scene,
   outputPath,
-  filterComplex = null
+  options = {}
 ) {
   const duration = Math.max(0.05, scene.end - scene.start);
+
+  const canvas = options.ratio === "9:16" ? [720, 1280] : options.ratio === "1:1" ? [720, 720] : null;
+  const useLogo = Boolean(options.logoPath && fs.existsSync(options.logoPath));
+
+  if (canvas || useLogo) {
+    const base = canvas
+      ? `scale=${canvas[0]}:${canvas[1]}:force_original_aspect_ratio=decrease,pad=${canvas[0]}:${canvas[1]}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1`
+      : "scale=trunc(iw/2)*2:trunc(ih/2)*2,setsar=1";
+    const filter = useLogo
+      ? `[0:v]${base}[bg];[1:v]scale=-2:${canvas ? 90 : 72}[lg];[bg][lg]overlay=W-w-18:18[v]`
+      : `[0:v]${base}[v]`;
+    await runCommand("ffmpeg", [
+      "-y", "-ss", scene.start.toFixed(3), "-i", moviePath,
+      ...(useLogo ? ["-i", options.logoPath] : []),
+      "-t", duration.toFixed(3), "-an",
+      "-filter_complex", filter, "-map", "[v]",
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "23",
+      "-pix_fmt", "yuv420p", "-r", "30", "-movflags", "+faststart",
+      outputPath
+    ]);
+    return outputPath;
+  }
 
   await runCommand(
     "ffmpeg",
@@ -2294,9 +2096,6 @@ async function renderSceneVideo(
       moviePath,
       "-t",
       duration.toFixed(3),
-      ...(filterComplex
-        ? ["-filter_complex", filterComplex, "-map", "[vout]"]
-        : []),
       "-an",
       "-c:v",
       "libx264",
@@ -2425,13 +2224,45 @@ async function concatScenes(
    RENDER FINAL VIDEO
 ========================================================= */
 
-function readBurn(jobFolder) {
-  try {
-    return normalizeBurn(fs.readFileSync(path.join(jobFolder, "burn.json"), "utf8"));
-  } catch {
-    return null;
-  }
+function srtTime(seconds, comma = true) {
+  const total = Math.max(0, seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = Math.floor(total % 60);
+  const ms = Math.round((total - Math.floor(total)) * 1000);
+  const pad = (n, l = 2) => String(n).padStart(l, "0");
+  return `${pad(h)}:${pad(m)}:${pad(sec)}${comma ? "," : "."}${pad(Math.min(999, ms), 3)}`;
 }
+
+function buildCues(text, start, length) {
+  const sentences = String(text || "").split(/(?<=[။!?.])\s*/).map(part => part.trim()).filter(Boolean);
+  if (!sentences.length || length <= 0) return [];
+  const totalChars = sentences.reduce((sum, part) => sum + part.length, 0);
+  let at = start;
+  return sentences.map(part => {
+    const span = length * (part.length / totalChars);
+    const cue = { start: at, end: at + span, text: part };
+    at += span;
+    return cue;
+  });
+}
+
+function writeSubtitleFiles(jobFolder, cues) {
+  const srt = cues.map((cue, i) => `${i + 1}\n${srtTime(cue.start)} --> ${srtTime(cue.end)}\n${cue.text}\n`).join("\n");
+  const vtt = "WEBVTT\n\n" + cues.map(cue => `${srtTime(cue.start, false)} --> ${srtTime(cue.end, false)}\n${cue.text}\n`).join("\n");
+  fs.writeFileSync(path.join(jobFolder, "subtitles.srt"), srt, "utf8");
+  fs.writeFileSync(path.join(jobFolder, "subtitles.vtt"), vtt, "utf8");
+}
+
+app.get("/api/subtitles/:id", (req, res) => {
+  const folder = jobFolderFor(req.params.id);
+  const wantSrt = req.query.fmt === "srt";
+  const file = folder && path.join(folder, wantSrt ? "subtitles.srt" : "subtitles.vtt");
+  if (!file || !fs.existsSync(file)) return res.status(404).send("No subtitles");
+  res.setHeader("Content-Type", wantSrt ? "application/x-subrip; charset=utf-8" : "text/vtt; charset=utf-8");
+  if (wantSrt) res.setHeader("Content-Disposition", 'attachment; filename="YNT-Recap-subtitles.srt"');
+  return res.send(fs.readFileSync(file, "utf8"));
+});
 
 async function renderSceneSyncVideo(
   jobId,
@@ -2446,41 +2277,17 @@ async function renderSceneSyncVideo(
 
   const fullTTS = path.join(sceneDir, "full-narration.wav");
 
-  updateJob(jobId, { stage: "Voice", progress: 65, message: "Generating narration voice..." });
+  updateJob(jobId, { stage: "Voice", progress: 65, message: "Generating one continuous narration voice..." });
 
-  const jobStyle = styleByJob.get(jobId);
-  let rawSceneAudio;
-  if (jobStyle === "sync") {
-    // Sync mode uses short scene batches to keep narration aligned to the video.
-    // Keep the original default batch size to avoid multiplying TTS API calls.
-    const batchSize = Math.max(1, Number(process.env.TTS_BATCH_SCENES || 5));
-    rawSceneAudio = [];
-    for (let i = 0; i < scenePlan.scenes.length; i += batchSize) {
-      const batch = scenePlan.scenes.slice(i, i + batchSize);
-      const batchPath = path.join(sceneDir, `batch-${String(i / batchSize).padStart(3, "0")}.wav`);
-      updateJob(jobId, {
-        stage: "Voice",
-        progress: 65 + Math.round((i / scenePlan.scenes.length) * 3),
-        message: `Scenes ${batch[0].index}-${batch[batch.length - 1].index} / ${scenePlan.scenes.length} — generating narration voice...`
-      });
-      await generateFullTTS(ai, batch, batchPath, voice, ttsEngineByJob.get(jobId) || "auto", jobStyle);
-      const parts = await splitFullTTSForScenes(batchPath, batch, sceneDir);
-      rawSceneAudio.push(...parts);
-    }
-  } else {
-    // Preserve the original single-request TTS path for other recap styles.
-    await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice, ttsEngineByJob.get(jobId) || "auto", jobStyle);
-    rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
-  }
+  // ONE Gemini TTS request for the entire recap.
+  await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice, ttsEngineByJob.get(jobId) || "auto");
+
+  const rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
   const renderedScenes = [];
-
-  const burn = readBurn(jobFolder);
-  const burnOn = burnActive(burn);
-  const videoSize = burnOn ? await probeVideoSize(moviePath) : null;
-  if (burnOn) {
-    console.log(`[BURN] subtitle=${burn.subtitle.enabled} blurBoxes=${burn.blur.enabled ? burn.blur.boxes.length : 0} size=${videoSize.width}x${videoSize.height}`);
-  }
-
+  const renderOptions = jobOptions.get(jobId) || {};
+  const speedFactor = 1 + (Number(renderOptions.speed) || 0) / 100;
+  const cues = [];
+  let cursor = 0;
   for (let i = 0; i < scenePlan.scenes.length; i++) {
     const scene = scenePlan.scenes[i];
     const progress = 68 + Math.round((i / scenePlan.scenes.length) * 23);
@@ -2490,12 +2297,17 @@ async function renderSceneSyncVideo(
     });
 
     const number = String(scene.index).padStart(3, "0");
-    const rawTTS = rawSceneAudio[i];
+    let rawTTS = rawSceneAudio[i];
+    if (Math.abs(speedFactor - 1) > 0.01) {
+      const sped = path.join(sceneDir, `scene-${number}-speed.wav`);
+      await runCommand("ffmpeg", ["-y", "-i", rawTTS, "-filter:a", `atempo=${Math.min(2, Math.max(0.5, speedFactor)).toFixed(3)}`, "-c:a", "pcm_s16le", sped]);
+      rawTTS = sped;
+    }
     const fittedTTS = path.join(sceneDir, `scene-${number}-audio.wav`);
     const sceneVideo = path.join(sceneDir, `scene-${number}-video.mp4`);
     const sceneFinal = path.join(sceneDir, `scene-${number}-final.mp4`);
 
-    const fit = await fitAudioToScene(rawTTS, fittedTTS, scene.duration, getRecapSpeed(styleByJob.get(jobId)));
+    const fit = await fitAudioToScene(rawTTS, fittedTTS, scene.duration);
     const sceneForVideo = fit.finalDuration > scene.duration + 0.05
       ? { ...scene, end: scene.start + fit.finalDuration }
       : scene;
@@ -2506,23 +2318,16 @@ async function renderSceneSyncVideo(
       message: `Scene ${scene.index} / ${scenePlan.scenes.length} — syncing video and voice...`
     });
 
-    let filterComplex = null;
-    if (burnOn) {
-      let assPath = null;
-      if (burn.subtitle.enabled) {
-        const candidate = path.join(sceneDir, `scene-${number}.ass`);
-        const videoLength = sceneForVideo.end - sceneForVideo.start;
-        if (writeAss(candidate, videoSize, burn.subtitle, scene.narration, Math.min(fit.finalDuration, videoLength))) {
-          assPath = candidate;
-        }
-      }
-      filterComplex = buildBurnFilter(burn, videoSize, assPath);
-    }
-
-    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, filterComplex);
+    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, renderOptions);
     await muxScene(sceneVideo, fittedTTS, sceneFinal);
     renderedScenes.push(sceneFinal);
+
+    const sceneLength = Math.max(scene.duration, fit.finalDuration);
+    const speechLength = Math.min(sceneLength, fit.sourceDuration / fit.tempo);
+    cues.push(...buildCues(scene.narration, cursor, speechLength));
+    cursor += sceneLength;
   }
+  writeSubtitleFiles(jobFolder, cues);
 
   updateJob(jobId, { stage: "FFmpeg", progress: 94, message: "Joining synchronized scenes..." });
 
@@ -2972,12 +2777,10 @@ app.post("/api/render/:id", async (req, res) => {
       return res.status(400).json({ error: "Scene တစ်ခုမှာ စာမရှိပါ။" });
     }
     fs.writeFileSync(planPath, JSON.stringify(plan, null, 2), "utf8");
-    saveBurn(folder, req.body?.burn);
 
     const voice = String(req.body?.voice || "female");
     const engine = String(req.body?.ttsEngine || "auto").toLowerCase();
     ttsEngineByJob.set(job.id, TTS_ENGINES.includes(engine) ? engine : "auto");
-    if (req.body?.style) styleByJob.set(job.id, String(req.body.style));
 
     const movieName = fs.readdirSync(folder).find(name => /^movie\./i.test(name));
     if (!movieName) return res.status(404).json({ error: "Movie file မတွေ့တော့ပါ။ ပြန်တင်ပါ။" });
@@ -2998,13 +2801,6 @@ app.post("/api/render/:id", async (req, res) => {
 });
 
 const previewCache = new Map();
-
-function saveBurn(folder, raw) {
-  if (raw === undefined || raw === null || raw === "") return;
-  const burn = normalizeBurn(raw);
-  if (!burn) return;
-  fs.writeFileSync(path.join(folder, "burn.json"), JSON.stringify(burn), "utf8");
-}
 
 app.post("/api/tts-preview", async (req, res) => {
   const text = String(req.body?.text || "").trim().slice(0, 220);
@@ -3041,10 +2837,12 @@ app.post("/api/tts-preview", async (req, res) => {
 
 app.post(
   "/api/one-clip",
-  upload.single("movie"),
-
+  upload.fields([{ name: "movie", maxCount: 1 }, { name: "logo", maxCount: 1 }]),
   async (req, res) => {
     try {
+      const movieFile = req.files?.movie?.[0];
+      const logoFile = req.files?.logo?.[0];
+      req.file = movieFile;
       if (!req.file) {
         return res
           .status(400)
@@ -3090,24 +2888,36 @@ app.post(
         moviePath
       );
 
-      saveBurn(jobFolder, req.body?.burn);
-
       const language =
         req.body?.language ||
         "my";
 
       const style =
         req.body?.style ||
-        "natural";
+        "cinematic";
 
       const voice =
         req.body?.voice ||
         "female";
 
       const reviewScript = String(req.body?.reviewScript || "") === "1";
+
+      const pctRaw = Number(req.body?.recapLength || 30);
+      const ratioRaw = String(req.body?.ratio || "original");
+      const speedRaw = Number(req.body?.speed || 0);
+      let logoPath = null;
+      if (logoFile) {
+        logoPath = path.join(jobFolder, `logo${path.extname(logoFile.originalname || "") || ".png"}`);
+        fs.renameSync(logoFile.path, logoPath);
+      }
+      jobOptions.set(job.id, {
+        recapPct: [30, 60, 90, 100].includes(pctRaw) ? pctRaw / 100 : 0.3,
+        ratio: ["original", "9:16", "1:1"].includes(ratioRaw) ? ratioRaw : "original",
+        speed: Number.isFinite(speedRaw) ? Math.max(-30, Math.min(40, speedRaw)) : 0,
+        logoPath
+      });
       const requestedEngine = String(req.body?.ttsEngine || "auto").toLowerCase();
       ttsEngineByJob.set(job.id, TTS_ENGINES.includes(requestedEngine) ? requestedEngine : "auto");
-      styleByJob.set(job.id, style);
 
 
       updateJob(job.id, {
@@ -3237,21 +3047,28 @@ app.use(
   (err, req, res, next) => {
     console.error(
       "SERVER ERROR:",
-      { method: req.method, url: req.originalUrl, contentLength: req.headers["content-length"] || null, error: err?.stack || err?.message || String(err) }
+      err
     );
 
-    if (err instanceof multer.MulterError) {
-      const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
-      return res.status(status).json({
-        error: err.code === "LIMIT_FILE_SIZE"
-          ? "Video ဖိုင်အရွယ်အစား 500MB ထက် မကျော်ရပါ။"
-          : err.message
-      });
+    if (
+      err instanceof
+      multer.MulterError
+    ) {
+      return res
+        .status(400)
+        .json({
+          error:
+            err.message
+        });
     }
 
-    return res.status(500).json({
-      error: err.message || "Server error."
-    });
+    return res
+      .status(500)
+      .json({
+        error:
+          err.message ||
+          "Server error."
+      });
   }
 );
 
@@ -3262,7 +3079,6 @@ app.use(
 async function startServer() {
   try {
     await initDatabase();
-    await checkSubtitleFont();
 
     app.listen(
       PORT,
