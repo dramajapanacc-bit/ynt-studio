@@ -178,11 +178,14 @@ const upload = multer({
 ========================================================= */
 
 const DATABASE_URL = process.env.DATABASE_URL;
-let USE_DB = Boolean(DATABASE_URL);
-if (!USE_DB) {
-  console.log("[JOB STORAGE] DATABASE_URL မရှိပါ - memory ထဲမှာပဲ job သိမ်းမည်။");
+
+if (!DATABASE_URL) {
+  throw new Error(
+    "DATABASE_URL is required. Add a PostgreSQL connection string to the environment."
+  );
 }
-const db = !DATABASE_URL ? null : new Pool({
+
+const db = new Pool({
   connectionString: DATABASE_URL,
   ssl:
     process.env.DATABASE_SSL === "false"
@@ -194,26 +197,9 @@ const db = !DATABASE_URL ? null : new Pool({
 });
 
 const jobs = new Map();
-if (db) {
-  db.on("error", error => {
-    console.error("[JOB STORAGE] idle connection error:", error?.message || error);
-  });
-}
 const jobWriteQueues = new Map();
 
 async function initDatabase() {
-  if (!USE_DB) return;
-  try {
-    await initDatabaseTables();
-    console.log("[JOB STORAGE] PostgreSQL database ready.");
-  } catch (error) {
-    USE_DB = false;
-    console.error("[JOB STORAGE] Database ချိတ်မရပါ - memory ထဲမှာပဲ ဆက်သွားမည်:", error?.message || error);
-    try { await db.end(); } catch {}
-  }
-}
-
-async function initDatabaseTables() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS jobs (
       id TEXT PRIMARY KEY,
@@ -290,7 +276,6 @@ function dbRowToJob(row) {
 }
 
 async function persistJob(job) {
-  if (!USE_DB) return;
   const row = jobToDbRow(job);
 
   await db.query(
@@ -414,10 +399,6 @@ async function getJob(id) {
 
   if (cached) {
     return cached;
-  }
-
-  if (!USE_DB) {
-    return null;
   }
 
   const result = await db.query(
@@ -1530,7 +1511,6 @@ RULES:
 8. Cover the complete movie from 0 to ${duration.toFixed(2)} seconds.
 9. ${syncMode ? "Scene length follows the dialogue and events, not a fixed size." : "Prefer scenes around 6 to 14 seconds."}
 10. ${syncMode ? `Create one scene per spoken line or visible event, up to ${SYNC_MAX_SCENES} scenes. Scenes may be as short as 1.5 seconds.` : `Create approximately 8 to ${MAX_SCENES} scenes.`}
-CRITICAL ANTI-REPETITION RULE: NEVER reuse the same source moment for multiple scenes. Every scene must use its own unique chronological start_sec/end_sec interval from the original video. Do not repeat a scene just because the same character or location appears again; only revisit a location when a genuinely new event occurs there. Never output duplicate or near-duplicate timestamp ranges.
 11. Match narration to what is actually visible.
 12. Use Whisper transcript as supporting information.
 13. Do not invent events.
@@ -2299,8 +2279,7 @@ async function renderSceneVideo(
   moviePath,
   scene,
   outputPath,
-  filterComplex = null,
-  watermarkPath = null
+  filterComplex = null
 ) {
   const duration = Math.max(0.05, scene.end - scene.start);
 
@@ -2312,7 +2291,6 @@ async function renderSceneVideo(
       scene.start.toFixed(3),
       "-i",
       moviePath,
-      ...(watermarkPath ? ["-i", watermarkPath] : []),
       "-t",
       duration.toFixed(3),
       ...(filterComplex
@@ -2448,12 +2426,7 @@ async function concatScenes(
 
 function readBurn(jobFolder) {
   try {
-    const raw = JSON.parse(fs.readFileSync(path.join(jobFolder, "burn.json"), "utf8"));
-    if (raw?.watermark?.logoPath) {
-      raw.watermark.logoPath = path.join(jobFolder, "watermark-logo.webp");
-      raw.watermark.enabled = raw.watermark.enabled === true && fs.existsSync(raw.watermark.logoPath);
-    }
-    return normalizeBurn(raw);
+    return normalizeBurn(fs.readFileSync(path.join(jobFolder, "burn.json"), "utf8"));
   } catch {
     return null;
   }
@@ -2542,12 +2515,10 @@ async function renderSceneSyncVideo(
           assPath = candidate;
         }
       }
-      const watermarkPath = burn.watermark?.enabled ? burn.watermark.logoPath : null;
-      filterComplex = buildBurnFilter(burn, videoSize, assPath, Boolean(watermarkPath));
+      filterComplex = buildBurnFilter(burn, videoSize, assPath);
     }
 
-    const watermarkPath = burnOn && burn.watermark?.enabled ? burn.watermark.logoPath : null;
-    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, filterComplex, watermarkPath);
+    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, filterComplex);
     await muxScene(sceneVideo, fittedTTS, sceneFinal);
     renderedScenes.push(sceneFinal);
   }
@@ -3029,28 +3000,7 @@ const previewCache = new Map();
 
 function saveBurn(folder, raw) {
   if (raw === undefined || raw === null || raw === "") return;
-  let parsed = raw;
-  if (typeof parsed === "string") {
-    try { parsed = JSON.parse(parsed); } catch { return; }
-  }
-  if (!parsed || typeof parsed !== "object") return;
-
-  const watermark = parsed.watermark && typeof parsed.watermark === "object" ? { ...parsed.watermark } : {};
-  const dataUrl = String(watermark.dataUrl || "");
-  if (dataUrl) {
-    const match = dataUrl.match(/^data:image\/webp;base64,([A-Za-z0-9+/=]+)$/);
-    if (!match) throw new Error("Logo ပုံဖိုင်ကို ဖတ်မရပါ။ WEBP ပုံအဖြစ် ပြန်ရွေးပေးပါ။");
-    const image = Buffer.from(match[1], "base64");
-    if (image.length < 16 || image.length > 1024 * 1024 || image.toString("ascii", 8, 12) !== "WEBP") {
-      throw new Error("Logo ဖိုင်အရွယ်အစား သို့မဟုတ် ပုံအမျိုးအစား မမှန်ပါ။");
-    }
-    fs.writeFileSync(path.join(folder, "watermark-logo.webp"), image);
-    watermark.logoPath = path.join(folder, "watermark-logo.webp");
-  }
-  delete watermark.dataUrl;
-  if (watermark.logoPath) watermark.logoPath = path.join(folder, "watermark-logo.webp");
-  parsed = { ...parsed, watermark };
-  const burn = normalizeBurn(parsed);
+  const burn = normalizeBurn(raw);
   if (!burn) return;
   fs.writeFileSync(path.join(folder, "burn.json"), JSON.stringify(burn), "utf8");
 }
@@ -3370,7 +3320,7 @@ async function startServer() {
         );
 
         console.log(
-          `Job Storage: ${USE_DB ? "PostgreSQL" : "memory"}`
+          "PostgreSQL Job Storage: READY"
         );
 
         console.log(
@@ -3388,7 +3338,7 @@ async function startServer() {
       error?.message || error
     );
 
-    if (db) await db.end().catch(() => {});
+    await db.end().catch(() => {});
     process.exit(1);
   }
 }
