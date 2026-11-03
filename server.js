@@ -2280,7 +2280,8 @@ async function renderSceneVideo(
   moviePath,
   scene,
   outputPath,
-  filterComplex = null
+  filterComplex = null,
+  watermarkPath = null
 ) {
   const duration = Math.max(0.05, scene.end - scene.start);
 
@@ -2292,6 +2293,7 @@ async function renderSceneVideo(
       scene.start.toFixed(3),
       "-i",
       moviePath,
+      ...(watermarkPath ? ["-i", watermarkPath] : []),
       "-t",
       duration.toFixed(3),
       ...(filterComplex
@@ -2427,7 +2429,12 @@ async function concatScenes(
 
 function readBurn(jobFolder) {
   try {
-    return normalizeBurn(fs.readFileSync(path.join(jobFolder, "burn.json"), "utf8"));
+    const raw = JSON.parse(fs.readFileSync(path.join(jobFolder, "burn.json"), "utf8"));
+    if (raw?.watermark?.logoPath) {
+      raw.watermark.logoPath = path.join(jobFolder, "watermark-logo.webp");
+      raw.watermark.enabled = raw.watermark.enabled === true && fs.existsSync(raw.watermark.logoPath);
+    }
+    return normalizeBurn(raw);
   } catch {
     return null;
   }
@@ -2516,10 +2523,12 @@ async function renderSceneSyncVideo(
           assPath = candidate;
         }
       }
-      filterComplex = buildBurnFilter(burn, videoSize, assPath);
+      const watermarkPath = burn.watermark?.enabled ? burn.watermark.logoPath : null;
+      filterComplex = buildBurnFilter(burn, videoSize, assPath, Boolean(watermarkPath));
     }
 
-    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, filterComplex);
+    const watermarkPath = burnOn && burn.watermark?.enabled ? burn.watermark.logoPath : null;
+    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, filterComplex, watermarkPath);
     await muxScene(sceneVideo, fittedTTS, sceneFinal);
     renderedScenes.push(sceneFinal);
   }
@@ -3001,7 +3010,28 @@ const previewCache = new Map();
 
 function saveBurn(folder, raw) {
   if (raw === undefined || raw === null || raw === "") return;
-  const burn = normalizeBurn(raw);
+  let parsed = raw;
+  if (typeof parsed === "string") {
+    try { parsed = JSON.parse(parsed); } catch { return; }
+  }
+  if (!parsed || typeof parsed !== "object") return;
+
+  const watermark = parsed.watermark && typeof parsed.watermark === "object" ? { ...parsed.watermark } : {};
+  const dataUrl = String(watermark.dataUrl || "");
+  if (dataUrl) {
+    const match = dataUrl.match(/^data:image\/webp;base64,([A-Za-z0-9+/=]+)$/);
+    if (!match) throw new Error("Logo ပုံဖိုင်ကို ဖတ်မရပါ။ WEBP ပုံအဖြစ် ပြန်ရွေးပေးပါ။");
+    const image = Buffer.from(match[1], "base64");
+    if (image.length < 16 || image.length > 1024 * 1024 || image.toString("ascii", 8, 12) !== "WEBP") {
+      throw new Error("Logo ဖိုင်အရွယ်အစား သို့မဟုတ် ပုံအမျိုးအစား မမှန်ပါ။");
+    }
+    fs.writeFileSync(path.join(folder, "watermark-logo.webp"), image);
+    watermark.logoPath = path.join(folder, "watermark-logo.webp");
+  }
+  delete watermark.dataUrl;
+  if (watermark.logoPath) watermark.logoPath = path.join(folder, "watermark-logo.webp");
+  parsed = { ...parsed, watermark };
+  const burn = normalizeBurn(parsed);
   if (!burn) return;
   fs.writeFileSync(path.join(folder, "burn.json"), JSON.stringify(burn), "utf8");
 }
