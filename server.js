@@ -178,14 +178,11 @@ const upload = multer({
 ========================================================= */
 
 const DATABASE_URL = process.env.DATABASE_URL;
-
-if (!DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL is required. Add a PostgreSQL connection string to the environment."
-  );
+let USE_DB = Boolean(DATABASE_URL);
+if (!USE_DB) {
+  console.log("[JOB STORAGE] DATABASE_URL မရှိပါ - memory ထဲမှာပဲ job သိမ်းမည်။");
 }
-
-const db = new Pool({
+const db = !DATABASE_URL ? null : new Pool({
   connectionString: DATABASE_URL,
   ssl:
     process.env.DATABASE_SSL === "false"
@@ -197,9 +194,26 @@ const db = new Pool({
 });
 
 const jobs = new Map();
+if (db) {
+  db.on("error", error => {
+    console.error("[JOB STORAGE] idle connection error:", error?.message || error);
+  });
+}
 const jobWriteQueues = new Map();
 
 async function initDatabase() {
+  if (!USE_DB) return;
+  try {
+    await initDatabaseTables();
+    console.log("[JOB STORAGE] PostgreSQL database ready.");
+  } catch (error) {
+    USE_DB = false;
+    console.error("[JOB STORAGE] Database ချိတ်မရပါ - memory ထဲမှာပဲ ဆက်သွားမည်:", error?.message || error);
+    try { await db.end(); } catch {}
+  }
+}
+
+async function initDatabaseTables() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS jobs (
       id TEXT PRIMARY KEY,
@@ -276,6 +290,7 @@ function dbRowToJob(row) {
 }
 
 async function persistJob(job) {
+  if (!USE_DB) return;
   const row = jobToDbRow(job);
 
   await db.query(
@@ -399,6 +414,10 @@ async function getJob(id) {
 
   if (cached) {
     return cached;
+  }
+
+  if (!USE_DB) {
+    return null;
   }
 
   const result = await db.query(
@@ -3351,7 +3370,7 @@ async function startServer() {
         );
 
         console.log(
-          "PostgreSQL Job Storage: READY"
+          `Job Storage: ${USE_DB ? "PostgreSQL" : "memory"}`
         );
 
         console.log(
@@ -3369,7 +3388,7 @@ async function startServer() {
       error?.message || error
     );
 
-    await db.end().catch(() => {});
+    if (db) await db.end().catch(() => {});
     process.exit(1);
   }
 }
