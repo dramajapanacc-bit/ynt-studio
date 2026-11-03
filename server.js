@@ -1463,14 +1463,11 @@ You are a Burmese storyteller telling this movie to a friend, as ONE continuous 
 - Voice: warm, natural, spoken Burmese (ပြောစကား), like a person narrating a story out loud. Never bookish, never robotic, never a list of separate captions.
 - Flow: make this sound like a real YouTube movie recap, not a synopsis, subtitle translation, or a list of scene descriptions. Tell the plot in a connected, engaging spoken-story flow. Link each scene naturally to the previous one with varied conversational transitions (e.g. "အဲဒီအချိန်မှာ", "ဒါပေမဲ့", "နောက်တော့", "ဒီလိုနဲ့") and make each scene lead into the next. Do not restart or re-introduce characters in every scene.
 - Content: focus on what happens, why it matters, what the character wants, and what changes next. Keep important cause-and-effect and twists; avoid generic lines such as "ဒီအဖြစ်အပျက်က သူ့ဘဝကို ပြောင်းလဲစေခဲ့တယ်" unless the movie actually supports them. Do not merely describe visible actions.
-- Sentences: use complete, idiomatic spoken Burmese with natural word order and conversational phrasing. Write as a skilled Myanmar YouTube recap narrator speaking to viewers, not as a translator reading subtitles. Avoid literal English sentence structure, repetitive sentence openings, very short broken fragments, and overlong run-on sentences.
-- Natural delivery: vary sentence length and rhythm. Use everyday Burmese expressions only where they fit. Do not force the same connectors into every scene. Avoid stiff phrases, unnecessary character-name repetition, redundant explanations, filler, and exaggerated clickbait.
-- Story continuity: preserve the actual order of events and clear cause-and-effect. Each scene must continue the story from the previous scene instead of restarting the recap. Mention a character again only when needed for clarity.
-- Accuracy: never invent dialogue, motives, relationships, actions, or plot details that are not supported by the movie and transcript. If a detail is unclear, narrate only what is clearly shown or said.
+- Sentences: use complete, idiomatic spoken Burmese with natural word order and conversational phrasing. Avoid literal English sentence structure, repetitive sentence openings, very short broken fragments, and overlong run-on sentences.
 - Punctuation for speech rhythm: use "၊" for short breathing pauses and "။" at the end of every sentence, so the voice pauses naturally. Every scene narration must end with "။".
-- Tense: tell it mainly in past tense ("...ခဲ့တယ်"), with a strong but truthful hook in the very first sentence of the first scene.
-- Emotion: let tension, surprise and relief show through natural word choice, not through exclamation marks or melodrama.
-- The length budget in rule 21 still applies: never write more than can be spoken in the scene. Prefer a complete, meaningful spoken sentence over padding the scene with empty narration.`;
+- Tense: tell it in past tense ("...ခဲ့တယ်"), with a gripping hook in the very first sentence of the first scene.
+- Emotion: let tension, surprise and relief show through word choice, not through exclamation marks.
+- The length budget in rule 21 still applies: never write more than can be spoken in the scene.`;
   }
 
   if (style === "short") {
@@ -2283,8 +2280,7 @@ async function renderSceneVideo(
   moviePath,
   scene,
   outputPath,
-  filterComplex = null,
-  watermarkPath = null
+  filterComplex = null
 ) {
   const duration = Math.max(0.05, scene.end - scene.start);
 
@@ -2296,7 +2292,6 @@ async function renderSceneVideo(
       scene.start.toFixed(3),
       "-i",
       moviePath,
-      ...(watermarkPath ? ["-i", watermarkPath] : []),
       "-t",
       duration.toFixed(3),
       ...(filterComplex
@@ -2432,12 +2427,7 @@ async function concatScenes(
 
 function readBurn(jobFolder) {
   try {
-    const raw = JSON.parse(fs.readFileSync(path.join(jobFolder, "burn.json"), "utf8"));
-    if (raw?.watermark?.logoPath) {
-      raw.watermark.logoPath = path.join(jobFolder, "watermark-logo.webp");
-      raw.watermark.enabled = raw.watermark.enabled === true && fs.existsSync(raw.watermark.logoPath);
-    }
-    return normalizeBurn(raw);
+    return normalizeBurn(fs.readFileSync(path.join(jobFolder, "burn.json"), "utf8"));
   } catch {
     return null;
   }
@@ -2526,12 +2516,10 @@ async function renderSceneSyncVideo(
           assPath = candidate;
         }
       }
-      const watermarkPath = burn.watermark?.enabled ? burn.watermark.logoPath : null;
-      filterComplex = buildBurnFilter(burn, videoSize, assPath, Boolean(watermarkPath));
+      filterComplex = buildBurnFilter(burn, videoSize, assPath);
     }
 
-    const watermarkPath = burnOn && burn.watermark?.enabled ? burn.watermark.logoPath : null;
-    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, filterComplex, watermarkPath);
+    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, filterComplex);
     await muxScene(sceneVideo, fittedTTS, sceneFinal);
     renderedScenes.push(sceneFinal);
   }
@@ -3013,28 +3001,7 @@ const previewCache = new Map();
 
 function saveBurn(folder, raw) {
   if (raw === undefined || raw === null || raw === "") return;
-  let parsed = raw;
-  if (typeof parsed === "string") {
-    try { parsed = JSON.parse(parsed); } catch { return; }
-  }
-  if (!parsed || typeof parsed !== "object") return;
-
-  const watermark = parsed.watermark && typeof parsed.watermark === "object" ? { ...parsed.watermark } : {};
-  const dataUrl = String(watermark.dataUrl || "");
-  if (dataUrl) {
-    const match = dataUrl.match(/^data:image\/webp;base64,([A-Za-z0-9+/=]+)$/);
-    if (!match) throw new Error("Logo ပုံဖိုင်ကို ဖတ်မရပါ။ WEBP ပုံအဖြစ် ပြန်ရွေးပေးပါ။");
-    const image = Buffer.from(match[1], "base64");
-    if (image.length < 16 || image.length > 1024 * 1024 || image.toString("ascii", 8, 12) !== "WEBP") {
-      throw new Error("Logo ဖိုင်အရွယ်အစား သို့မဟုတ် ပုံအမျိုးအစား မမှန်ပါ။");
-    }
-    fs.writeFileSync(path.join(folder, "watermark-logo.webp"), image);
-    watermark.logoPath = path.join(folder, "watermark-logo.webp");
-  }
-  delete watermark.dataUrl;
-  if (watermark.logoPath) watermark.logoPath = path.join(folder, "watermark-logo.webp");
-  parsed = { ...parsed, watermark };
-  const burn = normalizeBurn(parsed);
+  const burn = normalizeBurn(raw);
   if (!burn) return;
   fs.writeFileSync(path.join(folder, "burn.json"), JSON.stringify(burn), "utf8");
 }
