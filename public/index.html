@@ -4,7 +4,7 @@
 <!-- Final video keeps original footage clean. -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>YanNaing Recap Tool</title>
+<title>YNT Recap Tool</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&family=Noto+Sans+Myanmar:wght@400;500;600;700;800&display=swap">
 <style>
 @property --a{syntax:'<angle>';initial-value:0deg;inherits:false}
@@ -137,13 +137,6 @@ textarea:focus{border-color:var(--cyan)}
 .bx .rs{position:absolute;right:0;bottom:0;width:30px;height:30px;border-radius:10px 0 4px 0;background:var(--ok);touch-action:none;cursor:nwse-resize}
 .bx .rs:after{content:"";position:absolute;right:6px;bottom:6px;width:10px;height:10px;border-right:3px solid #042a26;border-bottom:3px solid #042a26}
 .subSample{position:absolute;left:50%;top:84%;width:max-content;max-width:92%;z-index:5;display:none;text-align:center;transform:translate(-50%,-50%);pointer-events:auto;touch-action:none;cursor:grab;outline:1.5px dashed #ffffff88;outline-offset:3px;font-weight:700;line-height:1.35;text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 2px #000}
-.wmPreview{position:absolute;z-index:8;top:3%;right:3%;width:12%;max-width:25%;height:auto;max-height:35%;object-fit:contain;display:none;pointer-events:none;filter:drop-shadow(0 1px 3px #0009)}
-.logoPicker{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
-.logoPicker input[type=file]{display:none}
-.logoPickBtn,.logoRemoveBtn{min-height:42px;padding:0 15px;border-radius:11px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit;font-size:13px;font-weight:800;cursor:pointer}
-.logoRemoveBtn{color:var(--err)}
-.logoFileName{font-size:11px;color:var(--muted);overflow-wrap:anywhere}
-.wmSettings.off{opacity:.42;pointer-events:none}
 .seek{width:100%;margin:12px 0 0;accent-color:var(--violet)}
 .opt{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
 .sw{position:relative;display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:44px;font-size:14px;font-weight:700;cursor:pointer}
@@ -177,7 +170,7 @@ textarea:focus{border-color:var(--cyan)}
 </head>
 <body>
 <main class="wrap">
-<header class="top"><div class="logo">🎬</div><div><b>YanNaing Recap Tool</b><small>AI Powered · Myanmar Recap</small></div><button class="icon-btn" id="themeBtn" type="button" aria-label="Theme">🌙</button></header>
+<header class="top"><div class="logo">🎬</div><div><b>YNT Recap Tool</b><small>AI Powered · Myanmar Recap</small></div><button class="icon-btn" id="themeBtn" type="button" aria-label="Theme">🌙</button></header>
 
 <section class="hero">
   <span class="badge">✨ AI POWERED</span>
@@ -221,7 +214,7 @@ textarea:focus{border-color:var(--cyan)}
   <div class="head"><span class="num">3</span><div><h2>စာတန်းထိုး &amp; Blur</h2><p>မြန်မာစာတန်းထိုး ထည့်ခြင်း၊ မူရင်းစာတန်းထိုးကို Blur ဖုံးခြင်း (ရွေးချယ်စရာ)။</p></div></div>
 
   <div class="stageWrap" id="stageWrap">
-    <div class="stage" id="stage"><video id="stageVideo" muted playsinline preload="metadata"></video><div class="boxLayer" id="boxLayer"></div><div class="subSample" id="subSample">ဒီအချိန်မှာ သူ့လျှို့ဝှက်ချက် ပေါ်လာပါတယ်</div><img class="wmPreview" id="wmPreview" alt="Video watermark preview"></div>
+    <div class="stage" id="stage"><video id="stageVideo" muted playsinline preload="metadata"></video><div class="boxLayer" id="boxLayer"></div><div class="subSample" id="subSample">ဒီအချိန်မှာ သူ့လျှို့ဝှက်ချက် ပေါ်လာပါတယ်</div></div>
     <input class="seek" id="seek" type="range" min="0" max="1000" value="100" aria-label="Video ကို ရွှေ့ကြည့်ရန်">
     <p class="hint">Slider ကို ရွှေ့ပြီး မူရင်းစာတန်းထိုး ပေါ်တဲ့ frame ကို ရှာပါ။</p>
   </div>
@@ -271,23 +264,6 @@ textarea:focus{border-color:var(--cyan)}
       <div class="lab"><label for="blurStr">Blur ပြင်းအား</label><span id="blurStrV">အလတ်</span></div>
       <input class="rng" id="blurStr" type="range" min="1" max="10" value="3">
       <p class="hint">Preview ပေါ်က အကွက်ကို ဆွဲရွှေ့ပါ၊ ထောင့်က ပုံစံလေးကို ဆွဲပြီး အရွယ်အစား ပြင်ပါ။</p>
-    </div>
-  </div>
-
-  <div class="opt">
-    <label class="sw"><span>Video ညာဘက်အပေါ်ထောင့်မှာ Logo ထည့်မယ် (Watermark)</span><input type="checkbox" id="watermarkOn"><i></i></label>
-    <div class="subbox off wmSettings" id="watermarkOpts">
-      <div class="logoPicker">
-        <input type="file" id="watermarkFile" accept="image/png,image/jpeg,image/webp">
-        <button class="logoPickBtn" type="button" id="watermarkPick">🖼️ ဖုန်းထဲက Logo ရွေးမယ်</button>
-        <button class="logoRemoveBtn" type="button" id="watermarkRemove">ဖယ်ရှားမယ်</button>
-        <span class="logoFileName" id="watermarkName">Logo မရွေးရသေးပါ</span>
-      </div>
-      <div class="lab"><label for="watermarkSize">Logo အရွယ်အစား</label><span id="watermarkSizeV">12%</span></div>
-      <input class="rng" id="watermarkSize" type="range" min="4" max="25" value="12">
-      <div class="lab"><label for="watermarkOpacity">Logo ပွင့်လင်းမှု</label><span id="watermarkOpacityV">90%</span></div>
-      <input class="rng" id="watermarkOpacity" type="range" min="10" max="100" value="90">
-      <p class="hint">Preview ထဲမှာ ညာဘက်အပေါ်ထောင့်က Logo ကို မြင်ရပါမယ်။ Generate လုပ်ပြီး Download ဆွဲတဲ့ MP4 ထဲမှာလည်း Logo တကယ်ပါသွားပါမယ်။</p>
     </div>
   </div>
 </section>
@@ -355,47 +331,6 @@ function showFile(){
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
 const stage=$('stage'),layer=$('boxLayer'),sample=$('subSample'),sv=$('stageVideo');
 let boxes=[],selBox=-1,drag=null,subX=50,subY=84,subDrag=null;
-let watermarkDataUrl='';
-const WATERMARK_STORAGE_KEY='ynt-recap-watermark-logo-v1';
-function paintWatermark(){
-  const enabled=$('watermarkOn').checked&&!!watermarkDataUrl;
-  $('watermarkOpts').classList.toggle('off',!$('watermarkOn').checked);
-  $('wmPreview').style.display=enabled?'block':'none';
-  if(enabled){$('wmPreview').src=watermarkDataUrl;$('wmPreview').style.width=$('watermarkSize').value+'%';$('wmPreview').style.opacity=String(Number($('watermarkOpacity').value)/100)}
-  $('watermarkSizeV').textContent=$('watermarkSize').value+'%';
-  $('watermarkOpacityV').textContent=$('watermarkOpacity').value+'%';
-}
-function loadWatermark(){
-  try{watermarkDataUrl=localStorage.getItem(WATERMARK_STORAGE_KEY)||''}catch{watermarkDataUrl=''}
-  $('watermarkName').textContent=watermarkDataUrl?'သိမ်းထားတဲ့ Logo အသုံးပြုနေသည်':'Logo မရွေးရသေးပါ';
-  $('watermarkOn').checked=!!watermarkDataUrl;paintWatermark();
-}
-$('watermarkPick').onclick=()=>$('watermarkFile').click();
-$('watermarkFile').addEventListener('change',()=>{
-  const file=$('watermarkFile').files?.[0];if(!file)return;
-  if(!/^image\/(png|jpeg|webp)$/i.test(file.type)){alert('PNG, JPG သို့မဟုတ် WEBP ပုံကို ရွေးပေးပါ။');$('watermarkFile').value='';return}
-  if(file.size>8*1024*1024){alert('Logo ပုံသည် 8MB ထက် မကြီးရပါ။');$('watermarkFile').value='';return}
-  const reader=new FileReader();
-  reader.onload=()=>{
-    const img=new Image();
-    img.onload=()=>{
-      const scale=Math.min(1,512/Math.max(img.width,img.height));
-      const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));
-      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-      watermarkDataUrl=canvas.toDataURL('image/webp',0.84);
-      try{localStorage.setItem(WATERMARK_STORAGE_KEY,watermarkDataUrl)}catch{alert('Logo ကို Browser ထဲမှာ သိမ်းမရပါ။ ပိုသေးတဲ့ Logo ပုံကို ရွေးကြည့်ပါ။')}
-      $('watermarkName').textContent=file.name+' (Logo ရွေးပြီးပါပြီ)';$('watermarkOn').checked=true;paintWatermark();$('watermarkFile').value='';
-    };
-    img.onerror=()=>{alert('Logo ပုံကို ဖွင့်မရပါ။ အခြားပုံရွေးပါ။');$('watermarkFile').value=''};img.src=reader.result;
-  };
-  reader.onerror=()=>alert('Logo ပုံဖိုင်ကို ဖတ်မရပါ။');reader.readAsDataURL(file);
-});
-$('watermarkRemove').onclick=()=>{
-  watermarkDataUrl='';try{localStorage.removeItem(WATERMARK_STORAGE_KEY)}catch{}
-  $('watermarkFile').value='';$('watermarkName').textContent='Logo မရွေးရသေးပါ';$('watermarkOn').checked=false;paintWatermark();
-};
-['watermarkOn','watermarkSize','watermarkOpacity'].forEach(id=>$(id).addEventListener('input',paintWatermark));
-loadWatermark();
 const PRESET_Y={top:14,middle:50,bottom:84};
 const radioVal=n=>document.querySelector('input[name="'+n+'"]:checked')?.value;
 const subPct=()=>2+0.4*Number($('subSize').value);
@@ -495,8 +430,7 @@ function burnPayload(){
   return{
     aspectRatio:$('outputRatio')?.value||'original',
     subtitle:{enabled:$('subOn').checked,sizePct:+subPct().toFixed(2),color:radioVal('subColor')||'#ffe600',position:radioVal('subPos')||'custom',xPct:+subX.toFixed(2),yPct:+subY.toFixed(2)},
-    blur:{enabled:$('blurOn').checked&&boxesOut.length>0,boxes:boxesOut,strength:sigma()},
-    watermark:{enabled:$('watermarkOn').checked&&!!watermarkDataUrl,dataUrl:watermarkDataUrl,sizePct:Number($('watermarkSize').value),opacity:Number($('watermarkOpacity').value)/100,marginPct:3}
+    blur:{enabled:$('blurOn').checked&&boxesOut.length>0,boxes:boxesOut,strength:sigma()}
   };
 }
 applySub();applyBlur();
