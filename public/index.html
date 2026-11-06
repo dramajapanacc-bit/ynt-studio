@@ -1,154 +1,771 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="my">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>YNT Recap Studio</title>
+<!-- Final video keeps original footage clean. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>YNT Recap Tool</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,500;0,700;0,800;1,800&family=Noto+Sans+Myanmar:wght@400;500;600;700;800&display=swap">
 <style>
+/* ===== palettes (accent + tinted dark surfaces) ===== */
+:root,:root[data-pal="violet"]{--bg:#01031a;--side:#0a0c22;--c1:#171a44;--c2:#11143a;--in:#0c1237;--line:#2c3376;--a1:#8b08f2;--a2:#5550f9;--a3:#d62bc4;--on:#fff;--ring:#9aa6ff;--grad:linear-gradient(135deg,#8b08f2,#5550f9);--gen:linear-gradient(90deg,#fb8a64,#d62bc4 26%,#8302f8 50%,#3502fc 78%,#1e6bfb);--title:linear-gradient(180deg,#fff7b0,#fbbf24 55%,#f97316);--ban1:#8302f8;--ban2:#1d3fd8;--ban3:#d62bc4}
+:root[data-pal="aurora"]{--bg:#010f12;--side:#041519;--c1:#0c2a30;--c2:#08202a;--in:#071b21;--line:#1d5560;--a1:#06b6d4;--a2:#10b981;--a3:#a3e635;--on:#02181a;--ring:#67e8f9;--grad:linear-gradient(135deg,#06b6d4,#10b981);--gen:linear-gradient(90deg,#22d3ee,#10b981 50%,#a3e635);--title:linear-gradient(180deg,#f0fdff,#67e8f9 50%,#10b981);--ban1:#0891b2;--ban2:#047857;--ban3:#65a30d}
+:root[data-pal="sunset"]{--bg:#0d0507;--side:#160a0d;--c1:#2c1319;--c2:#220f14;--in:#1a0b10;--line:#5e2c38;--a1:#f97316;--a2:#ec4899;--a3:#a855f7;--on:#fff;--ring:#fdba74;--grad:linear-gradient(135deg,#f97316,#ec4899);--gen:linear-gradient(90deg,#fbbf24,#f97316 30%,#ec4899 65%,#a855f7);--title:linear-gradient(180deg,#fff4cf,#fdba74 50%,#fb7185);--ban1:#ea580c;--ban2:#be185d;--ban3:#7e22ce}
+:root[data-pal="gold"]{--bg:#09090b;--side:#0d0d10;--c1:#1c1c20;--c2:#131316;--in:#101013;--line:#4a3c1a;--a1:#d4af37;--a2:#f3d98b;--a3:#b8892b;--on:#1a1205;--ring:#f3d98b;--grad:linear-gradient(135deg,#b8892b,#f3d98b 50%,#d4af37);--gen:linear-gradient(90deg,#b8892b,#f3d98b 45%,#d4af37 70%,#f3d98b);--title:linear-gradient(180deg,#fff3c4,#f3d98b 45%,#c9972b);--ban1:#8a6a1f;--ban2:#5b3a14;--ban3:#8c4a3a}
+:root[data-pal="ice"]{--bg:#02081a;--side:#060f26;--c1:#102046;--c2:#0b1738;--in:#081232;--line:#26407f;--a1:#38bdf8;--a2:#6366f1;--a3:#a78bfa;--on:#fff;--ring:#7dd3fc;--grad:linear-gradient(135deg,#0ea5e9,#6366f1);--gen:linear-gradient(90deg,#38bdf8,#6366f1 55%,#a78bfa);--title:linear-gradient(180deg,#ffffff,#bae6fd 50%,#818cf8);--ban1:#0369a1;--ban2:#4338ca;--ban3:#7c3aed}
+:root[data-pal="crimson"]{--bg:#0a0405;--side:#130708;--c1:#291113;--c2:#1e0c0e;--in:#17090b;--line:#5d2129;--a1:#ef4444;--a2:#f43f5e;--a3:#fb923c;--on:#fff;--ring:#fda4af;--grad:linear-gradient(135deg,#ef4444,#e11d48);--gen:linear-gradient(90deg,#fb923c,#ef4444 40%,#e11d48 75%,#9f1239);--title:linear-gradient(180deg,#ffffff,#fecaca 40%,#fb7185);--ban1:#b91c1c;--ban2:#9f1239;--ban3:#c2410c}
+/* surfaces shared */
+:root{--text:#f4f5ff;--muted:#a5adcf;--ok:#22c55e;--err:#fb7185;--gold:#fbbf24;--glow:color-mix(in srgb,var(--a1) 38%,transparent);--soft:color-mix(in srgb,var(--a1) 20%,transparent);--shadow:#0009}
+:root[data-theme="light"]{--bg:#f3f4fb;--side:#ffffff;--c1:#ffffff;--c2:#f7f8fe;--in:#eef0fa;--line:#d5daf0;--text:#14183a;--muted:#5f6894;--shadow:#4a55a01f;--ring:var(--a1)}
 *{box-sizing:border-box}
-body{margin:0;background:#080d1c;color:#f4f5ff;font-family:Arial,sans-serif}
-.app{display:flex;min-height:100vh}
-.sidebar{width:230px;background:#10172b;padding:25px 18px;border-right:1px solid #27304c}
-.logo{font-size:23px;font-weight:800;color:#a78bfa;margin-bottom:35px}
-.nav{display:block;padding:13px;margin:7px 0;border-radius:10px;color:#aeb8d4;text-decoration:none}
-.nav.active,.nav:hover{background:#292653;color:white}
-main{flex:1;padding:28px;max-width:1200px;margin:auto;width:100%}
-.hero{padding:30px;border-radius:20px;background:linear-gradient(120deg,#38247e,#164b91);margin-bottom:25px}
-.hero h1{font-size:30px;margin:0 0 10px}
-.hero p{color:#e0dcff}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
-.card{background:#111a30;border:1px solid #293653;border-radius:17px;padding:22px;margin-bottom:20px}
-h2{font-size:18px;margin:0 0 18px}
-label{display:block;color:#b9c4df;margin:14px 0 7px}
-input,select,textarea{width:100%;padding:13px;background:#080f20;color:white;border:1px solid #354263;border-radius:9px}
-textarea{min-height:100px;resize:vertical}
-.upload{border:2px dashed #6555c9;text-align:center;padding:30px;border-radius:14px;color:#c4b5fd}
-button{border:0;border-radius:10px;padding:13px 18px;background:linear-gradient(100deg,#8248ed,#2879ed);color:white;font-weight:bold;cursor:pointer}
-button:hover{opacity:.85}
-.primary{width:100%;margin-top:18px;padding:16px;font-size:16px}
-.preview{background:#080f20;border:1px solid #293653;border-radius:12px;min-height:230px;display:flex;align-items:center;justify-content:center;color:#8190b3;text-align:center;padding:20px}
-.small{font-size:12px;color:#8998b8}
-@media(max-width:750px){
-.app{display:block}.sidebar{width:100%;padding:15px}.logo{margin:0 0 10px}
-nav{display:flex;overflow:auto}.nav{white-space:nowrap;padding:10px}
-main{padding:15px}.grid{grid-template-columns:1fr}.hero h1{font-size:23px}
+html{scroll-behavior:smooth}
+body{margin:0;min-height:100vh;color:var(--text);font:400 14px/1.7 "Plus Jakarta Sans","Noto Sans Myanmar",system-ui,sans-serif;background:radial-gradient(70% 50% at 90% -10%,var(--soft),transparent 70%),radial-gradient(50% 40% at 0% 100%,color-mix(in srgb,var(--a2) 12%,transparent),transparent 70%),var(--bg);background-attachment:fixed;overflow-x:hidden}
+:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+.i{width:1.15em;height:1.15em;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.18em}
+.i.f{fill:currentColor;stroke:none}
+
+/* ===== sidebar ===== */
+.side{position:fixed;inset:0 auto 0 0;width:236px;z-index:30;display:flex;flex-direction:column;padding:24px 14px 16px;background:var(--side);border-right:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:12px;padding:2px 8px 26px}
+.logoMark{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;color:var(--on);background:var(--grad);box-shadow:0 10px 26px var(--glow),inset 0 1px 0 #ffffff55}
+.logoMark .i{width:24px;height:24px}
+.brand b{display:block;font-size:20px;font-style:italic;font-weight:800;letter-spacing:-.03em;line-height:1.1}
+.brand b i{font-style:italic;background:var(--title);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand small{display:block;font-size:11px;font-weight:700;color:var(--muted)}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav a{position:relative;display:flex;align-items:center;gap:13px;padding:12px 14px;border-radius:12px;color:var(--muted);text-decoration:none;font-size:14px;font-weight:700;transition:.2s}
+.nav a .i{width:20px;height:20px}
+.nav a:hover{color:var(--text);background:var(--soft)}
+.nav a.on{color:var(--text);background:linear-gradient(90deg,var(--soft),transparent)}
+.nav a.on:before{content:"";position:absolute;left:0;top:9px;bottom:9px;width:3px;border-radius:3px;background:var(--grad);box-shadow:0 0 14px var(--glow)}
+.nav a.on .i{color:var(--ring)}
+.sideFoot{margin-top:auto;padding:14px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(160deg,var(--soft),transparent)}
+.sideFoot b{display:block;font-size:14px;font-weight:800;letter-spacing:.04em}
+.sideFoot small{font-size:11px;color:var(--muted)}
+
+/* ===== main ===== */
+.main{margin-left:236px;min-height:100vh;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:11px 22px;background:color-mix(in srgb,var(--bg) 78%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.mini-brand{display:none;font-weight:800;font-style:italic;font-size:18px}
+.mini-brand i{font-style:italic;background:var(--title);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tr{margin-left:auto;display:flex;gap:12px;align-items:center}
+.pal{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:99px;border:1px solid var(--line);background:var(--c2)}
+.pal span{font-size:11px;font-weight:700;color:var(--muted);margin-right:2px}
+.pal button{width:22px;height:22px;border-radius:50%;border:2px solid transparent;background:var(--g);cursor:pointer;padding:0;transition:.2s;box-shadow:0 0 0 1px #ffffff22 inset}
+.pal button:hover{transform:scale(1.15)}
+.pal button.on{border-color:var(--text);box-shadow:0 0 0 2px var(--bg),0 0 14px var(--glow)}
+.pill{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--c2);color:var(--text);cursor:pointer}
+.pill:hover{border-color:var(--ring)}
+.pill .sun{display:none}.pill[data-t="light"] .sun{display:block}.pill[data-t="light"] .moon{display:none}
+.content{width:100%;max-width:1480px;margin:0 auto;padding:18px}
+
+/* ===== banner ===== */
+.banner{position:relative;overflow:hidden;min-height:230px;border-radius:24px;display:flex;align-items:center;padding:26px 34px;color:#fff;background:radial-gradient(55% 130% at 88% 10%,var(--ban1) 0,transparent 62%),radial-gradient(50% 120% at 4% 100%,var(--ban2) 0,transparent 66%),radial-gradient(45% 100% at 52% 125%,var(--ban3) 0,transparent 70%),#07071a;border:1px solid color-mix(in srgb,var(--a1) 45%,transparent);box-shadow:0 24px 70px var(--shadow),0 0 60px var(--soft)}
+.banner:before,.banner:after{content:"";position:absolute;left:0;right:0;height:9px;opacity:.28;background:repeating-linear-gradient(90deg,#fff 0 16px,transparent 16px 30px);-webkit-mask:linear-gradient(#000,#000);}
+.banner:before{top:8px}.banner:after{bottom:8px}
+.banner svg.art{position:absolute;right:0;top:0;height:100%;width:62%;pointer-events:none}
+.bt{position:relative;z-index:2;max-width:640px}
+.tag{display:inline-flex;align-items:center;gap:8px;padding:5px 13px;border-radius:99px;font-size:11px;font-weight:800;letter-spacing:.08em;background:#ffffff18;border:1px solid #ffffff33;backdrop-filter:blur(6px)}
+.bt h1{margin:12px 0 0;font-size:clamp(44px,6vw,84px);line-height:1;font-style:italic;font-weight:800;letter-spacing:-.045em;text-shadow:0 4px 0 #0006,0 12px 34px #0008}
+.bt h1 b{text-shadow:none;font-style:italic;background:var(--title);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 4px 0 #00000066)}
+.bt p{margin:12px 0 0;font-size:clamp(14px,1.7vw,20px);font-weight:800;line-height:1.6;text-shadow:0 2px 10px #000a}
+.bt small{display:block;margin-top:4px;font-size:12.5px;font-weight:600;color:#ffffffcc;max-width:520px}
+
+/* feature strip */
+.strip{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+.strip span{display:inline-flex;align-items:center;gap:9px;padding:8px 15px 8px 9px;border-radius:99px;border:1px solid var(--line);background:linear-gradient(180deg,var(--c1),var(--c2));font-size:12.5px;font-weight:700}
+.strip span:before{content:"";width:20px;height:20px;border-radius:50%;background:var(--grad) center/12px no-repeat;box-shadow:0 0 12px var(--glow)}
+.strip span{--ck:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12.5l4.5 4.5L19 7.5'/></svg>")}
+.strip span:before{background-image:var(--ck),var(--grad);background-repeat:no-repeat;background-position:center;background-size:12px,auto}
+
+/* ===== grid + cards ===== */
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px;align-items:start}
+.c4{grid-column:span 4}.c8{grid-column:span 8}.c7{grid-column:span 7}.c5{grid-column:span 5}
+.c4,.c8{align-self:stretch}
+.stack{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{position:relative;padding:20px;border-radius:20px;background:linear-gradient(180deg,var(--c1),var(--c2));border:1px solid var(--line);box-shadow:0 18px 50px var(--shadow),inset 0 1px 0 #ffffff14;min-width:0;transition:border-color .25s,box-shadow .25s}
+.card:before{content:"";position:absolute;left:20px;right:20px;top:-1px;height:1px;background:linear-gradient(90deg,transparent,var(--a1),transparent);opacity:.7}
+.card:hover{border-color:color-mix(in srgb,var(--a1) 55%,var(--line));box-shadow:0 18px 50px var(--shadow),0 0 34px var(--soft)}
+.head{display:flex;gap:14px;align-items:center;margin-bottom:16px}
+.num{flex:0 0 44px;height:44px;border-radius:14px;display:grid;place-items:center;font-size:20px;font-weight:800;color:var(--on);background:var(--grad);box-shadow:0 8px 22px var(--glow),inset 0 1px 0 #ffffff55}
+.num .i{width:22px;height:22px}
+.head h2{margin:0;font-size:17px;font-weight:800;line-height:1.35}
+.head p{margin:1px 0 0;font-size:12px;color:var(--muted);line-height:1.55}
+
+/* upload */
+#upload{display:flex;flex-direction:column}
+.drop{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:pointer;min-height:230px;padding:24px 16px;border-radius:16px;border:1.5px dashed color-mix(in srgb,var(--a1) 55%,var(--line));background:radial-gradient(70% 70% at 50% 0,var(--soft),transparent),var(--in);transition:.25s}
+.drop:hover,.drop.drag{border-color:var(--ring);transform:translateY(-2px);box-shadow:0 14px 36px var(--soft)}
+.dropIcon{display:grid;place-items:center;width:64px;height:64px;border-radius:20px;color:var(--on);background:var(--grad);box-shadow:0 12px 30px var(--glow),inset 0 1px 0 #ffffff55;animation:bob 3.2s ease-in-out infinite}
+.dropIcon .i{width:32px;height:32px}
+@keyframes bob{50%{transform:translateY(-5px)}}
+.drop strong{display:block;margin-top:14px;font-size:15px}
+.drop small{display:block;margin-top:3px;font-size:11.5px;color:var(--muted)}
+.choose{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:10px 22px;border-radius:12px;font-size:13px;font-weight:800;color:var(--on);background:var(--grad);box-shadow:0 8px 22px var(--glow)}
+.fileInfo{display:none;margin-top:12px;padding:10px 13px;border-radius:12px;font-size:12px;font-weight:600;background:color-mix(in srgb,var(--ok) 14%,transparent);border:1px solid var(--ok);word-break:break-all}
+.preview{display:none;width:100%;max-height:220px;object-fit:contain;background:#000;border-radius:12px;margin-top:12px;border:1px solid var(--line)}
+
+/* forms */
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.row label,.fl{display:block;margin:0 0 6px;font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.02em}
+.selectBox{width:100%;padding:11px 36px 11px 13px;border-radius:12px;border:1px solid var(--line);color:var(--text);font:600 13px "Plus Jakarta Sans","Noto Sans Myanmar";outline:none;appearance:none;-webkit-appearance:none;background:var(--in) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='9'><path d='M1 1l6 6 6-6' fill='none' stroke='%239aa6ff' stroke-width='2.5'/></svg>") no-repeat right 13px center}
+.selectBox:focus{border-color:var(--ring)}
+.chips{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:0 0 16px}
+.chip{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 12px;border-radius:13px;border:1px solid var(--line);background:var(--in);color:var(--text);font:700 12.5px/1.3 "Plus Jakarta Sans","Noto Sans Myanmar";text-align:left;cursor:pointer;transition:.2s}
+.chip em{font-style:normal;font-size:21px;filter:saturate(1.1)}
+.chip:hover{border-color:var(--ring);transform:translateY(-1px)}
+.chip.on{border-color:var(--a1);background:linear-gradient(135deg,color-mix(in srgb,var(--a1) 32%,transparent),color-mix(in srgb,var(--a2) 14%,transparent));box-shadow:0 0 0 1px var(--a1),0 0 22px var(--soft)}
+.voices{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.vc{position:relative;display:block}
+.vc input{position:absolute;opacity:0}
+.vc label{display:flex;flex-direction:column;align-items:center;gap:8px;margin:0;padding:16px 8px 12px;height:100%;border-radius:16px;border:1px solid var(--line);background:var(--in);cursor:pointer;text-align:center;line-height:1.3;color:var(--text);transition:.2s}
+.vc label:hover{border-color:var(--ring);transform:translateY(-2px)}
+.av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-size:16px;font-weight:800;color:#fff;box-shadow:0 6px 16px #0006,inset 0 1px 0 #ffffff55}
+.av.f{background:linear-gradient(135deg,#f9a8d4,#a855f7)}.av.m{background:linear-gradient(135deg,#67e8f9,#3b82f6)}
+.vt b{display:block;font-size:13px}.vt span{display:block;font-size:10.5px;color:var(--muted);font-weight:600;margin-top:1px}
+.eq{display:none;align-items:flex-end;gap:2px;height:14px}
+.eq s{width:3px;height:40%;border-radius:2px;background:var(--ring);animation:eq .8s ease-in-out infinite}
+.eq s:nth-child(2){animation-delay:-.3s}.eq s:nth-child(3){animation-delay:-.6s}
+@keyframes eq{50%{height:100%}}
+.vc.playing .eq{display:flex}
+.vc input:checked+label{border-color:var(--a1);background:linear-gradient(180deg,color-mix(in srgb,var(--a1) 30%,transparent),color-mix(in srgb,var(--a2) 10%,transparent));box-shadow:0 0 0 1px var(--a1),0 12px 30px var(--soft)}
+.vc input:focus-visible+label{outline:3px solid var(--ring);outline-offset:2px}
+.play{position:absolute;top:7px;right:7px;width:26px;height:26px;padding:0;border:0;border-radius:50%;background:var(--grad);color:var(--on);cursor:pointer;font-size:9px;line-height:26px;text-align:center;box-shadow:0 4px 12px var(--glow);transition:.2s}
+.play:hover{transform:scale(1.15)}
+.play:disabled{opacity:.6;cursor:wait}
+.vmsg{min-height:16px;margin:8px 0 0;font-size:12px;color:var(--err)}
+.hint{margin:6px 0 0;font-size:11.5px;color:var(--muted)}
+
+/* customize */
+.stageWrap{display:none;margin-bottom:10px}
+.stage{position:relative;margin:0 auto;width:100%;aspect-ratio:16/9;background:#000;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.stage video{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
+.boxLayer{position:absolute;inset:0;pointer-events:none}
+.bx{position:absolute;pointer-events:auto;touch-action:none;cursor:move;border:2px dashed var(--ok);border-radius:6px;background:#06091840;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.bx.sel{border-style:solid;box-shadow:0 0 0 2px #34d39966}
+.bx b{position:absolute;left:0;top:0;padding:0 7px;border-radius:0 0 8px 0;font-size:11px;line-height:18px;background:var(--ok);color:#042a26}
+.bx .rs{position:absolute;right:0;bottom:0;width:30px;height:30px;border-radius:10px 0 4px 0;background:var(--ok);touch-action:none;cursor:nwse-resize}
+.bx .rs:after{content:"";position:absolute;right:6px;bottom:6px;width:10px;height:10px;border-right:3px solid #042a26;border-bottom:3px solid #042a26}
+.subSample{position:absolute;left:50%;top:84%;width:max-content;max-width:92%;z-index:5;display:none;text-align:center;transform:translate(-50%,-50%);pointer-events:auto;touch-action:none;cursor:grab;outline:1.5px dashed #ffffff88;outline-offset:3px;font-weight:700;line-height:1.35;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 2px #000}
+.seek{width:100%;margin:12px 0 0;accent-color:var(--a1)}
+.opt{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+.sw{position:relative;display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:44px;font-size:14px;font-weight:700;cursor:pointer}
+.sw input{position:absolute;opacity:0;width:1px;height:1px}
+.sw i{flex:0 0 50px;height:28px;border-radius:14px;position:relative;background:var(--in);border:1px solid var(--line);transition:background .2s}
+.sw i:after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 6px #0006;transition:transform .2s}
+.sw input:checked+i{background:var(--grad);border-color:transparent;box-shadow:0 0 16px var(--glow)}
+.sw input:checked+i:after{transform:translateX(22px)}
+.sw input:focus-visible+i{outline:3px solid var(--ring);outline-offset:2px}
+.subbox{transition:opacity .2s}.subbox.off{opacity:.4;pointer-events:none}
+.lab{display:flex;justify-content:space-between;margin:12px 0 6px;font-size:12px;font-weight:700;color:var(--muted)}
+.lab span:last-child{color:var(--text)}
+.rng{width:100%;accent-color:var(--a1);margin:0}
+.cols{display:flex;gap:12px;flex-wrap:wrap}
+.sc{position:relative;display:block;width:44px;height:44px}
+.sc input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.sc b{display:block;width:44px;height:44px;border-radius:50%;background:var(--c);border:3px solid var(--line);transition:.2s}
+.sc input:checked+b{border-color:#fff;box-shadow:0 0 0 2px var(--a1),0 0 16px var(--glow)}
+.sc input:focus-visible+b{outline:3px solid var(--ring);outline-offset:2px}
+.seg{display:flex;gap:8px}
+.seg label{position:relative;flex:1;display:block}
+.seg input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.seg span{display:grid;place-items:center;min-height:42px;border-radius:12px;border:1px solid var(--line);background:var(--in);font-size:13.5px;font-weight:700}
+.seg input:checked+span{border-color:transparent;color:var(--on);background:var(--grad);box-shadow:0 6px 18px var(--glow)}
+.seg input:focus-visible+span{outline:3px solid var(--ring);outline-offset:2px}
+.ratio{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.ratio .chip{justify-content:center;text-align:center;min-height:44px}
+.brow{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;margin-top:8px;padding:4px 6px 4px 14px;border-radius:12px;border:1px solid var(--line);background:var(--in);font-size:13.5px}
+.brow button{min-height:36px;padding:0 14px;border-radius:10px;border:0;background:#fb718522;color:var(--err);font:inherit;font-size:13px;cursor:pointer}
+.dashbtn{width:100%;min-height:46px;margin-top:10px;border-radius:12px;border:1.5px dashed var(--a1);background:transparent;color:var(--ring);font:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:.2s}
+.dashbtn:hover:not(:disabled){background:var(--soft)}
+.dashbtn:disabled{opacity:.5;cursor:not-allowed}
+
+/* generate */
+.chk{display:flex;gap:10px;align-items:flex-start;margin:0 0 16px;font-size:12.5px;line-height:1.6}
+.chk input{flex:0 0 18px;width:18px;height:18px;margin-top:2px;accent-color:var(--a1)}
+.generate{position:relative;overflow:hidden;width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:19px;border:0;border-radius:16px;color:#fff;font:800 17px "Plus Jakarta Sans","Noto Sans Myanmar";cursor:pointer;background:var(--gen);box-shadow:0 14px 40px var(--glow),0 0 0 1px #ffffff33 inset,0 1px 0 #ffffff66 inset;text-shadow:0 1px 8px #0005;transition:transform .15s,filter .2s}
+:root[data-pal="gold"] .generate,:root[data-pal="aurora"] .generate{color:var(--on);text-shadow:none}
+.generate:after{content:"";position:absolute;top:0;left:-60%;width:35%;height:100%;background:linear-gradient(100deg,transparent,#ffffff77,transparent);transform:skewX(-20deg);animation:sweep 3.6s ease-in-out infinite}
+@keyframes sweep{0%,55%{left:-60%}100%{left:130%}}
+.generate:hover{transform:translateY(-2px);filter:brightness(1.08)}.generate:active{transform:scale(.99)}
+.generate:disabled{opacity:.55;cursor:not-allowed;transform:none;filter:none}
+.generate:disabled:after{display:none}
+.ghost{width:100%;margin-top:10px;padding:12px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);font:600 13.5px "Plus Jakarta Sans","Noto Sans Myanmar";cursor:pointer;transition:.2s}
+.ghost:hover{border-color:var(--ring);background:var(--soft)}
+.note{margin-top:14px;text-align:center;font-size:11.5px;line-height:1.7;color:var(--muted)}
+
+/* progress / script / result */
+.progressCard,.scriptCard,.result{display:none}
+.progressTop{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.progressTop strong{font-size:15px}
+.pct{font-size:32px;font-weight:800;line-height:1;background:var(--gen);-webkit-background-clip:text;background-clip:text;color:transparent}
+.barTrack{height:12px;margin:14px 0 22px;border-radius:99px;overflow:hidden;background:var(--in);border:1px solid var(--line)}
+.bar{position:relative;height:100%;width:0;border-radius:99px;background:var(--gen);box-shadow:0 0 20px var(--glow);transition:width .5s}
+.bar:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,#ffffff26 0 10px,transparent 10px 20px);background-size:28px 28px;animation:stripes 1s linear infinite}
+@keyframes stripes{to{background-position:28px 0}}
+.steps{position:relative;display:grid;grid-template-columns:repeat(5,1fr)}
+.steps:before{content:"";position:absolute;left:10%;right:10%;top:19px;height:3px;border-radius:3px;background:var(--line)}
+.step{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:10.5px;font-weight:700;color:var(--muted);text-align:center;transition:.3s}
+.step i{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-style:normal;background:var(--c2);border:2px solid var(--line);transition:.3s}
+.step i .i{width:18px;height:18px}
+.step.active{color:var(--text)}
+.step.active i{border-color:var(--a1);color:var(--ring);box-shadow:0 0 0 5px var(--soft),0 0 26px var(--glow);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 9px transparent,0 0 34px var(--glow)}}
+.step.done{color:var(--ok)}
+.step.done i{background:var(--ok);border-color:transparent;color:#032a14}
+.step.done i .i{display:none}
+.step.done i:before{content:"✓";font-size:17px;font-weight:800}
+.message{margin-top:14px;font-size:12.5px;line-height:1.65;color:var(--muted)}
+.error{display:none;margin-top:12px;padding:11px 13px;border-radius:12px;font-size:12.5px;line-height:1.65;white-space:pre-line;background:#fb718522;border:1px solid var(--err)}
+.scene{margin:0 0 12px}
+.sh{display:flex;align-items:center;gap:8px;margin:0 0 5px;font-size:12px;color:var(--muted)}
+.sh b{color:var(--text)}
+.mini{margin-left:auto;padding:5px 12px;border-radius:99px;border:1px solid var(--line);background:var(--in);color:var(--text);font:inherit;font-size:12px;cursor:pointer}
+.mini:hover{border-color:var(--ring)}
+textarea{width:100%;min-height:78px;padding:10px 12px;resize:vertical;border-radius:12px;border:1px solid var(--line);background:var(--in);color:var(--text);font:inherit;line-height:1.75;outline:none}
+textarea:focus{border-color:var(--ring)}
+.video{width:100%;max-height:480px;background:#000;border-radius:14px;border:1px solid var(--line);box-shadow:0 0 40px var(--soft)}
+.download{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;padding:14px;border-radius:14px;text-decoration:none;color:var(--on);font-weight:800;background:var(--grad);box-shadow:0 10px 28px var(--glow)}
+.summary{margin-top:10px;font-size:12px;color:var(--muted)}
+
+/* footer */
+.foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:auto;padding:14px 24px;border-top:1px solid var(--line);background:var(--side);font-size:13px;font-weight:700}
+.foot span:last-child{font-style:italic;font-weight:800;background:var(--title);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* ===== responsive ===== */
+@media(max-width:1180px){.c4,.c8,.c7,.c5{grid-column:span 12}.banner svg.art{opacity:.55}
+.voices{grid-template-columns:repeat(auto-fill,minmax(112px,1fr))}}
+@media(max-width:900px){
+  .side{display:none}.main{margin-left:0}.mini-brand{display:block}
+  .pal span{display:none}
 }
+@media(max-width:560px){
+  .content{padding:12px}.topbar{padding:10px 12px;gap:8px}.tr{gap:8px}
+  .pal{gap:6px;padding:6px 8px}.pal button{width:20px;height:20px}
+  .banner{padding:22px 20px;min-height:200px;border-radius:20px}
+  .row{grid-template-columns:1fr}
+  .chips{grid-template-columns:repeat(2,1fr)}
+  .step{font-size:9.5px}.step i{width:34px;height:34px}.steps:before{top:17px}
+  .card{padding:16px}.foot{padding:12px;font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
-<div class="app">
-<aside class="sidebar">
-<div class="logo">✦ YNT RECAP</div>
-<nav>
-<a class="nav active" href="#">⌂ Home</a>
-<a class="nav" href="#">▣ My Videos</a>
-<a class="nav" href="#">◷ History</a>
-<a class="nav" href="#">⚙ Settings</a>
-<a class="nav" href="#">♧ Help & Support</a>
-<a class="nav" href="#">♛ Premium</a>
-</nav>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-film" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4l4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-7.97A6 6 0 0 1 18 9.5 4.25 4.25 0 0 1 17.5 18"/><path d="M12 20v-7m0 0l-2.5 2.5M12 13l2.5 2.5"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h8M18 6h2M4 12h2M12 12h8M4 18h10M20 18h0"/><circle cx="15" cy="6" r="2.2"/><circle cx="9" cy="12" r="2.2"/><circle cx="17" cy="18" r="2.2"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></symbol>
+  <symbol id="i-vol" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4l1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 4v12m0 0l-4-4m4 4l4-4M4 20h16"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M9 12h6M9 16h6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+</defs></svg>
+
+<aside class="side" aria-label="Menu">
+  <div class="brand">
+    <span class="logoMark"><svg class="i"><use href="#i-film"/></svg></span>
+    <div><b>YNT <i>Recap</i></b><small>AI Story to Video</small></div>
+  </div>
+  <nav class="nav" id="nav">
+    <a href="#top" class="on"><svg class="i"><use href="#i-home"/></svg>Home</a>
+    <a href="#upload"><svg class="i"><use href="#i-upload"/></svg>Upload</a>
+    <a href="#voiceCard"><svg class="i"><use href="#i-mic"/></svg>Voice &amp; Style</a>
+    <a href="#burnCard"><svg class="i"><use href="#i-sliders"/></svg>Customize</a>
+    <a href="#genCard"><svg class="i"><use href="#i-spark"/></svg>Generate</a>
+  </nav>
+  <div class="sideFoot"><b>YNT STUDIO</b><small>Create · Recap · Share</small></div>
 </aside>
 
-<main>
-<section class="hero">
-<h1>AI Video Recap Studio</h1>
-<p>သင့်ရဲ့ Movie တွေကို မြန်မာအသံနဲ့ Recap Video အဖြစ် ဖန်တီးလိုက်ပါ။</p>
+<div class="main" id="top">
+<header class="topbar">
+  <span class="mini-brand">YNT <i>Recap</i></span>
+  <div class="tr">
+    <div class="pal" id="pal" role="radiogroup" aria-label="အရောင်ရွေးရန်"><span>Color</span>
+      <button type="button" data-p="violet" style="--g:linear-gradient(135deg,#8b08f2,#3b5bfb)" aria-label="Violet"></button>
+      <button type="button" data-p="aurora" style="--g:linear-gradient(135deg,#06b6d4,#a3e635)" aria-label="Aurora"></button>
+      <button type="button" data-p="sunset" style="--g:linear-gradient(135deg,#f97316,#a855f7)" aria-label="Sunset"></button>
+      <button type="button" data-p="gold" style="--g:linear-gradient(135deg,#b8892b,#f3d98b)" aria-label="Gold"></button>
+      <button type="button" data-p="ice" style="--g:linear-gradient(135deg,#38bdf8,#6366f1)" aria-label="Ice"></button>
+      <button type="button" data-p="crimson" style="--g:linear-gradient(135deg,#fb923c,#e11d48)" aria-label="Crimson"></button>
+    </div>
+    <button class="pill" id="themeBtn" type="button" aria-label="Dark / Light" data-t="dark"><svg class="i moon"><use href="#i-moon"/></svg><svg class="i sun"><use href="#i-sun"/></svg></button>
+  </div>
+</header>
+
+<main class="content">
+
+<section class="banner" aria-label="YNT Recap">
+  <svg class="art" viewBox="0 0 800 260" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="fg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" style="stop-color:var(--a3)"/><stop offset="1" style="stop-color:var(--a2)"/></linearGradient>
+      <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity=".04"/></linearGradient>
+      <radialGradient id="halo" cx=".5" cy=".5" r=".5"><stop offset="0" style="stop-color:var(--a1)" stop-opacity=".75"/><stop offset="1" style="stop-color:var(--a1)" stop-opacity="0"/></radialGradient>
+    </defs>
+    <circle cx="520" cy="130" r="210" fill="url(#halo)"/>
+    <g stroke="#fff" stroke-opacity=".35" fill="url(#glass)" stroke-width="1.4">
+      <rect x="250" y="64" width="190" height="120" rx="16" transform="rotate(-9 345 124)" opacity=".55"/>
+      <rect x="330" y="110" width="190" height="120" rx="16" transform="rotate(7 425 170)" opacity=".7"/>
+    </g>
+    <g transform="rotate(-3 560 130)">
+      <rect x="440" y="52" width="250" height="156" rx="20" fill="url(#glass)" stroke="#fff" stroke-opacity=".65" stroke-width="1.8"/>
+      <path d="M440 78h250M440 182h250" stroke="#fff" stroke-opacity=".18"/>
+      <circle cx="565" cy="130" r="40" fill="url(#fg)"/>
+      <path d="M553 110v40l34-20z" fill="#fff"/>
+    </g>
+    <g fill="#fff"><circle cx="720" cy="40" r="2.2"/><circle cx="760" cy="150" r="1.8"/><circle cx="410" cy="30" r="1.6"/><circle cx="700" cy="226" r="2.2"/><path d="M742 70l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" opacity=".9"/><path d="M380 214l2.4 6.4 6.4 2.4-6.4 2.4-2.4 6.4-2.4-6.4-6.4-2.4 6.4-2.4z" opacity=".8"/></g>
+  </svg>
+  <div class="bt">
+    <span class="tag"><svg class="i"><use href="#i-spark"/></svg>AI POWERED</span>
+    <h1>YNT <b>Recap</b></h1>
+    <p>ရုပ်ရှင်ကို မြန်မာလို အံ့ဩစရာ Recap Video ဖြစ်စေ!</p>
+    <small>Movie တင်လိုက်ရုံနဲ့ AI က ဇာတ်လမ်းကိုနားလည်ပြီး မြန်မာအသံနဲ့ Final Video ထုတ်ပေးပါတယ်</small>
+  </div>
 </section>
+
+<div class="strip" aria-label="Features"><span>Smart AI Recap</span><span>Natural Myanmar Voice</span><span>မြန်မာ စာတန်းထိုး</span><span>မူရင်းစာတန်း Blur</span><span>MP4 Video Output</span></div>
 
 <div class="grid">
-<div>
-<section class="card">
-<h2>📁 Upload Movie</h2>
-<div class="upload">
-<p>🎬 Movie File ရွေးချယ်ပါ</p>
-<input type="file" id="movie" accept="video/*">
-</div>
-<label>Language</label>
-<select id="language">
-<option value="my">Myanmar</option>
-<option value="en">English</option>
-</select>
+
+<section class="card c4" id="upload">
+  <div class="head"><span class="num"><svg class="i"><use href="#i-upload"/></svg></span><div><h2>1. Upload Movie</h2><p>Movie file တစ်ခုရွေးပြီး စတင်ပါ။</p></div></div>
+  <div class="drop" id="drop"><span class="dropIcon"><svg class="i"><use href="#i-cloud"/></svg></span><strong id="dropTitle">Movie ကို ဒီမှာရွေးပါ</strong><small>MP4, MOV, MKV, WEBM • အများဆုံး 500MB</small><span class="choose"><svg class="i"><use href="#i-folder"/></svg>Choose File</span><input id="movie" type="file" accept="video/*,.mp4,.mov,.mkv,.webm,.avi" hidden></div>
+  <div class="fileInfo" id="fileInfo"></div>
+  <video class="preview" id="preview" controls></video>
 </section>
 
-<section class="card">
-<h2>🎙 Voice & Style Settings</h2>
-<label>Voice</label>
-<select id="voice">
-<option value="kore">Kore Voice</option>
-<option value="default">Default Voice</option>
-</select>
-<button type="button" id="previewVoice">▶ Preview Voice</button>
-<label>Voice Speed</label>
-<select id="speed">
-<option>Normal</option><option>Slow</option><option>Fast</option>
-</select>
-<label>Recap Style</label>
-<select id="style">
-<option value="cinematic">Cinematic</option>
-<option value="emotional">Emotional</option>
-<option value="story">Storytelling</option>
-</select>
-</section>
-</div>
-
-<div>
-<section class="card">
-<h2>⚙ Customize Options</h2>
-<label>Video Ratio</label>
-<select id="ratio">
-<option value="9:16">9:16 — TikTok / Shorts</option>
-<option value="16:9">16:9 — YouTube</option>
-</select>
-<label>Subtitle Font Size</label>
-<input type="number" id="fontSize" value="32">
-<label>Subtitle Position</label>
-<select id="position">
-<option value="bottom">Bottom</option>
-<option value="center">Center</option>
-<option value="top">Top</option>
-</select>
-<label>Brightness</label>
-<input type="range" id="brightness" min="50" max="150" value="100">
-<label>Contrast</label>
-<input type="range" id="contrast" min="50" max="150" value="100">
-<label>Saturation</label>
-<input type="range" id="saturation" min="0" max="200" value="100">
+<section class="card c8" id="voiceCard">
+  <div class="head"><span class="num"><svg class="i"><use href="#i-mic"/></svg></span><div><h2>2. Voice &amp; Style Settings</h2><p>▶ ကို နှိပ်ပြီး အသံတစ်ခုချင်း နားထောင်ကြည့်ပါ၊ ကြိုက်တာကို ရွေးပါ။</p></div></div>
+  <div class="row">
+    <div><label for="ttsEngine">အသံထုတ်တဲ့နည်း</label><select id="ttsEngine" class="selectBox"><option value="auto" selected>🔁 Auto (Gemini → Edge → Azure → Google)</option><option value="gemini">✨ Gemini TTS</option><option value="edge">🆓 Edge TTS (အခမဲ့၊ key မလို)</option><option value="elevenlabs">🎙️ ElevenLabs v3 (key လို)</option><option value="azure">☁️ Azure Speech</option><option value="google">🌐 Google Translate TTS</option></select></div>
+    <div><label for="language">ဘာသာစကား</label><select id="language" class="selectBox"><option value="my" selected>🇲🇲 မြန်မာ</option><option value="en">🇬🇧 English</option></select></div>
+  </div>
+  <span class="fl">Recap ပုံစံ</span>
+  <select id="recapStyle" hidden>
+    <option value="natural" selected>natural</option><option value="sync">sync</option><option value="cinematic">cinematic</option><option value="storytelling">storytelling</option><option value="short">short</option><option value="detailed">detailed</option>
+  </select>
+  <div class="chips" id="styleChips" role="radiogroup" aria-label="Recap ပုံစံ">
+    <button type="button" class="chip on" role="radio" aria-checked="true" data-v="natural"><em>📖</em><span>သဘာဝကျ<br>ပုံပြင်ပြော</span></button>
+    <button type="button" class="chip" role="radio" aria-checked="false" data-v="sync"><em>🎯</em><span>ကွက်တိ<br>ဘာသာပြန်</span></button>
+    <button type="button" class="chip" role="radio" aria-checked="false" data-v="cinematic"><em>🎬</em><span>Cinematic<br>Suspense</span></button>
+    <button type="button" class="chip" role="radio" aria-checked="false" data-v="storytelling"><em>💫</em><span>Storytelling<br>(စိတ်ခံစားမှု)</span></button>
+    <button type="button" class="chip" role="radio" aria-checked="false" data-v="short"><em>⚡</em><span>အတို အမြန်<br>(TikTok)</span></button>
+    <button type="button" class="chip" role="radio" aria-checked="false" data-v="detailed"><em>🔍</em><span>အသေးစိတ်<br>Detailed</span></button>
+  </div>
+  <span class="fl">Myanmar Voice</span>
+  <div class="voices" id="voices"></div>
+  <p class="vmsg" id="voiceMsg"></p>
+  <p class="hint">Azure / Google မှာ အမျိုးသား၊ အမျိုးသမီး နှစ်မျိုးပဲ ကွာပါတယ်။</p>
 </section>
 
-<section class="card">
-<h2>🎞 Video Preview</h2>
-<div class="preview" id="preview">Your Video Preview Will Appear Here</div>
+<section class="card c7" id="burnCard">
+  <div class="head"><span class="num"><svg class="i"><use href="#i-sliders"/></svg></span><div><h2>3. Customize Options</h2><p>စာတန်းထိုး၊ မူရင်းစာတန်း Blur နဲ့ Video အချိုးအစား (ရွေးချယ်စရာ)။</p></div></div>
+
+  <div class="stageWrap" id="stageWrap">
+    <div class="stage" id="stage"><video id="stageVideo" muted playsinline preload="metadata"></video><div class="boxLayer" id="boxLayer"></div><div class="subSample" id="subSample">ဒီအချိန်မှာ သူ့လျှို့ဝှက်ချက် ပေါ်လာပါတယ်</div></div>
+    <input class="seek" id="seek" type="range" min="0" max="1000" value="100" aria-label="Video ကို ရွှေ့ကြည့်ရန်">
+    <p class="hint">Slider ကို ရွှေ့ပြီး မူရင်းစာတန်းထိုး ပေါ်တဲ့ frame ကို ရှာပါ။</p>
+  </div>
+  <p class="hint" id="noMovie">Movie ရွေးပြီးရင် ဒီမှာ Preview ပေါ်ပါမယ်။</p>
+
+  <div class="opt">
+    <div class="lab"><label for="outputRatio">Aspect Ratio</label><span>Final MP4</span></div>
+    <select class="selectBox" id="outputRatio" aria-label="Video aspect ratio" hidden>
+      <option value="original">မူရင်းအချိုးအစားအတိုင်း</option>
+      <option value="9:16">9:16 — TikTok / Shorts / Reels</option>
+      <option value="16:9">16:9 — YouTube</option>
+    </select>
+    <div class="ratio" id="ratioChips" role="radiogroup" aria-label="Aspect ratio">
+      <button type="button" class="chip on" role="radio" aria-checked="true" data-v="original">မူရင်း</button>
+      <button type="button" class="chip" role="radio" aria-checked="false" data-v="9:16">9:16</button>
+      <button type="button" class="chip" role="radio" aria-checked="false" data-v="16:9">16:9</button>
+    </div>
+    <p class="hint">ပုံကို မဖြတ်ဘဲ အချိုးအစားမကိုက်တဲ့နေရာမှာ အနက်ရောင်အနားဖြည့်ပေးပါမယ်။ 9:16 = TikTok / Shorts / Reels၊ 16:9 = YouTube။</p>
+  </div>
+
+  <div class="opt">
+    <label class="sw"><span>မြန်မာစာတန်းထိုး ထည့်မယ်</span><input type="checkbox" id="subOn"><i></i></label>
+    <div class="subbox off" id="subOpts">
+      <div class="lab"><label for="subSize">စာလုံးအရွယ်</label><span id="subSizeV">အလတ်</span></div>
+      <input class="rng" id="subSize" type="range" min="1" max="10" value="4">
+      <div class="lab"><span>အရောင်</span><span></span></div>
+      <div class="cols">
+        <label class="sc" style="--c:#ffe600"><input type="radio" name="subColor" value="#ffe600" checked aria-label="အဝါ"><b></b></label>
+        <label class="sc" style="--c:#ffffff"><input type="radio" name="subColor" value="#ffffff" aria-label="အဖြူ"><b></b></label>
+        <label class="sc" style="--c:#5eead4"><input type="radio" name="subColor" value="#5eead4" aria-label="အစိမ်းဖျော့"><b></b></label>
+        <label class="sc" style="--c:#fb923c"><input type="radio" name="subColor" value="#fb923c" aria-label="လိမ္မော်"><b></b></label>
+      </div>
+      <div class="lab"><span>နေရာ</span><span></span></div>
+      <div class="seg">
+        <label><input type="radio" name="subPos" value="top"><span>အပေါ်</span></label>
+        <label><input type="radio" name="subPos" value="middle"><span>အလယ်</span></label>
+        <label><input type="radio" name="subPos" value="bottom" checked><span>အောက်</span></label>
+      </div>
+      <div class="lab"><label for="subY">အပေါ်-အောက် (လွတ်လပ်စွာ)</label><span id="subYV">84%</span></div>
+      <input class="rng" id="subY" type="range" min="0" max="100" value="84">
+      <div class="lab"><label for="subX">ဘယ်-ညာ</label><span id="subXV">50%</span></div>
+      <input class="rng" id="subX" type="range" min="0" max="100" value="50">
+      <p class="hint">Preview ပေါ်က စာတန်းကို လက်နဲ့ တိုက်ရိုက်ဆွဲရွှေ့လို့လည်း ရပါတယ်။ Blur အကွက်ပေါ်လည်း တင်လို့ရပါတယ်။</p>
+    </div>
+  </div>
+
+  <div class="opt">
+    <label class="sw"><span>Blur ဖုံးမယ်</span><input type="checkbox" id="blurOn"><i></i></label>
+    <div id="boxList"></div>
+    <button type="button" class="dashbtn" id="addBox">+ Blur အကွက် ထည့်မယ်</button>
+    <div class="subbox off" id="blurOpts">
+      <div class="lab"><label for="blurStr">Blur ပြင်းအား</label><span id="blurStrV">အလတ်</span></div>
+      <input class="rng" id="blurStr" type="range" min="1" max="10" value="3">
+      <p class="hint">Preview ပေါ်က အကွက်ကို ဆွဲရွှေ့ပါ၊ ထောင့်က ပုံစံလေးကို ဆွဲပြီး အရွယ်အစား ပြင်ပါ။</p>
+    </div>
+  </div>
 </section>
-</div>
+
+<div class="stack c5">
+  <section class="card" id="genCard">
+    <div class="head"><span class="num"><svg class="i"><use href="#i-spark"/></svg></span><div><h2>4. Generate Video</h2><p>Button ကိုနှိပ်ပြီး Recap Video ထုတ်ပါ။</p></div></div>
+    <label class="chk"><input type="checkbox" id="reviewChk" checked><span>Gemini ရေးတဲ့ Script ကို အရင်ကြည့်ပြီး ပြင်မယ် (ပြင်ပြီးမှ အသံ၊ ဗီဒီယိုထုတ်မယ်)</span></label>
+    <button class="generate" id="generate">✨ Generate Recap Video →</button>
+    <div class="note">သဘာဝကျကျ စကားပြောပုံစံနဲ့ Story Event + Movie Shot ကို အစဉ်လိုက်ချိတ်ပြီး narration နဲ့ မူရင်း footage ကို synchronize လုပ်ပါတယ်။</div>
+  </section>
+
+  <section class="card progressCard" id="progressCard">
+    <div class="progressTop"><strong id="stageTitle">Processing...</strong><span class="pct" id="pct">0%</span></div>
+    <div class="barTrack"><div class="bar" id="bar"></div></div>
+    <div class="steps">
+      <div class="step" data-stage="Upload"><i><svg class="i"><use href="#i-upload"/></svg></i>Upload</div>
+      <div class="step" data-stage="Transcript"><i><svg class="i"><use href="#i-mic"/></svg></i>Whisper</div>
+      <div class="step" data-stage="Recap"><i><svg class="i"><use href="#i-text"/></svg></i>Script</div>
+      <div class="step" data-stage="Voice"><i><svg class="i"><use href="#i-vol"/></svg></i>Voice</div>
+      <div class="step" data-stage="FFmpeg"><i><svg class="i"><use href="#i-film"/></svg></i>Render</div>
+    </div>
+    <div class="message" id="message">စတင်ရန် ပြင်ဆင်နေပါတယ်...</div>
+    <div class="error" id="error"></div>
+    <button class="ghost" id="restartJobBtn" type="button">🔄 အလုပ်ရပ်သွားရင် Movie အသစ်နဲ့ ပြန်စမယ်</button>
+    <p class="hint" style="margin-top:8px">Progress အချိန်ကြာကြာ မတိုးတော့ပါက ဒီခလုတ်ကိုနှိပ်ပြီး Movie ကို ပြန်ရွေးကာ အစကနေ စနိုင်ပါတယ်။ လက်ရှိ server အလုပ်ကို ဒီခလုတ်က အတိအကျ cancel မလုပ်နိုင်ပါ။</p>
+  </section>
+
+  <section class="card scriptCard" id="scriptCard">
+    <div class="head"><span class="num"><svg class="i"><use href="#i-text"/></svg></span><div><h2>Recap Script</h2><p>စာကို လိုသလို ပြင်ပါ၊ ▶ နဲ့ အသံနားထောင်ကြည့်ပါ။ <span id="scriptCount"></span></p></div></div>
+    <div id="scriptList"></div>
+    <button class="generate" id="renderBtn">✅ Script အတည်ပြုပြီး Video ထုတ်မယ်</button>
+  </section>
+
+  <section class="card result" id="result">
+    <div class="head"><span class="num"><svg class="i f"><use href="#i-play"/></svg></span><div><h2>Video Preview</h2><p>ပြီးပါပြီ။ Video ကို ကြည့်ပြီး Download လုပ်နိုင်ပါတယ်။</p></div></div>
+    <video class="video" id="finalVideo" controls></video>
+    <a class="download" id="download" href="#"><svg class="i"><use href="#i-down"/></svg>Download MP4</a>
+    <p class="summary" id="summary"></p>
+    <button class="ghost" id="newBtn" type="button">🔄 Movie အသစ်နဲ့ ပြန်စမယ်</button>
+  </section>
 </div>
 
-<section class="card">
-<h2>🚀 Generate Recap Video</h2>
-<p class="small" id="status">Ready to start</p>
-<button class="primary" id="generate">Generate Video</button>
-</section>
+</div>
 </main>
-</div>
 
+<footer class="foot"><span><b>YNT Recap</b> - Your Smart AI Video Creator</span><span>Make Your Story More Amazing...</span></footer>
+</div>
 <script>
-const movie=document.getElementById('movie');
-const preview=document.getElementById('preview');
-movie.addEventListener('change',()=>{
- if(movie.files[0]){
-  preview.textContent=movie.files[0].name;
- }
+const $=id=>document.getElementById(id);
+const STYLE_DEFAULT='natural';
+let selectedFile=null,jobId=null,pollTimer=null,voiceName='Kore',busy=false,fails=0,audio=null,scenes=[],t0=0;
+const VOICES=[['Kore','Female','နူးညံ့'],['Aoede','Female','ကြည်လင်'],['Leda','Female','ငယ်ရွယ်'],['Zephyr','Female','တောက်ပ'],['Puck','Male','တက်ကြွ'],['Charon','Male','တည်ငြိမ်'],['Fenrir','Male','ပြင်းထန်'],['Orus','Male','ခိုင်မာ'],['Thiha','Male','သီဟ · မြန်မာအသံ'],['Nilar','Female','နီလာ · မြန်မာအသံ']];
+const SAMPLE={my:'မင်္ဂလာပါ။ ဒီဇာတ်လမ်းလေးကို အခု ကျွန်တော် ပြန်ပြောပြပါမယ်။',en:'Hello! Let me tell you this story from the very beginning.'};
+const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const store={get(){try{return localStorage.getItem('ynt_job')}catch{return null}},set(v){try{v?localStorage.setItem('ynt_job',v):localStorage.removeItem('ynt_job')}catch{}}};
+function friendly(m){
+  m=String(m||'');
+  if(/429|quota|rate limit/i.test(m))m+='\n💡 Gemini အခမဲ့ quota ကန့်သတ်ချက် ပြည့်နေပါတယ်။ နာရီအနည်းငယ် စောင့်ပါ၊ ဒါမှမဟုတ် GEMINI_API_KEY အသစ် ထည့်ပါ။';
+  else if(/Script မတွေ့|Movie file မတွေ့/i.test(m))m+='\n💡 Server ပြန်စတင်သွားလို့ ဖိုင်ပျောက်နိုင်ပါတယ်။ Movie ကို ပြန်တင်ပြီး Start လုပ်ပါ။';
+  return m;
+}
+const drop=$('drop'),movie=$('movie');
+drop.onclick=()=>movie.click();
+['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('drag')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('drag')}));
+drop.addEventListener('drop',ev=>{const f=ev.dataTransfer.files?.[0];if(f){selectedFile=f;showFile()}});
+movie.onchange=()=>{selectedFile=movie.files?.[0]||null;showFile()};
+function showFile(){
+  if(!selectedFile)return;
+  $('dropTitle').textContent='✅ Movie ရွေးပြီးပါပြီ';$('fileInfo').style.display='block';
+  $('fileInfo').textContent=`🎥 ${selectedFile.name} • ${(selectedFile.size/1024/1024).toFixed(1)} MB`;
+  const u=URL.createObjectURL(selectedFile);$('preview').style.display='block';$('preview').src=u;window.onMovieSelected&&window.onMovieSelected(u);
+}
+
+/* ---------- subtitle + blur options ---------- */
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const stage=$('stage'),layer=$('boxLayer'),sample=$('subSample'),sv=$('stageVideo');
+let boxes=[],selBox=-1,drag=null,subX=50,subY=84,subDrag=null;
+const PRESET_Y={top:14,middle:50,bottom:84};
+const radioVal=n=>document.querySelector('input[name="'+n+'"]:checked')?.value;
+const subPct=()=>2+0.4*Number($('subSize').value);
+const sigma=()=>Math.round(4+3.4*Number($('blurStr').value));
+const LV=['အနည်းငယ်','အနည်းငယ်','အလတ်','အလတ်','အလတ်','အလတ်','ပြင်းပြင်း','ပြင်းပြင်း','အရမ်းပြင်း','အရမ်းပြင်း'];
+function applySub(){
+  const on=$('subOn').checked;
+  $('subOpts').classList.toggle('off',!on);
+  sample.style.display=on?'block':'none';
+  sample.style.fontSize=(stage.clientHeight*subPct()/100)+'px';
+  sample.style.color=radioVal('subColor')||'#ffe600';
+  if(on&&stage.clientWidth&&stage.clientHeight&&sample.offsetWidth){
+    const hx=Math.min(50,sample.offsetWidth/stage.clientWidth*50),hy=Math.min(50,sample.offsetHeight/stage.clientHeight*50);
+    subX=clamp(subX,hx,100-hx);subY=clamp(subY,hy,100-hy);
+  }
+  sample.style.top=subY+'%';sample.style.left=subX+'%';
+  $('subY').value=Math.round(subY);$('subX').value=Math.round(subX);
+  $('subYV').textContent=Math.round(subY)+'%';$('subXV').textContent=Math.round(subX)+'%';
+  const hit=Object.keys(PRESET_Y).find(k=>Math.abs(PRESET_Y[k]-subY)<0.5&&Math.abs(subX-50)<0.5);
+  document.querySelectorAll('input[name="subPos"]').forEach(r=>{r.checked=r.value===hit});
+  $('subSizeV').textContent=LV[Number($('subSize').value)-1];
+}
+function applyBlur(){
+  const on=$('blurOn').checked;
+  $('blurOpts').classList.toggle('off',!on);
+  layer.style.display=on?'block':'none';
+  const px=Math.max(2,Math.round(sigma()*stage.clientWidth/1280));
+  layer.querySelectorAll('.bx').forEach(e=>{e.style.webkitBackdropFilter=e.style.backdropFilter='blur('+px+'px)'});
+  $('blurStrV').textContent=LV[Number($('blurStr').value)-1];
+}
+function renderBoxes(){
+  layer.innerHTML=boxes.map((b,i)=>'<div class="bx'+(i===selBox?' sel':'')+'" data-i="'+i+'" style="left:'+b.x*100+'%;top:'+b.y*100+'%;width:'+b.w*100+'%;height:'+b.h*100+'%"><b>'+(i+1)+'</b><span class="rs" data-rs="1"></span></div>').join('');
+  $('boxList').innerHTML=boxes.map((b,i)=>'<div class="brow"><span>အကွက် '+(i+1)+'</span><button type="button" data-del="'+i+'">ဖျက်မယ်</button></div>').join('');
+  $('addBox').disabled=boxes.length>=6;
+  applyBlur();
+}
+$('addBox').onclick=()=>{
+  if(boxes.length>=6)return;
+  boxes.push({x:.06,y:.78,w:.88,h:.14});selBox=boxes.length-1;
+  $('blurOn').checked=true;renderBoxes();
+};
+$('boxList').onclick=e=>{
+  const d=e.target.closest('[data-del]');if(!d)return;
+  boxes.splice(Number(d.dataset.del),1);selBox=-1;renderBoxes();
+};
+layer.addEventListener('pointerdown',e=>{
+  const bx=e.target.closest('.bx');if(!bx)return;
+  const i=Number(bx.dataset.i),r=stage.getBoundingClientRect();
+  selBox=i;
+  drag={i,mode:e.target.dataset.rs?'resize':'move',sx:e.clientX,sy:e.clientY,o:{...boxes[i]},w:r.width,h:r.height};
+  try{bx.setPointerCapture(e.pointerId)}catch{}
+  layer.querySelectorAll('.bx').forEach(el=>el.classList.toggle('sel',Number(el.dataset.i)===i));
+  e.preventDefault();
 });
-document.getElementById('generate').addEventListener('click',()=>{
- if(!movie.files.length){
-  alert('Movie File အရင်ရွေးပေးပါ');
-  return;
- }
- document.getElementById('status').textContent=
- 'UI Demo: မူရင်း Backend API နဲ့ ချိတ်ဆက်ရန် လိုအပ်ပါသည်။';
+layer.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  const dx=(e.clientX-drag.sx)/drag.w,dy=(e.clientY-drag.sy)/drag.h,b=boxes[drag.i],o=drag.o;
+  if(drag.mode==='move'){b.x=clamp(o.x+dx,0,1-o.w);b.y=clamp(o.y+dy,0,1-o.h)}
+  else{b.w=clamp(o.w+dx,.06,1-o.x);b.h=clamp(o.h+dy,.04,1-o.y)}
+  const el=layer.querySelector('.bx[data-i="'+drag.i+'"]');
+  if(el){el.style.left=b.x*100+'%';el.style.top=b.y*100+'%';el.style.width=b.w*100+'%';el.style.height=b.h*100+'%'}
 });
-document.getElementById('previewVoice').addEventListener('click',()=>{
- alert('Voice Preview API ချိတ်ဆက်ရန် လိုအပ်ပါသည်။');
+['pointerup','pointercancel'].forEach(t=>layer.addEventListener(t,()=>{drag=null}));
+['subOn','subSize'].forEach(id=>$(id).addEventListener('input',applySub));
+document.querySelectorAll('input[name="subColor"]').forEach(r=>r.addEventListener('change',applySub));
+document.querySelectorAll('input[name="subPos"]').forEach(r=>r.addEventListener('change',()=>{subY=PRESET_Y[r.value];subX=50;applySub()}));
+$('subY').addEventListener('input',()=>{subY=Number($('subY').value);applySub()});
+$('subX').addEventListener('input',()=>{subX=Number($('subX').value);applySub()});
+sample.addEventListener('pointerdown',e=>{
+  const r=stage.getBoundingClientRect();
+  subDrag={sx:e.clientX,sy:e.clientY,ox:subX,oy:subY,w:r.width,h:r.height};
+  try{sample.setPointerCapture(e.pointerId)}catch{}
+  sample.style.cursor='grabbing';e.preventDefault();
 });
+sample.addEventListener('pointermove',e=>{
+  if(!subDrag)return;
+  subX=clamp(subDrag.ox+(e.clientX-subDrag.sx)/subDrag.w*100,0,100);
+  subY=clamp(subDrag.oy+(e.clientY-subDrag.sy)/subDrag.h*100,0,100);
+  applySub();
+});
+['pointerup','pointercancel'].forEach(t=>sample.addEventListener(t,()=>{subDrag=null;sample.style.cursor='grab'}));
+['blurOn','blurStr'].forEach(id=>$(id).addEventListener('input',applyBlur));
+$('seek').addEventListener('input',()=>{if(sv.duration)sv.currentTime=sv.duration*Number($('seek').value)/1000});
+sv.addEventListener('loadedmetadata',()=>{
+  const r=sv.videoWidth/sv.videoHeight||16/9;
+  stage.style.aspectRatio=String(r);stage.style.width='min(100%,'+Math.round(340*r)+'px)';
+  sv.currentTime=Math.max(0.1,(sv.duration||1)*0.1);
+  applySub();applyBlur();
+});
+if(window.ResizeObserver)new ResizeObserver(()=>{applySub();applyBlur()}).observe(stage);
+window.onMovieSelected=u=>{
+  $('stageWrap').style.display='block';$('noMovie').style.display='none';
+  sv.src=u;
+};
+function burnPayload(){
+  const boxesOut=boxes.map(b=>({x:+b.x.toFixed(4),y:+b.y.toFixed(4),w:+b.w.toFixed(4),h:+b.h.toFixed(4)}));
+  return{
+    aspectRatio:$('outputRatio')?.value||'original',
+    subtitle:{enabled:$('subOn').checked,sizePct:+subPct().toFixed(2),color:radioVal('subColor')||'#ffe600',position:radioVal('subPos')||'custom',xPct:+subX.toFixed(2),yPct:+subY.toFixed(2)},
+    blur:{enabled:$('blurOn').checked&&boxesOut.length>0,boxes:boxesOut,strength:sigma()}
+  };
+}
+applySub();applyBlur();
+$('voices').innerHTML=VOICES.map(([n,g,d],i)=>`<div class="vc"><input type="radio" name="vsel" id="v_${n}" value="${n}"${i===0?' checked':''}><label for="v_${n}"><em class="av ${g==='Female'?'f':'m'}">${n[0]}</em><span class="vt"><b>${n}</b><span>${g} · ${d}</span></span><span class="eq"><s></s><s></s><s></s></span></label><button type="button" class="play" data-v="${n}" aria-label="${n} အသံနားထောင်">▶</button></div>`).join('');
+document.querySelectorAll('input[name="vsel"]').forEach(r=>r.onchange=()=>{voiceName=r.value});
+document.querySelectorAll('.play').forEach(b=>b.onclick=()=>preview(SAMPLE[$('language').value]||SAMPLE.my,b,b.dataset.v));
+async function preview(text,btn,voice){
+  if(audio){audio.pause();audio=null}
+  const old=btn.textContent;btn.textContent='⏳';btn.disabled=true;$('voiceMsg').textContent='';
+  try{
+    const r=await fetch('/api/tts-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice:voice||voiceName,ttsEngine:$('ttsEngine').value})});
+    if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'နမူနာ မထုတ်နိုင်ပါ')}
+    const vc=btn.closest('.vc');document.querySelectorAll('.vc.playing').forEach(x=>x.classList.remove('playing'));
+    audio=new Audio(URL.createObjectURL(await r.blob()));if(vc){vc.classList.add('playing');audio.onended=audio.onpause=()=>vc.classList.remove('playing')}await audio.play();
+  }catch(e){$('voiceMsg').textContent='❌ '+e.message}
+  btn.textContent=old;btn.disabled=false;
+}
+function showErr(m){$('progressCard').style.display='block';$('error').style.display='block';$('error').textContent='❌ '+friendly(m)}
+function stepIndex(p){return p>=100?5:p<12?0:p<56?1:p<64?2:p<68?3:4}
+function elapsed(){if(!t0)return'';const s=Math.floor((Date.now()-t0)/1000);return` ⏱ ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
+function renderStatus(d){
+  const p=Math.max(0,Math.min(100,Number(d.progress)||0));
+  $('progressCard').style.display='block';$('pct').textContent=p+'%';$('bar').style.width=p+'%';
+  $('stageTitle').textContent=d.status==='script_ready'?'Script အဆင်သင့်ပါပြီ ✍️':d.status==='completed'?'ပြီးပါပြီ 🎉':(d.stage||'Processing');
+  $('message').textContent=(d.message||'')+(d.status==='processing'?elapsed():'');
+  const cur=d.status==='script_ready'?3:stepIndex(p);
+  document.querySelectorAll('.step').forEach((el,i)=>{el.classList.remove('active','done');if(i<cur)el.classList.add('done');else if(i===cur&&d.status!=='error')el.classList.add('active')});
+  $('error').style.display=d.error?'block':'none';if(d.error)$('error').textContent='❌ '+friendly(d.error);
+}
+function stop(){clearInterval(pollTimer);busy=false;$('generate').disabled=false;$('renderBtn').disabled=false}
+function startPoll(){clearInterval(pollTimer);fails=0;busy=true;pollTimer=setInterval(poll,1800);poll()}
+async function poll(){
+  if(!jobId)return;
+  try{
+    const r=await fetch('/api/status/'+encodeURIComponent(jobId),{cache:'no-store'});
+    const d=await r.json();
+    if(r.status===404){stop();store.set(null);return}
+    if(!r.ok)throw new Error(d?.error||'Status မဖတ်နိုင်ပါ');
+    fails=0;renderStatus(d);
+    if(d.status==='script_ready'){stop();await loadScript()}
+    else if(d.status==='completed'){stop();showResult(d);confetti()}
+    else if(d.status==='error'){stop()}
+  }catch(e){fails++;if(fails>40){stop();showErr(e.message)}}
+}
+function mmss(s){s=Math.max(0,Math.round(Number(s)||0));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+async function loadScript(){
+  const r=await fetch('/api/script/'+encodeURIComponent(jobId),{cache:'no-store'});const d=await r.json().catch(()=>({}));
+  if(!r.ok){showErr(d?.error||'Script မဖတ်နိုင်ပါ');return}
+  scenes=d.scenes||[];
+  $('scriptList').innerHTML=scenes.map((s,i)=>`<div class="scene"><div class="sh"><b>#${esc(s.index)}</b><span>${mmss(s.start)} – ${mmss(s.end)}</span><button type="button" class="mini" data-i="${i}">▶ နားထောင်</button></div><textarea data-i="${i}" aria-label="Scene ${esc(s.index)} script">${esc(s.narration)}</textarea></div>`).join('');
+  $('scriptList').querySelectorAll('.mini').forEach(b=>b.onclick=()=>preview($('scriptList').querySelector('textarea[data-i="'+b.dataset.i+'"]').value,b,voiceName));
+  $('scriptList').querySelectorAll('textarea').forEach(t=>t.oninput=count);count();
+  $('scriptCard').style.display='block';$('scriptCard').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function count(){const n=[...$('scriptList').querySelectorAll('textarea')].reduce((a,t)=>a+t.value.length,0);$('scriptCount').textContent=scenes.length+' scenes · '+n+' လုံး'}
+function showResult(d){
+  $('result').style.display='block';
+  const url='/api/download/'+encodeURIComponent(jobId);
+  $('finalVideo').src=url;$('download').href=url;
+  $('summary').textContent=`${d.scenePlan?.scenes||scenes.length||0} scenes • သဘာဝကျကျ စကားပြောပုံစံ`;
+  $('result').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function resetAll(){
+  stop();store.set(null);jobId=null;scenes=[];selectedFile=null;t0=0;
+  ['progressCard','scriptCard','result','fileInfo','preview'].forEach(i=>$(i).style.display='none');
+  $('preview').removeAttribute('src');$('finalVideo').removeAttribute('src');movie.value='';
+  $('dropTitle').textContent='Movie ကို ဒီမှာရွေးပါ';$('upload').scrollIntoView({behavior:'smooth'});
+}
+$('newBtn').onclick=resetAll;
+$('restartJobBtn').onclick=()=>{
+  if(confirm('လက်ရှိအလုပ်ကို ဒီစာမျက်နှာမှာ ရှင်းပြီး Movie အသစ်နဲ့ အစကနေ ပြန်စမလား? မူလ server process ကိုတော့ အလိုအလျောက် cancel မလုပ်နိုင်ပါ။')) resetAll();
+};
+$('generate').onclick=async()=>{
+  if(busy)return;
+  if(!selectedFile){showErr('အရင် Movie ရွေးပါ');return}
+  if(selectedFile.size>500*1024*1024){showErr('Video က 500MB ထက် မကျော်ရပါ');return}
+  busy=true;$('generate').disabled=true;$('result').style.display='none';$('scriptCard').style.display='none';t0=Date.now();
+  renderStatus({stage:'Upload',progress:3,status:'processing',message:'Movie upload စတင်နေပါတယ်...'});
+  const fd=new FormData();fd.append('movie',selectedFile);fd.append('language',$('language').value);fd.append('style',$('recapStyle').value||STYLE_DEFAULT);fd.append('voice',voiceName);fd.append('ttsEngine',$('ttsEngine').value);fd.append('burn',JSON.stringify(burnPayload()));fd.append('reviewScript',$('reviewChk').checked?'1':'');
+  try{
+    const r=await fetch('/api/one-clip',{method:'POST',body:fd});const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d?.error||'Movie processing မစနိုင်ပါ');
+    jobId=d.jobId;if(!jobId)throw new Error('Job ID မရပါ');store.set(jobId);startPoll();
+  }catch(e){
+    const msg = (e && (e.name === 'TypeError' || /failed to fetch|networkerror|load failed/i.test(String(e.message||''))))
+      ? 'Server နဲ့ ချိတ်ဆက်မရပါ (Failed to fetch)။ Hosting server ရပ်သွားခြင်း၊ deploy မအောင်မြင်ခြင်း၊ သို့မဟုတ် upload request ကို hosting က ဖြတ်တောက်ခြင်း ဖြစ်နိုင်ပါတယ်။ Hosting Logs နဲ့ /health ကို စစ်ပါ။'
+      : (e.message || 'Movie processing မစနိုင်ပါ');
+    showErr(msg);stop()
+  }
+};
+$('renderBtn').onclick=async()=>{
+  if(!jobId)return;
+  const items=[...$('scriptList').querySelectorAll('textarea')].map(t=>({index:scenes[Number(t.dataset.i)].index,narration:t.value.trim()}));
+  if(items.some(x=>!x.narration)){showErr('Scene တစ်ခုမှာ စာမရှိပါ');return}
+  $('renderBtn').disabled=true;busy=true;$('generate').disabled=true;$('result').style.display='none';t0=Date.now();
+  renderStatus({stage:'Voice',progress:63,status:'processing',message:'Script အတည်ပြုပြီး၊ အသံထုတ်ပါမယ်...'});
+  $('progressCard').scrollIntoView({behavior:'smooth',block:'start'});
+  try{
+    const r=await fetch('/api/render/'+encodeURIComponent(jobId),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes:items,style:$('recapStyle').value||STYLE_DEFAULT,voice:voiceName,ttsEngine:$('ttsEngine').value,burn:burnPayload()})});
+    const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error||'Render မစနိုင်ပါ');startPoll();
+  }catch(e){
+    const msg = (e && (e.name === 'TypeError' || /failed to fetch|networkerror|load failed/i.test(String(e.message||''))))
+      ? 'Render API နဲ့ ချိတ်ဆက်မရပါ။ Hosting server နဲ့ Logs ကို စစ်ပါ။'
+      : (e.message || 'Render မစနိုင်ပါ');
+    showErr(msg);stop()
+  }
+};
+function confetti(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const c=document.createElement('canvas');c.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:50';
+  document.body.appendChild(c);const x=c.getContext('2d');c.width=innerWidth;c.height=innerHeight;
+  const cs=getComputedStyle(document.documentElement),cols=['--a1','--a2','--a3'].map(v=>cs.getPropertyValue(v).trim()).concat(['#ffffff','#fbbf24','#34d399']);
+  const ps=Array.from({length:120},()=>({x:Math.random()*c.width,y:-20-Math.random()*c.height*.4,vx:(Math.random()-.5)*3,vy:2+Math.random()*4,s:5+Math.random()*6,r:Math.random()*6,vr:(Math.random()-.5)*.3,c:cols[Math.random()*6|0]}));
+  let f=0;(function step(){x.clearRect(0,0,c.width,c.height);ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;x.save();x.translate(p.x,p.y);x.rotate(p.r);x.fillStyle=p.c;x.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);x.restore()});if(++f<170)requestAnimationFrame(step);else c.remove()})();
+}
+const root=document.documentElement;
+function setTheme(t){root.setAttribute('data-theme',t);$('themeBtn').dataset.t=t;try{localStorage.setItem('ynt_theme',t)}catch{}}
+(function(){let t=null;try{t=localStorage.getItem('ynt_theme')}catch{}if(!t)t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';setTheme(t)})();
+$('themeBtn').onclick=()=>setTheme(root.dataset.theme==='dark'?'light':'dark');
+window.addEventListener('beforeunload',e=>{if(busy&&selectedFile){e.preventDefault();e.returnValue=''}});
+(async function resume(){
+  const saved=store.get();if(!saved)return;
+  try{
+    const r=await fetch('/api/status/'+encodeURIComponent(saved),{cache:'no-store'});
+    if(!r.ok){store.set(null);return}
+    const d=await r.json();jobId=saved;t0=Date.now();renderStatus(d);
+    if(d.status==='processing')startPoll();
+    else if(d.status==='script_ready')await loadScript();
+    else if(d.status==='completed')showResult(d);
+  }catch{}
+})();
+
+/* ---------- new UI helpers (chips ↔ hidden selects, sidebar highlight) ---------- */
+function chipGroup(groupId,selectId){
+  const g=$(groupId),sel=$(selectId);
+  g.addEventListener('click',e=>{
+    const b=e.target.closest('.chip');if(!b)return;
+    sel.value=b.dataset.v;sel.dispatchEvent(new Event('change',{bubbles:true}));
+    g.querySelectorAll('.chip').forEach(c=>{const on=c===b;c.classList.toggle('on',on);c.setAttribute('aria-checked',on)});
+  });
+}
+chipGroup('styleChips','recapStyle');chipGroup('ratioChips','outputRatio');
+(function(){
+  const links=[...document.querySelectorAll('#nav a')];
+  const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){links.forEach(l=>l.classList.remove('on'));map.get(en.target.id)?.classList.add('on')}})},{rootMargin:'-30% 0px -60% 0px'});
+  map.forEach((_,id)=>{const el=document.getElementById(id);el&&io.observe(el)});
+})();
+
+/* ---------- palette switcher ---------- */
+(function(){
+  const pal=$('pal');let cur='violet';
+  try{cur=localStorage.getItem('ynt_pal')||'violet'}catch{}
+  function setPal(p){
+    if(!pal.querySelector('[data-p="'+p+'"]'))p='violet';
+    root.setAttribute('data-pal',p);
+    pal.querySelectorAll('button').forEach(b=>{const on=b.dataset.p===p;b.classList.toggle('on',on);b.setAttribute('aria-checked',on)});
+    try{localStorage.setItem('ynt_pal',p)}catch{}
+  }
+  pal.addEventListener('click',e=>{const b=e.target.closest('button');if(b)setPal(b.dataset.p)});
+  setPal(cur);
+})();
 </script>
-</body>
-</html>
+</body></html>
