@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YNT Recap Studio</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#080d1c;color:#f4f5ff;font-family:Arial,sans-serif}
+.app{display:flex;min-height:100vh}
+.sidebar{width:230px;background:#10172b;padding:25px 18px;border-right:1px solid #27304c}
+.logo{font-size:23px;font-weight:800;color:#a78bfa;margin-bottom:35px}
+.nav{display:block;padding:13px;margin:7px 0;border-radius:10px;color:#aeb8d4;text-decoration:none}
+.nav.active,.nav:hover{background:#292653;color:white}
+main{flex:1;padding:28px;max-width:1200px;margin:auto;width:100%}
+.hero{padding:30px;border-radius:20px;background:linear-gradient(120deg,#38247e,#164b91);margin-bottom:25px}
+.hero h1{font-size:30px;margin:0 0 10px}
+.hero p{color:#e0dcff}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.card{background:#111a30;border:1px solid #293653;border-radius:17px;padding:22px;margin-bottom:20px}
+h2{font-size:18px;margin:0 0 18px}
+label{display:block;color:#b9c4df;margin:14px 0 7px}
+input,select,textarea{width:100%;padding:13px;background:#080f20;color:white;border:1px solid #354263;border-radius:9px}
+textarea{min-height:100px;resize:vertical}
+.upload{border:2px dashed #6555c9;text-align:center;padding:30px;border-radius:14px;color:#c4b5fd}
+button{border:0;border-radius:10px;padding:13px 18px;background:linear-gradient(100deg,#8248ed,#2879ed);color:white;font-weight:bold;cursor:pointer}
+button:hover{opacity:.85}
+.primary{width:100%;margin-top:18px;padding:16px;font-size:16px}
+.preview{background:#080f20;border:1px solid #293653;border-radius:12px;min-height:230px;display:flex;align-items:center;justify-content:center;color:#8190b3;text-align:center;padding:20px}
+.small{font-size:12px;color:#8998b8}
+@media(max-width:750px){
+.app{display:block}.sidebar{width:100%;padding:15px}.logo{margin:0 0 10px}
+nav{display:flex;overflow:auto}.nav{white-space:nowrap;padding:10px}
+main{padding:15px}.grid{grid-template-columns:1fr}.hero h1{font-size:23px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+<div class="logo">✦ YNT RECAP</div>
+<nav>
+<a class="nav active" href="#">⌂ Home</a>
+<a class="nav" href="#">▣ My Videos</a>
+<a class="nav" href="#">◷ History</a>
+<a class="nav" href="#">⚙ Settings</a>
+<a class="nav" href="#">♧ Help & Support</a>
+<a class="nav" href="#">♛ Premium</a>
+</nav>
+</aside>
+
+<main>
+<section class="hero">
+<h1>AI Video Recap Studio</h1>
+<p>သင့်ရဲ့ Movie တွေကို မြန်မာအသံနဲ့ Recap Video အဖြစ် ဖန်တီးလိုက်ပါ။</p>
+</section>
+
+<div class="grid">
+<div>
+<section class="card">
+<h2>📁 Upload Movie</h2>
+<div class="upload">
+<p>🎬 Movie File ရွေးချယ်ပါ</p>
+<input type="file" id="movie" accept="video/*">
+</div>
+<label>Language</label>
+<select id="language">
+<option value="my">Myanmar</option>
+<option value="en">English</option>
+</select>
+</section>
+
+<section class="card">
+<h2>🎙 Voice & Style Settings</h2>
+<label>Voice</label>
+<select id="voice">
+<option value="kore">Kore Voice</option>
+<option value="default">Default Voice</option>
+</select>
+<button type="button" id="previewVoice">▶ Preview Voice</button>
+<label>Voice Speed</label>
+<select id="speed">
+<option>Normal</option><option>Slow</option><option>Fast</option>
+</select>
+<label>Recap Style</label>
+<select id="style">
+<option value="cinematic">Cinematic</option>
+<option value="emotional">Emotional</option>
+<option value="story">Storytelling</option>
+</select>
+</section>
+</div>
+
+<div>
+<section class="card">
+<h2>⚙ Customize Options</h2>
+<label>Video Ratio</label>
+<select id="ratio">
+<option value="9:16">9:16 — TikTok / Shorts</option>
+<option value="16:9">16:9 — YouTube</option>
+</select>
+<label>Subtitle Font Size</label>
+<input type="number" id="fontSize" value="32">
+<label>Subtitle Position</label>
+<select id="position">
+<option value="bottom">Bottom</option>
+<option value="center">Center</option>
+<option value="top">Top</option>
+</select>
+<label>Brightness</label>
+<input type="range" id="brightness" min="50" max="150" value="100">
+<label>Contrast</label>
+<input type="range" id="contrast" min="50" max="150" value="100">
+<label>Saturation</label>
+<input type="range" id="saturation" min="0" max="200" value="100">
+</section>
+
+<section class="card">
+<h2>🎞 Video Preview</h2>
+<div class="preview" id="preview">Your Video Preview Will Appear Here</div>
+</section>
+</div>
+</div>
+
+<section class="card">
+<h2>🚀 Generate Recap Video</h2>
+<p class="small" id="status">Ready to start</p>
+<button class="primary" id="generate">Generate Video</button>
+</section>
+</main>
+</div>
+
+<script>
+const movie=document.getElementById('movie');
+const preview=document.getElementById('preview');
+movie.addEventListener('change',()=>{
+ if(movie.files[0]){
+  preview.textContent=movie.files[0].name;
+ }
+});
+document.getElementById('generate').addEventListener('click',()=>{
+ if(!movie.files.length){
+  alert('Movie File အရင်ရွေးပေးပါ');
+  return;
+ }
+ document.getElementById('status').textContent=
+ 'UI Demo: မူရင်း Backend API နဲ့ ချိတ်ဆက်ရန် လိုအပ်ပါသည်။';
+});
+document.getElementById('previewVoice').addEventListener('click',()=>{
+ alert('Voice Preview API ချိတ်ဆက်ရန် လိုအပ်ပါသည်။');
+});
+</script>
+</body>
+</html>
