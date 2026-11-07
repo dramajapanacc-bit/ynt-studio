@@ -146,7 +146,6 @@ body{margin:0;min-height:100vh;color:var(--text);font:400 14px/1.7 "Plus Jakarta
 .bx b{position:absolute;left:0;top:0;padding:0 7px;border-radius:0 0 8px 0;font-size:11px;line-height:18px;background:var(--ok);color:#042a26}
 .bx .rs{position:absolute;right:0;bottom:0;width:30px;height:30px;border-radius:10px 0 4px 0;background:var(--ok);touch-action:none;cursor:nwse-resize}
 .bx .rs:after{content:"";position:absolute;right:6px;bottom:6px;width:10px;height:10px;border-right:3px solid #042a26;border-bottom:3px solid #042a26}
-.subSample{position:absolute;left:50%;top:84%;width:max-content;max-width:92%;z-index:5;display:none;text-align:center;transform:translate(-50%,-50%);pointer-events:auto;touch-action:none;cursor:grab;outline:1.5px dashed #ffffff88;outline-offset:3px;font-weight:700;line-height:1.35;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,1px 1px 2px #000}
 .seek{width:100%;margin:12px 0 0;accent-color:var(--a1)}
 .opt{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
 .sw{position:relative;display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:44px;font-size:14px;font-weight:700;cursor:pointer}
@@ -228,6 +227,31 @@ textarea:focus{border-color:var(--ring)}
 .download{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px;padding:14px;border-radius:14px;text-decoration:none;color:var(--on);font-weight:800;background:var(--grad);box-shadow:0 10px 28px var(--glow)}
 .summary{margin-top:10px;font-size:12px;color:var(--muted)}
 
+
+/* clone panel */
+.clone{margin-top:18px;padding:16px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--a1) 55%,var(--line));background:linear-gradient(180deg,var(--soft),transparent)}
+.cloneHead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin-bottom:10px}
+.cloneHead b{font-size:14px}.cloneHead span{font-size:11.5px;color:var(--muted)}
+.cloneRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.txt{width:100%;padding:11px 13px;border-radius:12px;border:1px solid var(--line);background:var(--in);color:var(--text);font:600 13px "Plus Jakarta Sans","Noto Sans Myanmar";outline:none}
+.txt:focus{border-color:var(--ring)}
+.btn2{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--in);color:var(--text);font:700 13px "Plus Jakarta Sans","Noto Sans Myanmar";cursor:pointer;text-decoration:none;transition:.2s}
+.btn2:hover{border-color:var(--ring);background:var(--soft)}
+.btn2.pri{border:0;color:var(--on);background:var(--grad);box-shadow:0 8px 22px var(--glow)}
+.btn2:disabled{opacity:.55;cursor:wait}
+.vmsg.ok{color:var(--ok)}
+.av.c{background:linear-gradient(135deg,var(--a1),var(--a3))}
+.vc .del{position:absolute;top:7px;left:7px;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:#fb718533;color:var(--err);font-size:14px;line-height:22px;cursor:pointer;opacity:.7}
+.vc .del:hover{opacity:1}
+/* srt */
+.srt{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
+.srtHead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+.srtHead b{font-size:14px}.srtHead span{font-size:11.5px;color:var(--muted)}
+.srt textarea{min-height:170px;font-size:12.5px;font-family:ui-monospace,"Noto Sans Myanmar",monospace;white-space:pre}
+.srtBtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.noteBox{margin-top:16px;padding:13px 15px;border-radius:14px;border:1px solid var(--line);background:var(--soft);font-size:12.5px;line-height:1.7}
+.noteBox b{display:block;margin-bottom:2px}
+
 /* footer */
 .foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:auto;padding:14px 24px;border-top:1px solid var(--line);background:var(--side);font-size:13px;font-weight:700}
 .foot span:last-child{font-style:italic;font-weight:800;background:var(--title);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -243,7 +267,7 @@ textarea:focus{border-color:var(--ring)}
   .content{padding:12px}.topbar{padding:10px 12px;gap:8px}.tr{gap:8px}
   .pal{gap:6px;padding:6px 8px}.pal button{width:20px;height:20px}
   .banner{padding:22px 20px;min-height:200px;border-radius:20px}
-  .row{grid-template-columns:1fr}
+  .row,.cloneRow{grid-template-columns:1fr}
   .chips{grid-template-columns:repeat(2,1fr)}
   .step{font-size:9.5px}.step i{width:34px;height:34px}.steps:before{top:17px}
   .card{padding:16px}.foot{padding:12px;font-size:12px}
@@ -332,7 +356,7 @@ textarea:focus{border-color:var(--ring)}
   </div>
 </section>
 
-<div class="strip" aria-label="Features"><span>Smart AI Recap</span><span>Natural Myanmar Voice</span><span>မြန်မာ စာတန်းထိုး</span><span>မူရင်းစာတန်း Blur</span><span>MP4 Video Output</span></div>
+<div class="strip" aria-label="Features"><span>Smart AI Recap</span><span>Natural Myanmar Voice</span><span>SRT စာတန်းထိုး (Copy)</span><span>မူရင်းစာတန်း Blur</span><span>MP4 Video Output</span></div>
 
 <div class="grid">
 
@@ -365,15 +389,28 @@ textarea:focus{border-color:var(--ring)}
   <div class="voices" id="voices"></div>
   <p class="vmsg" id="voiceMsg"></p>
   <p class="hint">Azure / Google မှာ အမျိုးသား၊ အမျိုးသမီး နှစ်မျိုးပဲ ကွာပါတယ်။</p>
+
+  <div class="clone" id="clonePanel">
+    <div class="cloneHead"><b>🧬 Voice Clone</b><span>အသံနမူနာကနေ ကိုယ့်အသံ (ဒါမှမဟုတ် ခွင့်ပြုထားတဲ့အသံ) နဲ့ narration ထုတ်မယ်</span></div>
+    <div class="cloneRow">
+      <input type="file" id="cloneFile" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.webm" hidden>
+      <button type="button" class="btn2" id="clonePick">🎤 <span id="cloneFileName">အသံနမူနာ ရွေးမယ်</span></button>
+      <input type="text" class="txt" id="cloneName" maxlength="40" placeholder="Voice နာမည် (ဥပမာ - ကျွန်တော့်အသံ)" aria-label="Clone voice နာမည်">
+    </div>
+    <label class="chk"><input type="checkbox" id="cloneConsent"><span>ဒီအသံက ကျွန်တော့်ကိုယ်ပိုင်အသံ ဒါမှမဟုတ် ပိုင်ရှင်က ခွင့်ပြုထားတဲ့ အသံ ဖြစ်ကြောင်း အတည်ပြုပါတယ်။</span></label>
+    <button type="button" class="btn2 pri" id="cloneBtn" style="width:100%">🧬 Clone လုပ်မယ်</button>
+    <p class="hint">ဆူညံသံ မပါတဲ့ ရှင်းလင်းတဲ့ စကားပြောအသံ ၁ မိနစ်ကနေ ၃ မိနစ်လောက် (mp3 / wav / m4a၊ ဖိုင်တစ်ခု 12MB အောက်) ပိုကောင်းပါတယ်။ ElevenLabs API key လိုပါတယ်။ Clone voice ကို ရွေးရင် ElevenLabs နဲ့ပဲ အသံထုတ်ပါမယ်။</p>
+    <p class="vmsg" id="cloneMsg" role="status"></p>
+  </div>
 </section>
 
 <section class="card c7" id="burnCard">
-  <div class="head"><span class="num"><svg class="i"><use href="#i-sliders"/></svg></span><div><h2>3. Customize Options</h2><p>စာတန်းထိုး၊ မူရင်းစာတန်း Blur နဲ့ Video အချိုးအစား (ရွေးချယ်စရာ)။</p></div></div>
+  <div class="head"><span class="num"><svg class="i"><use href="#i-sliders"/></svg></span><div><h2>3. Customize Options</h2><p>မူရင်းစာတန်း Blur နဲ့ Video အချိုးအစား (ရွေးချယ်စရာ)။</p></div></div>
 
   <div class="stageWrap" id="stageWrap">
-    <div class="stage" id="stage"><video id="stageVideo" muted playsinline preload="metadata"></video><div class="boxLayer" id="boxLayer"></div><div class="subSample" id="subSample">ဒီအချိန်မှာ သူ့လျှို့ဝှက်ချက် ပေါ်လာပါတယ်</div></div>
+    <div class="stage" id="stage"><video id="stageVideo" muted playsinline preload="metadata"></video><div class="boxLayer" id="boxLayer"></div></div>
     <input class="seek" id="seek" type="range" min="0" max="1000" value="100" aria-label="Video ကို ရွှေ့ကြည့်ရန်">
-    <p class="hint">Slider ကို ရွှေ့ပြီး မူရင်းစာတန်းထိုး ပေါ်တဲ့ frame ကို ရှာပါ။</p>
+    <p class="hint">Slider ကို ရွှေ့ပြီး မူရင်းစာတန်းထိုး ပေါ်တဲ့ frame ကို ရှာပြီး Blur အကွက်ကို အဲဒီပေါ် တင်ပါ။</p>
   </div>
   <p class="hint" id="noMovie">Movie ရွေးပြီးရင် ဒီမှာ Preview ပေါ်ပါမယ်။</p>
 
@@ -393,29 +430,7 @@ textarea:focus{border-color:var(--ring)}
   </div>
 
   <div class="opt">
-    <label class="sw"><span>မြန်မာစာတန်းထိုး ထည့်မယ်</span><input type="checkbox" id="subOn"><i></i></label>
-    <div class="subbox off" id="subOpts">
-      <div class="lab"><label for="subSize">စာလုံးအရွယ်</label><span id="subSizeV">အလတ်</span></div>
-      <input class="rng" id="subSize" type="range" min="1" max="10" value="4">
-      <div class="lab"><span>အရောင်</span><span></span></div>
-      <div class="cols">
-        <label class="sc" style="--c:#ffe600"><input type="radio" name="subColor" value="#ffe600" checked aria-label="အဝါ"><b></b></label>
-        <label class="sc" style="--c:#ffffff"><input type="radio" name="subColor" value="#ffffff" aria-label="အဖြူ"><b></b></label>
-        <label class="sc" style="--c:#5eead4"><input type="radio" name="subColor" value="#5eead4" aria-label="အစိမ်းဖျော့"><b></b></label>
-        <label class="sc" style="--c:#fb923c"><input type="radio" name="subColor" value="#fb923c" aria-label="လိမ္မော်"><b></b></label>
-      </div>
-      <div class="lab"><span>နေရာ</span><span></span></div>
-      <div class="seg">
-        <label><input type="radio" name="subPos" value="top"><span>အပေါ်</span></label>
-        <label><input type="radio" name="subPos" value="middle"><span>အလယ်</span></label>
-        <label><input type="radio" name="subPos" value="bottom" checked><span>အောက်</span></label>
-      </div>
-      <div class="lab"><label for="subY">အပေါ်-အောက် (လွတ်လပ်စွာ)</label><span id="subYV">84%</span></div>
-      <input class="rng" id="subY" type="range" min="0" max="100" value="84">
-      <div class="lab"><label for="subX">ဘယ်-ညာ</label><span id="subXV">50%</span></div>
-      <input class="rng" id="subX" type="range" min="0" max="100" value="50">
-      <p class="hint">Preview ပေါ်က စာတန်းကို လက်နဲ့ တိုက်ရိုက်ဆွဲရွှေ့လို့လည်း ရပါတယ်။ Blur အကွက်ပေါ်လည်း တင်လို့ရပါတယ်။</p>
-    </div>
+    <div class="noteBox"><b>📝 မြန်မာစာတန်းထိုးကို SRT အဖြစ် ထုတ်ပေးပါမယ်</b>Video ထဲမှာ တိုက်ရိုက် မထိုးတော့ပါဘူး။ Video ပြီးရင် အောက်က Video Preview မှာ SRT စာကို Copy ကူးလို့ ဒါမှမဟုတ် .srt ဖိုင် Download လုပ်လို့ ရပါမယ်။ အချိန်တွေက အသံအတိုင်း တိတိကျကျ ကိုက်ပါတယ်။</div>
   </div>
 
   <div class="opt">
@@ -464,6 +479,12 @@ textarea:focus{border-color:var(--ring)}
     <div class="head"><span class="num"><svg class="i f"><use href="#i-play"/></svg></span><div><h2>Video Preview</h2><p>ပြီးပါပြီ။ Video ကို ကြည့်ပြီး Download လုပ်နိုင်ပါတယ်။</p></div></div>
     <video class="video" id="finalVideo" controls></video>
     <a class="download" id="download" href="#"><svg class="i"><use href="#i-down"/></svg>Download MP4</a>
+    <div class="srt" id="srtBox" style="display:none">
+      <div class="srtHead"><b>📝 စာတန်းထိုး (SRT)</b><span id="srtInfo"></span></div>
+      <textarea id="srtText" readonly spellcheck="false" aria-label="SRT စာတန်းထိုး"></textarea>
+      <div class="srtBtns"><button type="button" class="btn2 pri" id="srtCopy">📋 SRT Copy</button><a class="btn2" id="srtDl" href="#" download>⬇️ .srt Download</a></div>
+      <p class="vmsg ok" id="srtMsg" role="status"></p>
+    </div>
     <p class="summary" id="summary"></p>
     <button class="ghost" id="newBtn" type="button">🔄 Movie အသစ်နဲ့ ပြန်စမယ်</button>
   </section>
@@ -503,30 +524,11 @@ function showFile(){
 
 /* ---------- subtitle + blur options ---------- */
 const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
-const stage=$('stage'),layer=$('boxLayer'),sample=$('subSample'),sv=$('stageVideo');
-let boxes=[],selBox=-1,drag=null,subX=50,subY=84,subDrag=null;
-const PRESET_Y={top:14,middle:50,bottom:84};
+const stage=$('stage'),layer=$('boxLayer'),sv=$('stageVideo');
+let boxes=[],selBox=-1,drag=null;
 const radioVal=n=>document.querySelector('input[name="'+n+'"]:checked')?.value;
-const subPct=()=>2+0.4*Number($('subSize').value);
 const sigma=()=>Math.round(4+3.4*Number($('blurStr').value));
 const LV=['အနည်းငယ်','အနည်းငယ်','အလတ်','အလတ်','အလတ်','အလတ်','ပြင်းပြင်း','ပြင်းပြင်း','အရမ်းပြင်း','အရမ်းပြင်း'];
-function applySub(){
-  const on=$('subOn').checked;
-  $('subOpts').classList.toggle('off',!on);
-  sample.style.display=on?'block':'none';
-  sample.style.fontSize=(stage.clientHeight*subPct()/100)+'px';
-  sample.style.color=radioVal('subColor')||'#ffe600';
-  if(on&&stage.clientWidth&&stage.clientHeight&&sample.offsetWidth){
-    const hx=Math.min(50,sample.offsetWidth/stage.clientWidth*50),hy=Math.min(50,sample.offsetHeight/stage.clientHeight*50);
-    subX=clamp(subX,hx,100-hx);subY=clamp(subY,hy,100-hy);
-  }
-  sample.style.top=subY+'%';sample.style.left=subX+'%';
-  $('subY').value=Math.round(subY);$('subX').value=Math.round(subX);
-  $('subYV').textContent=Math.round(subY)+'%';$('subXV').textContent=Math.round(subX)+'%';
-  const hit=Object.keys(PRESET_Y).find(k=>Math.abs(PRESET_Y[k]-subY)<0.5&&Math.abs(subX-50)<0.5);
-  document.querySelectorAll('input[name="subPos"]').forEach(r=>{r.checked=r.value===hit});
-  $('subSizeV').textContent=LV[Number($('subSize').value)-1];
-}
 function applyBlur(){
   const on=$('blurOn').checked;
   $('blurOpts').classList.toggle('off',!on);
@@ -568,33 +570,15 @@ layer.addEventListener('pointermove',e=>{
   if(el){el.style.left=b.x*100+'%';el.style.top=b.y*100+'%';el.style.width=b.w*100+'%';el.style.height=b.h*100+'%'}
 });
 ['pointerup','pointercancel'].forEach(t=>layer.addEventListener(t,()=>{drag=null}));
-['subOn','subSize'].forEach(id=>$(id).addEventListener('input',applySub));
-document.querySelectorAll('input[name="subColor"]').forEach(r=>r.addEventListener('change',applySub));
-document.querySelectorAll('input[name="subPos"]').forEach(r=>r.addEventListener('change',()=>{subY=PRESET_Y[r.value];subX=50;applySub()}));
-$('subY').addEventListener('input',()=>{subY=Number($('subY').value);applySub()});
-$('subX').addEventListener('input',()=>{subX=Number($('subX').value);applySub()});
-sample.addEventListener('pointerdown',e=>{
-  const r=stage.getBoundingClientRect();
-  subDrag={sx:e.clientX,sy:e.clientY,ox:subX,oy:subY,w:r.width,h:r.height};
-  try{sample.setPointerCapture(e.pointerId)}catch{}
-  sample.style.cursor='grabbing';e.preventDefault();
-});
-sample.addEventListener('pointermove',e=>{
-  if(!subDrag)return;
-  subX=clamp(subDrag.ox+(e.clientX-subDrag.sx)/subDrag.w*100,0,100);
-  subY=clamp(subDrag.oy+(e.clientY-subDrag.sy)/subDrag.h*100,0,100);
-  applySub();
-});
-['pointerup','pointercancel'].forEach(t=>sample.addEventListener(t,()=>{subDrag=null;sample.style.cursor='grab'}));
 ['blurOn','blurStr'].forEach(id=>$(id).addEventListener('input',applyBlur));
 $('seek').addEventListener('input',()=>{if(sv.duration)sv.currentTime=sv.duration*Number($('seek').value)/1000});
 sv.addEventListener('loadedmetadata',()=>{
   const r=sv.videoWidth/sv.videoHeight||16/9;
   stage.style.aspectRatio=String(r);stage.style.width='min(100%,'+Math.round(340*r)+'px)';
   sv.currentTime=Math.max(0.1,(sv.duration||1)*0.1);
-  applySub();applyBlur();
+  applyBlur();
 });
-if(window.ResizeObserver)new ResizeObserver(()=>{applySub();applyBlur()}).observe(stage);
+if(window.ResizeObserver)new ResizeObserver(()=>{applyBlur()}).observe(stage);
 window.onMovieSelected=u=>{
   $('stageWrap').style.display='block';$('noMovie').style.display='none';
   sv.src=u;
@@ -603,17 +587,50 @@ function burnPayload(){
   const boxesOut=boxes.map(b=>({x:+b.x.toFixed(4),y:+b.y.toFixed(4),w:+b.w.toFixed(4),h:+b.h.toFixed(4)}));
   return{
     aspectRatio:$('outputRatio')?.value||'original',
-    subtitle:{enabled:$('subOn').checked,sizePct:+subPct().toFixed(2),color:radioVal('subColor')||'#ffe600',position:radioVal('subPos')||'custom',xPct:+subX.toFixed(2),yPct:+subY.toFixed(2)},
+    subtitle:{enabled:false},
     blur:{enabled:$('blurOn').checked&&boxesOut.length>0,boxes:boxesOut,strength:sigma()}
   };
 }
-applySub();applyBlur();
-$('voices').innerHTML=VOICES.map(([n,g,d],i)=>`<div class="vc"><input type="radio" name="vsel" id="v_${n}" value="${n}"${i===0?' checked':''}><label for="v_${n}"><em class="av ${g==='Female'?'f':'m'}">${n[0]}</em><span class="vt"><b>${n}</b><span>${g} · ${d}</span></span><span class="eq"><s></s><s></s><s></s></span></label><button type="button" class="play" data-v="${n}" aria-label="${n} အသံနားထောင်">▶</button></div>`).join('');
-document.querySelectorAll('input[name="vsel"]').forEach(r=>r.onchange=()=>{voiceName=r.value});
-document.querySelectorAll('.play').forEach(b=>b.onclick=()=>preview(SAMPLE[$('language').value]||SAMPLE.my,b,b.dataset.v));
+applyBlur();
+let clones=[];
+const voiceCard=(n,g,d,i)=>`<div class="vc"><input type="radio" name="vsel" id="v_${n}" value="${n}"${n===voiceName?' checked':''}><label for="v_${n}"><em class="av ${g==='Female'?'f':'m'}">${n[0]}</em><span class="vt"><b>${n}</b><span>${g} · ${d}</span></span><span class="eq"><s></s><s></s><s></s></span></label><button type="button" class="play" data-v="${n}" aria-label="${n} အသံနားထောင်">▶</button></div>`;
+const cloneCard=c=>`<div class="vc"><input type="radio" name="vsel" id="v_${esc(c.id)}" value="${esc(c.id)}"${c.id===voiceName?' checked':''}><label for="v_${esc(c.id)}"><em class="av c">🧬</em><span class="vt"><b>${esc(c.name)}</b><span>Clone · ElevenLabs</span></span><span class="eq"><s></s><s></s><s></s></span></label><button type="button" class="play" data-v="${esc(c.id)}" aria-label="${esc(c.name)} အသံနားထောင်">▶</button><button type="button" class="del" data-del="${esc(c.id)}" aria-label="${esc(c.name)} ဖျက်မယ်" title="ဖျက်မယ်">×</button></div>`;
+function renderVoices(){
+  if(voiceName.startsWith('clone:')&&!clones.some(c=>c.id===voiceName))voiceName='Kore';
+  $('voices').innerHTML=VOICES.map(([n,g,d],i)=>voiceCard(n,g,d,i)).join('')+clones.map(cloneCard).join('');
+}
+renderVoices();
+$('voices').addEventListener('change',e=>{
+  const r=e.target.closest('input[name="vsel"]');if(!r)return;
+  voiceName=r.value;
+  if(voiceName.startsWith('clone:')){$('ttsEngine').value='elevenlabs';$('voiceMsg').classList.remove('ok');$('voiceMsg').textContent='🧬 Clone voice ကို ElevenLabs နဲ့ပဲ အသံထုတ်ပါမယ်။'}
+  else if($('voiceMsg').textContent.startsWith('🧬'))$('voiceMsg').textContent='';
+});
+$('voices').addEventListener('click',async e=>{
+  const pb=e.target.closest('.play');
+  if(pb){preview(SAMPLE[$('language').value]||SAMPLE.my,pb,pb.dataset.v);return}
+  const db=e.target.closest('.del');
+  if(db){
+    const c=clones.find(x=>x.id===db.dataset.del);
+    if(!c||!confirm('"'+c.name+'" clone voice ကို ဖျက်မလား? ElevenLabs ထဲကပါ ပျက်သွားပါမယ်။'))return;
+    db.disabled=true;
+    try{
+      const r=await fetch('/api/voice-clone/'+encodeURIComponent(c.id),{method:'DELETE'});const d=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(d.error||'မဖျက်နိုင်ပါ');
+      await loadClones();
+    }catch(err){db.disabled=false;$('voiceMsg').classList.remove('ok');$('voiceMsg').textContent='❌ '+err.message}
+  }
+});
+async function loadClones(){
+  try{
+    const r=await fetch('/api/voice-clones',{cache:'no-store'});if(!r.ok)return;
+    const d=await r.json();clones=Array.isArray(d.voices)?d.voices:[];renderVoices();
+  }catch{}
+}
+loadClones();
 async function preview(text,btn,voice){
   if(audio){audio.pause();audio=null}
-  const old=btn.textContent;btn.textContent='⏳';btn.disabled=true;$('voiceMsg').textContent='';
+  const old=btn.textContent;btn.textContent='⏳';btn.disabled=true;$('voiceMsg').textContent='';$('voiceMsg').classList.remove('ok');
   try{
     const r=await fetch('/api/tts-preview',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice:voice||voiceName,ttsEngine:$('ttsEngine').value})});
     if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||'နမူနာ မထုတ်နိုင်ပါ')}
@@ -622,6 +639,27 @@ async function preview(text,btn,voice){
   }catch(e){$('voiceMsg').textContent='❌ '+e.message}
   btn.textContent=old;btn.disabled=false;
 }
+$('clonePick').onclick=()=>$('cloneFile').click();
+$('cloneFile').onchange=()=>{const f=$('cloneFile').files?.[0];$('cloneFileName').textContent=f?f.name+' • '+(f.size/1024/1024).toFixed(1)+' MB':'အသံနမူနာ ရွေးမယ်'};
+function cloneMsg(t,ok){const m=$('cloneMsg');m.textContent=t;m.classList.toggle('ok',!!ok)}
+$('cloneBtn').onclick=async()=>{
+  const f=$('cloneFile').files?.[0],name=$('cloneName').value.trim();
+  if(!f)return cloneMsg('❌ အသံနမူနာ ဖိုင် ရွေးပါ');
+  if(f.size>12*1024*1024)return cloneMsg('❌ ဖိုင်က 12MB ထက် မကျော်ရပါ');
+  if(!name)return cloneMsg('❌ Voice နာမည် ထည့်ပါ');
+  if(!$('cloneConsent').checked)return cloneMsg('❌ ကိုယ့်အသံ ဒါမှမဟုတ် ခွင့်ပြုထားတဲ့ အသံ ဖြစ်ကြောင်း အတည်ပြုပါ');
+  $('cloneBtn').disabled=true;cloneMsg('⏳ Clone လုပ်နေပါတယ်... (စက္ကန့်အနည်းငယ် ကြာနိုင်ပါတယ်)');
+  const fd=new FormData();fd.append('samples',f);fd.append('name',name);fd.append('consent','1');
+  try{
+    const r=await fetch('/api/voice-clone',{method:'POST',body:fd});const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||'Clone မလုပ်နိုင်ပါ');
+    voiceName=d.voice.id;$('ttsEngine').value='elevenlabs';
+    await loadClones();
+    $('cloneFile').value='';$('cloneFileName').textContent='အသံနမူနာ ရွေးမယ်';$('cloneName').value='';$('cloneConsent').checked=false;
+    cloneMsg('✅ "'+d.voice.name+'" clone ပြီးပါပြီ။ အပေါ်က Voice စာရင်းမှာ ရွေးပြီးသားပါ၊ ▶ နဲ့ နားထောင်ကြည့်ပါ။',true);
+  }catch(e){cloneMsg('❌ '+e.message)}
+  $('cloneBtn').disabled=false;
+};
 function showErr(m){$('progressCard').style.display='block';$('error').style.display='block';$('error').textContent='❌ '+friendly(m)}
 function stepIndex(p){return p>=100?5:p<12?0:p<56?1:p<64?2:p<68?3:4}
 function elapsed(){if(!t0)return'';const s=Math.floor((Date.now()-t0)/1000);return` ⏱ ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
@@ -661,16 +699,30 @@ async function loadScript(){
 }
 function count(){const n=[...$('scriptList').querySelectorAll('textarea')].reduce((a,t)=>a+t.value.length,0);$('scriptCount').textContent=scenes.length+' scenes · '+n+' လုံး'}
 function showResult(d){
-  $('result').style.display='block';
+  $('result').style.display='block';loadSrt();
   const url='/api/download/'+encodeURIComponent(jobId);
   $('finalVideo').src=url;$('download').href=url;
   $('summary').textContent=`${d.scenePlan?.scenes||scenes.length||0} scenes • သဘာဝကျကျ စကားပြောပုံစံ`;
   $('result').scrollIntoView({behavior:'smooth',block:'start'});
 }
+async function loadSrt(){
+  const box=$('srtBox'),id=jobId;box.style.display='none';
+  try{
+    const r=await fetch('/api/srt/'+encodeURIComponent(id),{cache:'no-store'});if(!r.ok)return;
+    const t=await r.text();if(!t.trim()||id!==jobId)return;
+    $('srtText').value=t;$('srtDl').href='/api/srt/'+encodeURIComponent(id)+'?download=1';
+    $('srtInfo').textContent=t.trim().split(/\n\s*\n/).length+' cues';$('srtMsg').textContent='';box.style.display='block';
+  }catch{}
+}
+$('srtCopy').onclick=async()=>{
+  const ta=$('srtText');let ok=false;
+  try{await navigator.clipboard.writeText(ta.value);ok=true}catch{ta.focus();ta.select();try{ok=document.execCommand('copy')}catch{}}
+  $('srtMsg').textContent=ok?'✅ SRT စာ Copy ကူးပြီးပါပြီ':'❌ Copy မရပါ၊ စာကို ရွေးပြီး ကိုယ်တိုင် Copy လုပ်ပါ';
+};
 function resetAll(){
   stop();store.set(null);jobId=null;scenes=[];selectedFile=null;t0=0;
   ['progressCard','scriptCard','result','fileInfo','preview'].forEach(i=>$(i).style.display='none');
-  $('preview').removeAttribute('src');$('finalVideo').removeAttribute('src');movie.value='';
+  $('preview').removeAttribute('src');$('finalVideo').removeAttribute('src');movie.value='';$('srtBox').style.display='none';$('srtText').value='';
   $('dropTitle').textContent='Movie ကို ဒီမှာရွေးပါ';$('upload').scrollIntoView({behavior:'smooth'});
 }
 $('newBtn').onclick=resetAll;
