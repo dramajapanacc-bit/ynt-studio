@@ -14,10 +14,24 @@ import {
   normalizeBurn,
   burnActive,
   probeVideoSize,
-  writeAss,
   buildBurnFilter,
   checkSubtitleFont
 } from "./burn.js";
+import {
+  planSceneTiming,
+  appendVideoTiming,
+  TRIM_SILENCE_FILTER,
+  makeSceneCues,
+  buildSrt
+} from "./sync.js";
+import {
+  CLONE_PREFIX,
+  isCloneVoice,
+  cloneIdOf,
+  createCloneStore,
+  elevenLabsAddVoice,
+  elevenLabsDeleteVoice
+} from "./clone.js";
 
 const { Pool } = pg;
 
@@ -76,6 +90,8 @@ const DATA_DIR = process.env.DATA_DIR
 const PUBLIC_DIR = path.join(ROOT, "public");
 const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 const JOB_DIR = path.join(DATA_DIR, "jobs");
+// Cloned voices (ElevenLabs ids) created through the UI.
+const cloneStore = createCloneStore(path.join(DATA_DIR, "voice-clones.json"));
 
 for (const dir of [
   PUBLIC_DIR,
@@ -1793,7 +1809,14 @@ async function elevenLabsTts(text, outputPath, voice) {
   const key = (process.env.ELEVENLABS_API_KEY || "").trim();
   const male = (process.env.ELEVENLABS_VOICE_ID_MALE || "").trim();
   const female = (process.env.ELEVENLABS_VOICE_ID_FEMALE || "").trim();
-  const voiceId = ((isMaleVoice(voice) ? male : female) || process.env.ELEVENLABS_VOICE_ID || "").trim();
+  // A cloned voice ("clone:<id>") is only accepted if we created it ourselves,
+  // so nobody can point this server's API key at an arbitrary voice id.
+  if (String(voice).startsWith(CLONE_PREFIX) && !(isCloneVoice(voice) && cloneStore.has(cloneIdOf(voice)))) {
+    throw new Error("Clone voice မတွေ့ပါ။ ပြန်ရွေးပါ၊ မရှိရင် Clone အသစ်လုပ်ပါ။");
+  }
+  const voiceId = (isCloneVoice(voice)
+    ? cloneIdOf(voice)
+    : ((isMaleVoice(voice) ? male : female) || process.env.ELEVENLABS_VOICE_ID || "")).trim();
   if (!key || !voiceId) throw new Error("ELEVENLABS_API_KEY / ELEVENLABS_VOICE_ID မထည့်ရသေးပါ");
   const model = (process.env.ELEVENLABS_MODEL || "eleven_v3").trim();
   // eleven_v3 only accepts stability 0.0 (Creative) / 0.5 (Natural) / 1.0 (Robust).
@@ -1979,9 +2002,13 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto", r
   if (!fullText) throw new Error("No narration text was available for TTS.");
 
   const nativeBurmese = voice === "Thiha" || voice === "Nilar";
-  const order = engine === "auto"
-    ? (nativeBurmese ? ["edge", "azure", "gemini", "google"] : ["gemini", "edge", "azure", "google"])
-    : [engine];
+  // A cloned voice only exists in ElevenLabs, so no other engine can speak it
+  // (falling back would silently use somebody else's voice).
+  const order = String(voice).startsWith(CLONE_PREFIX)
+    ? ["elevenlabs"]
+    : engine === "auto"
+      ? (nativeBurmese ? ["edge", "azure", "gemini", "google"] : ["gemini", "edge", "azure", "google"])
+      : [engine];
   const errors = [];
 
   for (const name of order) {
@@ -2229,45 +2256,29 @@ function buildAtempoFilters(
    FIT TTS TO SCENE
 ========================================================= */
 
-const MIN_TEMPO = Number(process.env.MIN_TEMPO || 0.88);
-const MAX_TEMPO = Number(process.env.MAX_TEMPO || 1.3);
+// Timing limits (see sync.js planSceneTiming). Env vars still work:
+//   MIN_TEMPO / MAX_TEMPO   voice speed range relative to the style speed
+//   MAX_VIDEO_SLOW          how much the video may be slowed before freezing
+const TIMING_OPTS = {
+  minTempo: Number(process.env.MIN_TEMPO || 0.9),
+  maxTempo: Number(process.env.MAX_TEMPO || 1.25),
+  maxVideoSlow: Number(process.env.MAX_VIDEO_SLOW || 1.2)
+};
 
-async function fitAudioToScene(
-  inputAudio,
-  outputAudio,
-  targetDuration,
-  recapSpeed = 1
-) {
-  const sourceDuration = await getAudioDuration(inputAudio);
-
-  if (sourceDuration <= 0) {
-    throw new Error("Generated TTS has invalid duration.");
-  }
-
-  // Natural speed: never stretch the voice a lot. Short narration keeps its
-  // normal speed (silence is added after it); long narration is sped up only
-  // a little and the scene video is extended instead of cutting words off.
-  // recapSpeed (style based) is applied first, then the usual fit-to-scene
-  // adjustment on top of it.
-  const factor = (sourceDuration / recapSpeed) / targetDuration;
-  const fitTempo = Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, factor));
-  const tempo = fitTempo * recapSpeed;
-  const speechDuration = sourceDuration / tempo;
-  const finalDuration = Math.max(targetDuration, speechDuration);
-
-  const filters = [];
-  filters.push(...buildAtempoFilters(tempo));
-  filters.push("apad");
-  filters.push(`atrim=duration=${finalDuration.toFixed(3)}`);
-
+// Apply the planned tempo to one scene's voice and pad it with silence to the
+// exact length of the scene (plan.outDur) so audio and video end together.
+async function fitAudioToScene(inputAudio, outputAudio, plan) {
+  const filters = [
+    ...buildAtempoFilters(plan.tempo),
+    "apad",
+    `atrim=duration=${plan.outDur.toFixed(3)}`
+  ];
   await runCommand("ffmpeg", [
     "-y", "-i", inputAudio,
     "-af", filters.join(","),
     "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le",
     outputAudio
   ]);
-
-  return { sourceDuration, targetDuration, factor, tempo, finalDuration };
 }
 
 
@@ -2281,32 +2292,27 @@ async function renderSceneVideo(
   outputPath,
   filterComplex = null
 ) {
+  // -t is an INPUT option here (before -i): it reads exactly this scene's
+  // footage. The output may be longer than that when the filter slows the video
+  // or freezes the last frame to hold the narration.
   const duration = Math.max(0.05, scene.end - scene.start);
 
   await runCommand(
     "ffmpeg",
     [
       "-y",
-      "-ss",
-      scene.start.toFixed(3),
-      "-i",
-      moviePath,
-      "-t",
-      duration.toFixed(3),
+      "-ss", scene.start.toFixed(3),
+      "-t", duration.toFixed(3),
+      "-i", moviePath,
       ...(filterComplex
         ? ["-filter_complex", filterComplex, "-map", "[vout]"]
         : []),
       "-an",
-      "-c:v",
-      "libx264",
-      "-preset",
-      "veryfast",
-      "-crf",
-      "23",
-      "-pix_fmt",
-      "yuv420p",
-      "-movflags",
-      "+faststart",
+      "-c:v", "libx264",
+      "-preset", "veryfast",
+      "-crf", "23",
+      "-pix_fmt", "yuv420p",
+      "-movflags", "+faststart",
       outputPath
     ]
   );
@@ -2426,10 +2432,100 @@ async function concatScenes(
 
 function readBurn(jobFolder) {
   try {
-    return normalizeBurn(fs.readFileSync(path.join(jobFolder, "burn.json"), "utf8"));
+    const burn = normalizeBurn(fs.readFileSync(path.join(jobFolder, "burn.json"), "utf8"));
+    // Subtitles are delivered as a separate SRT file now, never burned into
+    // the video (blur boxes and aspect ratio still are).
+    if (burn) burn.subtitle.enabled = false;
+    return burn;
   } catch {
     return null;
   }
+}
+
+/* =========================================================
+   PER-SCENE NARRATION
+   Every scene is spoken on its own, so the audio of a scene can only contain
+   that scene's words and its real length is known exactly. (The old approach
+   spoke the whole script at once and guessed where to cut it.)
+========================================================= */
+
+const TTS_CONCURRENCY = Math.max(1, Number(process.env.TTS_CONCURRENCY || 3));
+
+async function mapLimit(items, limit, worker) {
+  const results = new Array(items.length);
+  let next = 0;
+  let failed = false;
+  async function run() {
+    while (!failed) {
+      const i = next++;
+      if (i >= items.length) return;
+      try {
+        results[i] = await worker(items[i], i);
+      } catch (error) {
+        failed = true;
+        throw error;
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return results;
+}
+
+// Cut leading/trailing silence so the measured length is the real speech length.
+async function trimAndMeasure(inputPath, outputPath) {
+  await runCommand("ffmpeg", [
+    "-y", "-i", inputPath,
+    "-af", TRIM_SILENCE_FILTER,
+    "-ar", "24000", "-ac", "1", "-c:a", "pcm_s16le",
+    outputPath
+  ]);
+  return getAudioDuration(outputPath);
+}
+
+async function synthesizeSceneAudios(jobId, ai, scenes, sceneDir, voice) {
+  const engine = ttsEngineByJob.get(jobId) || "auto";
+  const style = styleByJob.get(jobId);
+  const numberOf = scene => String(scene.index).padStart(3, "0");
+
+  // Escape hatch: TTS_MODE=full speaks everything in one request (fewer API
+  // calls, e.g. on Gemini's free tier) and cuts it at pauses. Less accurate.
+  if (String(process.env.TTS_MODE || "scene").toLowerCase() === "full") {
+    const fullTTS = path.join(sceneDir, "full-narration.wav");
+    await generateFullTTS(ai, scenes, fullTTS, voice, engine, style);
+    const parts = await splitFullTTSForScenes(fullTTS, scenes, sceneDir);
+    const out = [];
+    for (let i = 0; i < scenes.length; i++) {
+      const trimPath = path.join(sceneDir, `scene-${numberOf(scenes[i])}-trim.wav`);
+      out.push({ rawPath: trimPath, speech: Math.max(0.2, await trimAndMeasure(parts[i], trimPath)) });
+    }
+    return out;
+  }
+
+  let done = 0;
+  return mapLimit(scenes, TTS_CONCURRENCY, async scene => {
+    const ttsPath = path.join(sceneDir, `scene-${numberOf(scene)}-tts.wav`);
+    const trimPath = path.join(sceneDir, `scene-${numberOf(scene)}-trim.wav`);
+    let lastError = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await generateFullTTS(ai, [scene], ttsPath, voice, engine, style);
+        const speech = await trimAndMeasure(ttsPath, trimPath);
+        if (speech < 0.15) throw new Error(`Scene ${scene.index} မှာ အသံ မထွက်ပါ။`);
+        done++;
+        updateJob(jobId, {
+          stage: "Voice",
+          progress: 65 + Math.round((done / scenes.length) * 3),
+          message: `Scene ${done} / ${scenes.length} — generating narration voice...`
+        });
+        return { rawPath: trimPath, speech };
+      } catch (error) {
+        lastError = error;
+        console.warn(`[TTS] scene ${scene.index} attempt ${attempt + 1} failed: ${String(error?.message || error).slice(0, 160)}`);
+        if (attempt === 0) await sleep(1500);
+      }
+    }
+    throw lastError;
+  });
 }
 
 async function renderSceneSyncVideo(
@@ -2443,84 +2539,55 @@ async function renderSceneSyncVideo(
   const sceneDir = path.join(jobFolder, "scenes");
   fs.mkdirSync(sceneDir, { recursive: true });
 
-  const fullTTS = path.join(sceneDir, "full-narration.wav");
-
   updateJob(jobId, { stage: "Voice", progress: 65, message: "Generating narration voice..." });
 
-  const jobStyle = styleByJob.get(jobId);
-  let rawSceneAudio;
-  if (jobStyle === "sync") {
-    // Sync mode uses short scene batches to keep narration aligned to the video.
-    // Keep the original default batch size to avoid multiplying TTS API calls.
-    const batchSize = Math.max(1, Number(process.env.TTS_BATCH_SCENES || 5));
-    rawSceneAudio = [];
-    for (let i = 0; i < scenePlan.scenes.length; i += batchSize) {
-      const batch = scenePlan.scenes.slice(i, i + batchSize);
-      const batchPath = path.join(sceneDir, `batch-${String(i / batchSize).padStart(3, "0")}.wav`);
-      updateJob(jobId, {
-        stage: "Voice",
-        progress: 65 + Math.round((i / scenePlan.scenes.length) * 3),
-        message: `Scenes ${batch[0].index}-${batch[batch.length - 1].index} / ${scenePlan.scenes.length} — generating narration voice...`
-      });
-      await generateFullTTS(ai, batch, batchPath, voice, ttsEngineByJob.get(jobId) || "auto", jobStyle);
-      const parts = await splitFullTTSForScenes(batchPath, batch, sceneDir);
-      rawSceneAudio.push(...parts);
-    }
-  } else {
-    // Preserve the original single-request TTS path for other recap styles.
-    await generateFullTTS(ai, scenePlan.scenes, fullTTS, voice, ttsEngineByJob.get(jobId) || "auto", jobStyle);
-    rawSceneAudio = await splitFullTTSForScenes(fullTTS, scenePlan.scenes, sceneDir);
-  }
-  const renderedScenes = [];
+  const voiced = await synthesizeSceneAudios(jobId, ai, scenePlan.scenes, sceneDir, voice);
 
   const burn = readBurn(jobFolder);
   const burnOn = burnActive(burn);
   const videoSize = burnOn ? await probeVideoSize(moviePath) : null;
   if (burnOn) {
-    console.log(`[BURN] subtitle=${burn.subtitle.enabled} blurBoxes=${burn.blur.enabled ? burn.blur.boxes.length : 0} size=${videoSize.width}x${videoSize.height}`);
+    console.log(`[BURN] blurBoxes=${burn.blur.enabled ? burn.blur.boxes.length : 0} aspect=${burn.aspectRatio} size=${videoSize.width}x${videoSize.height}`);
   }
+
+  const baseSpeed = getRecapSpeed(styleByJob.get(jobId));
+  const renderedScenes = [];
+  const cues = [];
+  let offset = 0; // seconds from the start of the final video
 
   for (let i = 0; i < scenePlan.scenes.length; i++) {
     const scene = scenePlan.scenes[i];
     const progress = 68 + Math.round((i / scenePlan.scenes.length) * 23);
     updateJob(jobId, {
-      stage: "Voice", progress,
-      message: `Scene ${scene.index} / ${scenePlan.scenes.length} — syncing one-shot narration...`
+      stage: "FFmpeg", progress,
+      message: `Scene ${scene.index} / ${scenePlan.scenes.length} — syncing video and voice...`
     });
 
     const number = String(scene.index).padStart(3, "0");
-    const rawTTS = rawSceneAudio[i];
     const fittedTTS = path.join(sceneDir, `scene-${number}-audio.wav`);
     const sceneVideo = path.join(sceneDir, `scene-${number}-video.mp4`);
     const sceneFinal = path.join(sceneDir, `scene-${number}-final.mp4`);
 
-    const fit = await fitAudioToScene(rawTTS, fittedTTS, scene.duration, getRecapSpeed(styleByJob.get(jobId)));
-    const sceneForVideo = fit.finalDuration > scene.duration + 0.05
-      ? { ...scene, end: scene.start + fit.finalDuration }
-      : scene;
-    console.log(`[SYNC] scene ${scene.index}: speech ${fit.sourceDuration.toFixed(1)}s, slot ${scene.duration.toFixed(1)}s, tempo ${fit.tempo.toFixed(2)}`);
+    const slot = Math.max(0.3, scene.end - scene.start);
+    const plan = planSceneTiming({ slot, speech: voiced[i].speech, base: baseSpeed, ...TIMING_OPTS });
+    console.log(
+      `[SYNC] scene ${scene.index}: speech ${voiced[i].speech.toFixed(1)}s, slot ${slot.toFixed(1)}s, ` +
+      `voice x${plan.tempo.toFixed(2)}, video x${plan.videoStretch.toFixed(2)}, freeze ${plan.padSec.toFixed(1)}s`
+    );
 
-    updateJob(jobId, {
-      stage: "FFmpeg", progress: progress + 1,
-      message: `Scene ${scene.index} / ${scenePlan.scenes.length} — syncing video and voice...`
-    });
+    await fitAudioToScene(voiced[i].rawPath, fittedTTS, plan);
 
-    let filterComplex = null;
-    if (burnOn) {
-      let assPath = null;
-      if (burn.subtitle.enabled) {
-        const candidate = path.join(sceneDir, `scene-${number}.ass`);
-        const videoLength = sceneForVideo.end - sceneForVideo.start;
-        if (writeAss(candidate, videoSize, burn.subtitle, scene.narration, Math.min(fit.finalDuration, videoLength))) {
-          assPath = candidate;
-        }
-      }
-      filterComplex = buildBurnFilter(burn, videoSize, assPath);
-    }
+    const baseFilter = burnOn ? buildBurnFilter(burn, videoSize, null) : null;
+    const filterComplex = appendVideoTiming(baseFilter, plan.videoStretch, plan.padSec);
 
-    await renderSceneVideo(moviePath, sceneForVideo, sceneVideo, filterComplex);
+    await renderSceneVideo(moviePath, scene, sceneVideo, filterComplex);
     await muxScene(sceneVideo, fittedTTS, sceneFinal);
     renderedScenes.push(sceneFinal);
+
+    // Subtitle cues follow the real speech inside this scene; the next scene
+    // starts where this scene's finished clip really ends.
+    cues.push(...makeSceneCues(scene.narration, offset, plan.speechDur));
+    offset += await getVideoDuration(sceneFinal);
   }
 
   updateJob(jobId, { stage: "FFmpeg", progress: 94, message: "Joining synchronized scenes..." });
@@ -2528,7 +2595,12 @@ async function renderSceneSyncVideo(
   const listPath = path.join(jobFolder, "scene-list.txt");
   const outputPath = path.join(jobFolder, "YNT-One-Clips-Recap.mp4");
   await concatScenes(renderedScenes, outputPath, listPath);
-  return outputPath;
+
+  const srtPath = path.join(jobFolder, "subtitles.srt");
+  fs.writeFileSync(srtPath, buildSrt(cues), "utf8");
+  console.log(`[SRT] ${cues.length} cues written`);
+
+  return { outputPath, srtPath, cueCount: cues.length };
 }
 
 /* =========================================================
@@ -2540,7 +2612,7 @@ async function finishRecap(jobId, moviePath, scenePlan, voice, jobFolder) {
        RENDER
     ----------------------------------------- */
 
-    const outputPath =
+    const rendered =
       await renderSceneSyncVideo(
         jobId,
         moviePath,
@@ -2548,6 +2620,7 @@ async function finishRecap(jobId, moviePath, scenePlan, voice, jobFolder) {
         voice,
         jobFolder
       );
+    const outputPath = rendered.outputPath;
 
     /* -----------------------------------------
        VERIFY
@@ -2589,7 +2662,12 @@ async function finishRecap(jobId, moviePath, scenePlan, voice, jobFolder) {
         filename,
         size: stats.size,
         url:
-          `/api/download/${jobId}`
+          `/api/download/${jobId}`,
+        srt: {
+          path: rendered.srtPath,
+          cues: rendered.cueCount,
+          url: `/api/srt/${jobId}`
+        }
       }
     });
 
@@ -3035,6 +3113,88 @@ app.post("/api/tts-preview", async (req, res) => {
 });
 
 /* =========================================================
+   SRT SUBTITLES (copy / download — never burned into the video)
+========================================================= */
+
+app.get("/api/srt/:id", (req, res) => {
+  const folder = jobFolderFor(req.params.id);
+  const srtPath = folder && path.join(folder, "subtitles.srt");
+  if (!srtPath || !fs.existsSync(srtPath)) {
+    return res.status(404).json({ error: "SRT မတွေ့ပါ။ Video ပြီးမှ ရပါမယ်။" });
+  }
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
+  if (req.query.download) {
+    res.setHeader("Content-Disposition", `attachment; filename="YNT-Recap-${req.params.id}.srt"`);
+  }
+  return res.send(fs.readFileSync(srtPath, "utf8"));
+});
+
+/* =========================================================
+   VOICE CLONE (ElevenLabs Instant Voice Cloning)
+========================================================= */
+
+const MAX_CLONES = Number(process.env.MAX_CLONE_VOICES || 10);
+const cloneUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 12 * 1024 * 1024, files: 3 }
+});
+const SAMPLE_EXT = /\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|webm|mp4)$/i;
+
+app.get("/api/voice-clones", (req, res) => {
+  res.json({
+    enabled: Boolean((process.env.ELEVENLABS_API_KEY || "").trim()),
+    voices: cloneStore.list().map(item => ({ id: CLONE_PREFIX + item.id, name: item.name }))
+  });
+});
+
+app.post("/api/voice-clone", cloneUpload.array("samples", 3), async (req, res) => {
+  try {
+    const key = (process.env.ELEVENLABS_API_KEY || "").trim();
+    if (!key) {
+      return res.status(400).json({ error: "Voice clone အတွက် ELEVENLABS_API_KEY လိုပါတယ်။ Server ရဲ့ environment မှာ ထည့်ပါ။" });
+    }
+    if (String(req.body?.consent) !== "1") {
+      return res.status(400).json({ error: "ကိုယ့်အသံ ဒါမှမဟုတ် ပိုင်ရှင်က ခွင့်ပြုထားတဲ့ အသံ ဖြစ်ကြောင်း အတည်ပြုပေးပါ။" });
+    }
+    const name = String(req.body?.name || "").trim().slice(0, 40);
+    if (!name) return res.status(400).json({ error: "Voice နာမည် ထည့်ပါ။" });
+
+    const files = (req.files || []).filter(file => /^audio\//i.test(file.mimetype || "") || SAMPLE_EXT.test(file.originalname || ""));
+    if (!files.length) return res.status(400).json({ error: "အသံဖိုင် (mp3, wav, m4a ...) ရွေးပါ။" });
+    if (cloneStore.list().length >= MAX_CLONES) {
+      return res.status(400).json({ error: `Clone voice ${MAX_CLONES} ခု ပြည့်နေပါပြီ။ တစ်ခုခု ဖျက်ပြီးမှ ထပ်လုပ်ပါ။` });
+    }
+
+    const id = await elevenLabsAddVoice({
+      key,
+      name,
+      description: "Created with YNT Recap Studio",
+      files: files.map(file => ({ buffer: file.buffer, filename: file.originalname, mimetype: file.mimetype }))
+    });
+    cloneStore.add({ id, name });
+    console.log(`[CLONE] created "${name}"`);
+    return res.json({ success: true, voice: { id: CLONE_PREFIX + id, name } });
+  } catch (error) {
+    console.error("[CLONE] failed:", String(error?.message || error).slice(0, 200));
+    return res.status(502).json({ error: String(error?.message || error).slice(0, 300) });
+  }
+});
+
+app.delete("/api/voice-clone/:id", async (req, res) => {
+  try {
+    const raw = String(req.params.id || "");
+    const id = raw.startsWith(CLONE_PREFIX) ? raw.slice(CLONE_PREFIX.length) : raw;
+    if (!cloneStore.has(id)) return res.status(404).json({ error: "Clone voice မတွေ့ပါ။" });
+    await elevenLabsDeleteVoice({ key: (process.env.ELEVENLABS_API_KEY || "").trim(), id });
+    cloneStore.remove(id);
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(502).json({ error: String(error?.message || error).slice(0, 300) });
+  }
+});
+
+/* =========================================================
    ONE CLIP
 ========================================================= */
 
@@ -3241,9 +3401,10 @@ app.use(
 
     if (err instanceof multer.MulterError) {
       const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+      const isSample = String(req.originalUrl || "").startsWith("/api/voice-clone");
       return res.status(status).json({
         error: err.code === "LIMIT_FILE_SIZE"
-          ? "Video ဖိုင်အရွယ်အစား 500MB ထက် မကျော်ရပါ။"
+          ? (isSample ? "အသံနမူနာ ဖိုင်တစ်ခုချင်း 12MB ထက် မကျော်ရပါ။" : "Video ဖိုင်အရွယ်အစား 500MB ထက် မကျော်ရပါ။")
           : err.message
       });
     }
