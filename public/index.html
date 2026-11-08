@@ -590,6 +590,26 @@ textarea:focus{border-color:var(--ring)}
         <label class="fl" for="thumbZoom" style="margin-top:12px">ပုံ Zoom <small id="thumbZoomV">100%</small></label>
         <input class="seek" id="thumbZoom" type="range" min="100" max="170" value="100" style="margin-top:0">
       </div>
+      <div class="tStep inner" id="erasePanel" style="margin-top:14px">
+        <div class="tHead"><b><span class="tn">🧽</span>မူရင်းစာ ဖျောက်ရန်</b></div>
+        <p class="hint" style="margin:0 0 10px">ပုံပေါ်က မူရင်းစာ (ဥပမာ MOTIVE) ရှိတဲ့နေရာကို ခလုတ်နှိပ်ပြီး ဘောက်စ်ဆွဲပါ။ ဒါမှမဟုတ် အောက်ခြေ/အပေါ်ကို ဖြတ်ထုတ်လို့ရတယ်။</p>
+        <div class="two">
+          <button type="button" class="btn2" id="eraseToggle">✏️ ဘောက်စ် ဆွဲမယ်</button>
+          <button type="button" class="btn2" id="eraseBottom">⬇️ အောက်ခြေစာတန်း ဖုံးမယ်</button>
+        </div>
+        <div class="chips moods" id="eraseMode" role="radiogroup" aria-label="ဖျောက်ပုံစံ" style="margin-top:10px">
+          <button type="button" class="chip on" role="radio" aria-checked="true" data-v="blur">🌫️ Blur</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="mosaic">🔳 Mosaic</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="bar">⬛ အနက်ဖုံး</button>
+        </div>
+        <label class="fl" for="eraseStr" style="margin-top:10px">Blur အားပြင်း <small id="eraseStrV">14</small></label>
+        <input class="seek" id="eraseStr" type="range" min="6" max="40" value="14" style="margin-top:0">
+        <div class="titleChips" id="eraseList" style="margin-top:8px"></div>
+        <div class="two" style="margin-top:6px">
+          <div><label class="fl" for="thumbCropT">အပေါ်က ဖြတ်ထုတ် <small id="thumbCropTV">0%</small></label><input class="seek" id="thumbCropT" type="range" min="0" max="30" value="0" style="margin-top:0"></div>
+          <div><label class="fl" for="thumbCropB">အောက်က ဖြတ်ထုတ် <small id="thumbCropBV">0%</small></label><input class="seek" id="thumbCropB" type="range" min="0" max="30" value="0" style="margin-top:0"></div>
+        </div>
+      </div>
       <div class="opt"><span class="fl">ပုံမူကွဲများ <small>(နှိပ်ပြီး ရွေးပါ)</small></span>
         <div class="verStrip" id="thumbVers"></div></div>
       <video id="thumbVideo" muted playsinline preload="auto" style="display:none"></video>
@@ -632,6 +652,26 @@ textarea:focus{border-color:var(--ring)}
               <button type="button" class="chip on" role="radio" aria-checked="true" data-v="bottom">အောက်</button>
             </div></div>
         </div>
+      </div>
+
+      <div class="tStep inner">
+        <div class="tHead"><b><span class="tn">▣</span>ဘောင် (Frame)</b></div>
+        <div class="chips sty" id="thumbBStyle" role="radiogroup" aria-label="ဘောင်ပုံစံ">
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="none">🚫 ဘောင်မရှိ</button>
+          <button type="button" class="chip on" role="radio" aria-checked="true" data-v="gradient">🌈 ရောင်စုံ</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="solid">⬜ တစ်ရောင်</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="neon">💡 Neon</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="double">◫ နှစ်ထပ်</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="inner">▢ ပုံပေါ်ဘောင်</button>
+        </div>
+        <span class="fl" style="margin-top:12px">ဘောင်အရောင်</span>
+        <div class="swatches" id="thumbBPal"></div>
+        <div class="colorRow" style="grid-template-columns:repeat(2,1fr)">
+          <label>အရောင် ၁<input type="color" id="bColA" value="#ff2ea6"></label>
+          <label>အရောင် ၂<input type="color" id="bColB" value="#00e5ff"></label>
+        </div>
+        <label class="fl" for="thumbBW" style="margin-top:12px">ဘောင်ထူ <small id="thumbBWV">2.4%</small></label>
+        <input class="seek" id="thumbBW" type="range" min="5" max="80" value="24" style="margin-top:0">
       </div>
 
       <div class="tStep inner aiBox">
@@ -996,7 +1036,7 @@ chipGroup('speedChips','voiceSpeed');
   ];
   const NEED={single:1,split:2,blend:2,triple:3,trio:3},DEF={1:'single',2:'split',3:'triple'};
   const S={frames:[],picks:[],sel:[],layout:'single',font:'noto',style:'gold',col:STYLES.gold.c.slice(),rainbow:false,
-    pos:'bottom',ratio:'16:9',mood:'cinematic',ai:[],aiOn:-1,titleEdited:false,token:0,busy:false,aiBusy:false};
+    pos:'bottom',ratio:'16:9',mood:'cinematic',cropT:0,cropB:0,erase:{on:false,mode:'blur',str:14,rects:[],drag:null},B:{style:'gradient',stops:['#ff4d4d','#ff9d00','#ffe600','#34d399','#22d3ee','#6366f1','#d946ef'],w:2.4},ai:[],aiOn:-1,titleEdited:false,token:0,busy:false,aiBusy:false};
   const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#8b5cf6';
   const setHint=t=>{$('thumbHint').textContent=t};
   const setMsg=(id,t,err)=>{const e=$(id);e.textContent=t||'';e.classList.toggle('err',!!err);e.classList.toggle('ok',!err)};
@@ -1033,12 +1073,63 @@ chipGroup('speedChips','voiceSpeed');
   colIds.forEach((id,i)=>$(id).addEventListener('input',()=>{S.col[i]=$(id).value;S.rainbow=false;clearPal();draw()}));
   group('thumbPos',v=>{S.pos=v;draw()});
   group('thumbMood',v=>{S.mood=v});
-  group('thumbRatio',v=>{S.ratio=v;cv.width=v==='9:16'?1080:1920;cv.height=v==='9:16'?1920:1080;cv.classList.toggle('tall',v==='9:16');
+  group('thumbRatio',v=>{S.ratio=v;S.erase.rects=[];renderEraseList();cv.width=v==='9:16'?1080:1920;cv.height=v==='9:16'?1920:1080;cv.classList.toggle('tall',v==='9:16');
     document.querySelectorAll('.pickCard img,#thumbAll img').forEach(i=>i.style.aspectRatio='');draw()});
   group('thumbLayout',v=>{S.layout=v;draw()});
   ['thumbTitle','thumbSub','thumbPop'].forEach(id=>$(id).addEventListener('input',()=>{if(id==='thumbTitle'){S.titleEdited=true;markChips()}draw()}));
   $('thumbZoom').addEventListener('input',()=>{$('thumbZoomV').textContent=$('thumbZoom').value+'%';draw()});
   $('thumbSize').addEventListener('input',()=>{$('thumbSizeV').textContent=$('thumbSize').value+'%';draw()});
+
+  /* ---------- border UI ---------- */
+  const BPALS=[['Rainbow',['#ff4d4d','#ff9d00','#ffe600','#34d399','#22d3ee','#6366f1','#d946ef']],['Sunset',['#ff9a3c','#ff3d77','#8b2bff']],
+    ['Aurora',['#22d3ee','#34d399','#a3e635']],['Gold',['#fff4b0','#ffb300','#b8860b','#ffe27a']],['Neon',['#ff2ea6','#00e5ff']],
+    ['Fire',['#fff1a8','#ff6a00','#e11d1d']],['Ice',['#ffffff','#38bdf8','#6366f1']],['Candy',['#ff6ec7','#ffd166','#6ee7ff']],
+    ['White',['#ffffff']],['Black',['#000000']],['Red',['#ff1a1a']],['Purple',['#8b08f2']]];
+  $('thumbBPal').innerHTML=BPALS.map((p,i)=>`<button type="button" data-i="${i}" class="${i===0?'on':''}" style="--g:linear-gradient(135deg,${p[1].length>1?p[1].join(','):p[1][0]+','+p[1][0]})" title="${p[0]}" aria-label="${p[0]}"></button>`).join('');
+  $('thumbBPal').addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    S.B.stops=BPALS[b.dataset.i][1].slice();
+    if(S.B.style==='none'){S.B.style='gradient';mark('thumbBStyle','gradient')}
+    $('thumbBPal').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+    $('bColA').value=S.B.stops[0];$('bColB').value=S.B.stops[S.B.stops.length-1];draw();
+  });
+  ['bColA','bColB'].forEach(id=>$(id).addEventListener('input',()=>{
+    S.B.stops=[$('bColA').value,$('bColB').value];$('thumbBPal').querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    if(S.B.style==='none'){S.B.style='gradient';mark('thumbBStyle','gradient')}draw();
+  }));
+  group('thumbBStyle',v=>{S.B.style=v;draw()});
+  $('thumbBW').addEventListener('input',()=>{S.B.w=Number($('thumbBW').value)/10;$('thumbBWV').textContent=S.B.w.toFixed(1)+'%';draw()});
+
+  /* ---------- erase original text ---------- */
+  function renderEraseList(){
+    const E=S.erase;
+    $('eraseList').innerHTML=E.rects.map((r,i)=>`<button type="button" data-i="${i}">🧽 နေရာ ${i+1} ✕</button>`).join('')+(E.rects.length>1?'<button type="button" data-i="all">အကုန်ရှင်း</button>':'');
+  }
+  $('eraseList').addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    if(b.dataset.i==='all')S.erase.rects=[];else S.erase.rects.splice(+b.dataset.i,1);
+    renderEraseList();draw();
+  });
+  group('eraseMode',v=>{S.erase.mode=v;$('eraseStr').disabled=v==='bar';draw()});
+  $('eraseStr').addEventListener('input',()=>{S.erase.str=Number($('eraseStr').value);$('eraseStrV').textContent=$('eraseStr').value;draw()});
+  $('eraseToggle').onclick=()=>{
+    const E=S.erase;E.on=!E.on;
+    $('eraseToggle').textContent=E.on?'✅ ဆွဲနေတယ် — ပုံပေါ်မှာ ဆွဲပါ (ပြီးရင် နှိပ်ပါ)':'✏️ ဘောက်စ် ဆွဲမယ်';
+    $('eraseToggle').classList.toggle('pri',E.on);cv.style.cursor=E.on?'crosshair':'';cv.style.touchAction=E.on?'none':'';
+  };
+  $('eraseBottom').onclick=()=>{S.erase.rects.push({x:.03,y:.77,w:.94,h:.17});renderEraseList();draw()};
+  const pt=e=>{const r=cv.getBoundingClientRect();return{x:clamp((e.clientX-r.left)/r.width,0,1),y:clamp((e.clientY-r.top)/r.height,0,1)}};
+  cv.addEventListener('pointerdown',e=>{if(!S.erase.on)return;const p=pt(e);S.erase.drag={x0:p.x,y0:p.y,x1:p.x,y1:p.y};cv.setPointerCapture(e.pointerId);e.preventDefault()});
+  cv.addEventListener('pointermove',e=>{const d=S.erase.drag;if(!d)return;const p=pt(e);d.x1=p.x;d.y1=p.y;draw()});
+  const endDrag=()=>{
+    const d=S.erase.drag;if(!d)return;S.erase.drag=null;
+    const r={x:Math.min(d.x0,d.x1),y:Math.min(d.y0,d.y1),w:Math.abs(d.x1-d.x0),h:Math.abs(d.y1-d.y0)};
+    if(r.w>.02&&r.h>.01){S.erase.rects.push(r);renderEraseList()}
+    draw();
+  };
+  cv.addEventListener('pointerup',endDrag);cv.addEventListener('pointercancel',endDrag);
+  $('thumbCropT').addEventListener('input',()=>{S.cropT=Number($('thumbCropT').value);if(S.cropT+S.cropB>50){S.cropB=50-S.cropT}$('thumbCropTV').textContent=S.cropT+'%';draw()});
+  $('thumbCropB').addEventListener('input',()=>{S.cropB=Number($('thumbCropB').value);if(S.cropT+S.cropB>50){S.cropT=50-S.cropB}$('thumbCropBV').textContent=S.cropB+'%';draw()});
 
   /* ---------- title suggestion chips ---------- */
   function chips(box,list,target,flag){
@@ -1154,14 +1245,17 @@ chipGroup('speedChips','voiceSpeed');
   }
 
   /* ---------- drawing ---------- */
+  let cropOn=true;
   function cover(c,src,x,y,w,h,z){
-    const W0=src.width||src.naturalWidth,H0=src.height||src.naturalHeight;if(!W0||!H0)return;
+    const W0=src.width||src.naturalWidth,Hf=src.height||src.naturalHeight;if(!W0||!Hf)return;
+    const ct=cropOn?S.cropT/100:0,cb=cropOn?S.cropB/100:0,H0=Hf*(1-ct-cb),oy=Hf*ct;
     const sr=W0/H0,r=w/h;let sw,sh;
     if(sr>r){sh=H0/z;sw=sh*r}else{sw=W0/z;sh=sw/r}
-    c.drawImage(src,(W0-sw)/2,(H0-sh)*.4,sw,sh,x,y,w,h);
+    c.drawImage(src,(W0-sw)/2,oy+(H0-sh)*.4,sw,sh,x,y,w,h);
   }
   const poly=(c,p)=>{c.beginPath();p.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));c.closePath()};
   function composeFrames(c,W,H){
+    cropOn=true;
     c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
     c.fillStyle='#000';c.fillRect(0,0,W,H);
     const F=S.sel.map(i=>S.frames[i]&&S.frames[i].cv).filter(Boolean);
@@ -1199,7 +1293,7 @@ chipGroup('speedChips','voiceSpeed');
     lines.forEach(l=>{c.save();c.strokeStyle='#fff';c.lineWidth=Math.max(3,W*.004);c.shadowColor=cssv('--a1');c.shadowBlur=W*.02;c.beginPath();c.moveTo(l[0],l[1]);c.lineTo(l[2],l[3]);c.stroke();c.restore()});
   }
   function drawBg(c,W,H,allowAi){
-    if(allowAi&&S.aiOn>=0&&S.ai[S.aiOn]){c.fillStyle='#000';c.fillRect(0,0,W,H);cover(c,S.ai[S.aiOn].img,0,0,W,H,1)}
+    if(allowAi&&S.aiOn>=0&&S.ai[S.aiOn]){c.fillStyle='#000';c.fillRect(0,0,W,H);cropOn=false;cover(c,S.ai[S.aiOn].img,0,0,W,H,1)}
     else composeFrames(c,W,H);
   }
   const stack=()=>`"${FONTS[S.font].n}","Noto Sans Myanmar","Padauk",sans-serif`;
@@ -1255,15 +1349,65 @@ chipGroup('speedChips','voiceSpeed');
     }
     cx.shadowBlur=0;cx.shadowOffsetY=0;cx.shadowColor='transparent';
   }
+  function patch(c,r,W,H){
+    const E=S.erase,x=r.x*W,y=r.y*H,w=r.w*W,h=r.h*H,f=Math.max(6,Math.min(w,h)*.2);
+    const px=Math.max(0,Math.floor(x-f)),py=Math.max(0,Math.floor(y-f)),pw=Math.min(W,Math.ceil(x+w+f))-px,ph=Math.min(H,Math.ceil(y+h+f))-py;
+    if(pw<4||ph<4)return;
+    const t=document.createElement('canvas');t.width=pw;t.height=ph;const g=t.getContext('2d');
+    if(E.mode==='bar'){g.fillStyle='rgba(0,0,0,.88)';g.fillRect(0,0,pw,ph)}
+    else{
+      const d=E.mode==='mosaic'?Math.max(10,E.str*1.1):E.str;
+      const sm=document.createElement('canvas');sm.width=Math.max(2,Math.round(pw/d));sm.height=Math.max(2,Math.round(ph/d));
+      const sg=sm.getContext('2d');sg.imageSmoothingQuality='high';sg.drawImage(c.canvas,px,py,pw,ph,0,0,sm.width,sm.height);
+      g.imageSmoothingEnabled=E.mode!=='mosaic';g.drawImage(sm,0,0,pw,ph);
+      if(E.mode==='blur'){
+        // rebuild the box from the pixels just above and below it, so even big bold text disappears
+        const s=Math.max(2,Math.round(Math.min(h*.25,32))),ia=y>=s,ib=y+h+s<=H;
+        if((ia||ib)&&w>=2&&h>=2){
+          const fc=document.createElement('canvas');fc.width=Math.max(2,Math.round(w));fc.height=Math.max(2,Math.round(h));const fg=fc.getContext('2d');
+          const above=()=>fg.drawImage(c.canvas,x,y-s,w,s,0,0,fc.width,fc.height),below=()=>fg.drawImage(c.canvas,x,y+h,w,s,0,0,fc.width,fc.height);
+          if(ia&&ib){
+            above();
+            const bc=document.createElement('canvas');bc.width=fc.width;bc.height=fc.height;const bg=bc.getContext('2d');
+            bg.drawImage(c.canvas,x,y+h,w,s,0,0,bc.width,bc.height);
+            const gr=bg.createLinearGradient(0,0,0,bc.height);gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'#000');
+            bg.globalCompositeOperation='destination-in';bg.fillStyle=gr;bg.fillRect(0,0,bc.width,bc.height);fg.drawImage(bc,0,0);
+          }else if(ia)above();else below();
+          const sm2=document.createElement('canvas');sm2.width=Math.max(2,Math.round(fc.width/8));sm2.height=Math.max(2,Math.round(fc.height/8));
+          const s2=sm2.getContext('2d');s2.imageSmoothingQuality='high';s2.drawImage(fc,0,0,sm2.width,sm2.height);
+          g.imageSmoothingEnabled=true;g.drawImage(sm2,x-px,y-py,w,h);
+        }
+      }
+    }
+    // soft edge mask (shadow trick works in every browser)
+    const m=document.createElement('canvas');m.width=pw;m.height=ph;const mg=m.getContext('2d');
+    mg.shadowColor='#000';mg.shadowBlur=E.mode==='bar'?4:f*.9;mg.shadowOffsetX=100000;mg.fillStyle='#000';mg.fillRect(x-px-100000,y-py,w,h);
+    g.globalCompositeOperation='destination-in';g.drawImage(m,0,0);
+    c.drawImage(t,px,py);
+  }
+  function drawBorder(){
+    const B=S.B;if(B.style==='none')return;
+    const W=cv.width,H=cv.height,t=Math.max(2,Math.round(Math.min(W,H)*B.w/100));
+    const grad=()=>{const g=cx.createLinearGradient(0,0,W,H),s=B.style==='solid'?[B.stops[0]]:B.stops;s.forEach((c,i)=>g.addColorStop(s.length===1?i:i/(s.length-1),c));if(s.length===1)g.addColorStop(1,s[0]);return g};
+    const rr=(x,y,w,h,r)=>{cx.beginPath();cx.roundRect?cx.roundRect(x,y,w,h,r):cx.rect(x,y,w,h)};
+    cx.save();cx.lineJoin='round';
+    if(B.style==='gradient'||B.style==='solid'){cx.strokeStyle=grad();cx.lineWidth=t;cx.strokeRect(t/2,t/2,W-t,H-t)}
+    else if(B.style==='neon'){const o=t*.9;cx.strokeStyle=B.stops[0];cx.shadowColor=B.stops[Math.min(1,B.stops.length-1)];cx.shadowBlur=t*1.6;cx.lineWidth=Math.max(3,t*.4);rr(o,o,W-2*o,H-2*o,t*.8);cx.stroke();cx.stroke();cx.shadowBlur=0;cx.strokeStyle='#fff';cx.lineWidth=Math.max(1.5,t*.12);rr(o,o,W-2*o,H-2*o,t*.8);cx.stroke()}
+    else if(B.style==='double'){cx.strokeStyle=grad();cx.lineWidth=t;cx.strokeRect(t/2,t/2,W-t,H-t);cx.strokeStyle='#fff';cx.lineWidth=Math.max(2,t*.22);const o=t*1.7;cx.strokeRect(o,o,W-2*o,H-2*o)}
+    else if(B.style==='inner'){const o=t*1.6;cx.strokeStyle=grad();cx.lineWidth=Math.max(3,t*.7);cx.shadowColor='rgba(0,0,0,.6)';cx.shadowBlur=t*.8;rr(o,o,W-2*o,H-2*o,t*2.2);cx.stroke()}
+    cx.restore();
+  }
   let raf=0;const draw=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(render)};
   function render(){
     const W=cv.width,H=cv.height;cx.clearRect(0,0,W,H);
     drawBg(cx,W,H,true);
+    S.erase.rects.forEach(r=>patch(cx,r,W,H));
     const ai=S.aiOn>=0,pos=S.pos,k=ai?.6:1;
     let sg;
     if(pos==='middle'){sg=cx.createLinearGradient(0,H*.15,0,H*.85);sg.addColorStop(0,'rgba(0,0,0,0)');sg.addColorStop(.5,`rgba(0,0,0,${.6*k})`);sg.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=sg;cx.fillRect(0,0,W,H)}
     else{const top=pos==='top';sg=cx.createLinearGradient(0,top?0:H,0,top?H*.65:H*.35);sg.addColorStop(0,`rgba(0,0,0,${.82*k})`);sg.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=sg;cx.fillRect(0,0,W,H)}
     const vg=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*.45,W/2,H/2,Math.max(W,H)*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.4)');cx.fillStyle=vg;cx.fillRect(0,0,W,H);
+    drawBorder();
 
     const title=$('thumbTitle').value.trim(),sub=$('thumbSub').value.trim();
     const f=fit(title||' ',W,H*.55),lh=f.size*1.32,subSize=Math.round(f.size*.42),gap=sub?subSize*1.9:0,blockH=f.ls.length*lh+gap;
@@ -1278,6 +1422,9 @@ chipGroup('speedChips','voiceSpeed');
       y+=gap;
     }
     f.ls.forEach((ln,i)=>{cx.font=f.font;drawLine(ln,W/2,y+lh*i+lh/2,f,lh)});
+    const dg=S.erase.drag;
+    if(dg){cx.save();cx.setLineDash([14,10]);cx.lineWidth=Math.max(3,W*.004);cx.strokeStyle='#fff';cx.fillStyle='rgba(255,60,90,.25)';
+      const x=Math.min(dg.x0,dg.x1)*W,y=Math.min(dg.y0,dg.y1)*H,w=Math.abs(dg.x1-dg.x0)*W,h=Math.abs(dg.y1-dg.y0)*H;cx.fillRect(x,y,w,h);cx.strokeRect(x,y,w,h);cx.restore()}
     drawVersions();
   }
 
@@ -1367,7 +1514,7 @@ chipGroup('speedChips','voiceSpeed');
   /* ---------- movie loaded ---------- */
   window.onThumbMovie=u=>{
     const tok=++S.token;
-    S.frames=[];S.picks=[];S.sel=[];S.ai=[];S.aiOn=-1;S.layout='single';S.titleEdited=false;
+    S.frames=[];S.picks=[];S.sel=[];S.ai=[];S.aiOn=-1;S.layout='single';S.titleEdited=false;S.erase.rects=[];renderEraseList();
     mark('thumbLayout','single');
     ['thumbDl','thumbAnalyze','thumbAiGen','thumbTitleGen'].forEach(id=>$(id).disabled=true);
     $('thumbTitles').innerHTML='';$('thumbSubs').innerHTML='';setMsg('thumbAiMsg','');
