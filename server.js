@@ -3536,6 +3536,37 @@ Return ONLY JSON:
   }
 });
 
+// Writes Burmese thumbnail titles that follow the actual story (script / dialogue / summary).
+app.post("/api/thumbnail/titles", async (req, res) => {
+  try {
+    const story = String(req.body?.story || "").replace(/\s+/g, " ").trim().slice(0, 7000);
+    const frames = (Array.isArray(req.body?.frames) ? req.body.frames : []).slice(0, 8).map(parseDataUrl).filter(Boolean);
+    if (!story && !frames.length) return res.status(400).json({ error: "ဇာတ်လမ်းစာသား မရှိပါ။" });
+    const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
+    const prompt = `You write viral Burmese (Myanmar language) YouTube/TikTok movie-recap thumbnail titles.
+${story ? `Here is the movie's story (script, dialogue or summary, may be Burmese or another language):\n"""${story}"""` : "No story text is available; infer the story from the attached frames."}
+
+Write 8 DIFFERENT Burmese titles that clearly match THIS story's main characters, conflict and twist:
+- 2 curiosity/question style, 2 dramatic/emotional, 2 short punchy (max 14 Burmese characters), 2 that name the main character or situation.
+- Each max 30 Burmese characters, natural spoken Burmese, easy to read on a thumbnail.
+- Hook the viewer but do NOT reveal the final ending. Do not invent facts that are not in the story.
+- No quotes, no emojis, no hashtags.
+Also write 4 short subtitles (max 20 characters) like "Movie Recap မြန်မာ", genre, or "အပိုင်းတစ်".
+Return ONLY JSON: {"titles":["",""],"subtitles":["",""]}`;
+    const parts = [{ text: prompt }];
+    frames.forEach(f => parts.push({ inlineData: { mimeType: f.mimeType, data: f.data } }));
+    const response = await thumbCall([GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS.filter(m => m !== GEMINI_MODEL)].slice(0, 3), model =>
+      ai.models.generateContent({ model, contents: [{ role: "user", parts }], config: { responseMimeType: "application/json", temperature: 0.9 } })
+    );
+    const data = extractJson(response?.text || response?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join(""));
+    if (!data) throw new Error("AI အဖြေကို နားမလည်နိုင်ပါ။ ပြန်စမ်းပါ။");
+    const clean = list => (Array.isArray(list) ? list : []).map(t => String(t || "").trim().slice(0, 60)).filter(Boolean).slice(0, 10);
+    return res.json({ success: true, titles: clean(data.titles), subtitles: clean(data.subtitles) });
+  } catch (error) {
+    return thumbFail(res, error);
+  }
+});
+
 const THUMB_MOODS = {
   cinematic: "epic cinematic blockbuster look, teal and orange grading, dramatic rim light, volumetric haze",
   fire: "explosive action look, fiery orange and red glow, sparks and embers, intense contrast",
