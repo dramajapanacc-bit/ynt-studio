@@ -3485,7 +3485,7 @@ function extractJson(text) {
 app.post("/api/thumbnail/analyze", async (req, res) => {
   try {
     const frames = (Array.isArray(req.body?.frames) ? req.body.frames : [])
-      .slice(0, 16).map(parseDataUrl);
+      .slice(0, 16).map(v => parseDataUrl(v));
     if (frames.length < 1 || frames.some(f => !f)) {
       return res.status(400).json({ error: "Frame ပုံများ မမှန်ပါ။" });
     }
@@ -3540,7 +3540,7 @@ Return ONLY JSON:
 app.post("/api/thumbnail/titles", async (req, res) => {
   try {
     const story = String(req.body?.story || "").replace(/\s+/g, " ").trim().slice(0, 7000);
-    const frames = (Array.isArray(req.body?.frames) ? req.body.frames : []).slice(0, 8).map(parseDataUrl).filter(Boolean);
+    const frames = (Array.isArray(req.body?.frames) ? req.body.frames : []).slice(0, 8).map(v => parseDataUrl(v)).filter(Boolean);
     if (!story && !frames.length) return res.status(400).json({ error: "ဇာတ်လမ်းစာသား မရှိပါ။" });
     const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
     const prompt = `You write viral Burmese (Myanmar language) YouTube/TikTok movie-recap thumbnail titles.
