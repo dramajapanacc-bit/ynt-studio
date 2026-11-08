@@ -228,11 +228,6 @@ textarea:focus{border-color:var(--ring)}
 .summary{margin-top:10px;font-size:12px;color:var(--muted)}
 
 
-/* clone panel */
-.clone{margin-top:18px;padding:16px;border-radius:16px;border:1px dashed color-mix(in srgb,var(--a1) 55%,var(--line));background:linear-gradient(180deg,var(--soft),transparent)}
-.cloneHead{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;margin-bottom:10px}
-.cloneHead b{font-size:14px}.cloneHead span{font-size:11.5px;color:var(--muted)}
-.cloneRow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
 .txt{width:100%;padding:11px 13px;border-radius:12px;border:1px solid var(--line);background:var(--in);color:var(--text);font:600 13px "Plus Jakarta Sans","Noto Sans Myanmar";outline:none}
 .txt:focus{border-color:var(--ring)}
 .btn2{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--in);color:var(--text);font:700 13px "Plus Jakarta Sans","Noto Sans Myanmar";cursor:pointer;text-decoration:none;transition:.2s}
@@ -240,9 +235,6 @@ textarea:focus{border-color:var(--ring)}
 .btn2.pri{border:0;color:var(--on);background:var(--grad);box-shadow:0 8px 22px var(--glow)}
 .btn2:disabled{opacity:.55;cursor:wait}
 .vmsg.ok{color:var(--ok)}
-.av.c{background:linear-gradient(135deg,var(--a1),var(--a3))}
-.vc .del{position:absolute;top:7px;left:7px;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:#fb718533;color:var(--err);font-size:14px;line-height:22px;cursor:pointer;opacity:.7}
-.vc .del:hover{opacity:1}
 /* srt */
 .srt{margin-top:16px;padding-top:16px;border-top:1px solid var(--line)}
 .srtHead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
@@ -251,6 +243,24 @@ textarea:focus{border-color:var(--ring)}
 .srtBtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .noteBox{margin-top:16px;padding:13px 15px;border-radius:14px;border:1px solid var(--line);background:var(--soft);font-size:12.5px;line-height:1.7}
 .noteBox b{display:block;margin-bottom:2px}
+
+
+/* wide cards + tools */
+.c12{grid-column:span 12}
+.c6{grid-column:span 6}
+@media(max-width:1180px){.c12,.c6{grid-column:span 12}}
+.tools{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:22px;align-items:start}
+@media(max-width:900px){.tools{grid-template-columns:1fr}}
+.thumbCv{display:block;width:100%;height:auto;border-radius:14px;border:1px solid var(--line);background:#000;box-shadow:0 0 40px var(--soft)}
+.thumbCv.tall{max-width:300px;margin:0 auto}
+.tcol .opt{margin-top:14px}.tcol .opt:first-child{margin-top:0}
+.tcol .chips{grid-template-columns:repeat(2,1fr);margin:0}
+.tcol .ratio{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.tcol .chip{min-height:44px;justify-content:center;text-align:center}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.srtTool .drop{padding:22px 14px}
+.prog{height:8px;border-radius:99px;background:var(--in);overflow:hidden;border:1px solid var(--line);margin-top:12px}
+.prog i{display:block;height:100%;width:0;background:var(--grad);transition:width .4s}
 
 /* footer */
 .foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:auto;padding:14px 24px;border-top:1px solid var(--line);background:var(--side);font-size:13px;font-weight:700}
@@ -267,7 +277,7 @@ textarea:focus{border-color:var(--ring)}
   .content{padding:12px}.topbar{padding:10px 12px;gap:8px}.tr{gap:8px}
   .pal{gap:6px;padding:6px 8px}.pal button{width:20px;height:20px}
   .banner{padding:22px 20px;min-height:200px;border-radius:20px}
-  .row,.cloneRow{grid-template-columns:1fr}
+  .row{grid-template-columns:1fr}
   .chips{grid-template-columns:repeat(2,1fr)}
   .step{font-size:9.5px}.step i{width:34px;height:34px}.steps:before{top:17px}
   .card{padding:16px}.foot{padding:12px;font-size:12px}
@@ -306,6 +316,8 @@ textarea:focus{border-color:var(--ring)}
     <a href="#voiceCard"><svg class="i"><use href="#i-mic"/></svg>Voice &amp; Style</a>
     <a href="#burnCard"><svg class="i"><use href="#i-sliders"/></svg>Customize</a>
     <a href="#genCard"><svg class="i"><use href="#i-spark"/></svg>Generate</a>
+    <a href="#thumbCard"><svg class="i"><use href="#i-film"/></svg>Thumbnail</a>
+    <a href="#srtToolCard"><svg class="i"><use href="#i-text"/></svg>SRT Tool</a>
   </nav>
   <div class="sideFoot"><b>YNT STUDIO</b><small>Create · Recap · Share</small></div>
 </aside>
@@ -389,18 +401,15 @@ textarea:focus{border-color:var(--ring)}
   <div class="voices" id="voices"></div>
   <p class="vmsg" id="voiceMsg"></p>
   <p class="hint">Azure / Google မှာ အမျိုးသား၊ အမျိုးသမီး နှစ်မျိုးပဲ ကွာပါတယ်။</p>
-
-  <div class="clone" id="clonePanel">
-    <div class="cloneHead"><b>🧬 Voice Clone</b><span>အသံနမူနာကနေ ကိုယ့်အသံ (ဒါမှမဟုတ် ခွင့်ပြုထားတဲ့အသံ) နဲ့ narration ထုတ်မယ်</span></div>
-    <div class="cloneRow">
-      <input type="file" id="cloneFile" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.webm" hidden>
-      <button type="button" class="btn2" id="clonePick">🎤 <span id="cloneFileName">အသံနမူနာ ရွေးမယ်</span></button>
-      <input type="text" class="txt" id="cloneName" maxlength="40" placeholder="Voice နာမည် (ဥပမာ - ကျွန်တော့်အသံ)" aria-label="Clone voice နာမည်">
+  <div class="opt">
+    <span class="fl">အသံအမြန်နှုန်း</span>
+    <select id="voiceSpeed" hidden><option value="slow">slow</option><option value="normal" selected>normal</option><option value="fast">fast</option></select>
+    <div class="ratio" id="speedChips" role="radiogroup" aria-label="အသံအမြန်နှုန်း">
+      <button type="button" class="chip" role="radio" aria-checked="false" data-v="slow">🐢 ဖြည်းဖြည်း</button>
+      <button type="button" class="chip on" role="radio" aria-checked="true" data-v="normal">🎙️ ပုံမှန်</button>
+      <button type="button" class="chip" role="radio" aria-checked="false" data-v="fast">⚡ မြန်မြန်</button>
     </div>
-    <label class="chk"><input type="checkbox" id="cloneConsent"><span>ဒီအသံက ကျွန်တော့်ကိုယ်ပိုင်အသံ ဒါမှမဟုတ် ပိုင်ရှင်က ခွင့်ပြုထားတဲ့ အသံ ဖြစ်ကြောင်း အတည်ပြုပါတယ်။</span></label>
-    <button type="button" class="btn2 pri" id="cloneBtn" style="width:100%">🧬 Clone လုပ်မယ်</button>
-    <p class="hint">ဆူညံသံ မပါတဲ့ ရှင်းလင်းတဲ့ စကားပြောအသံ ၁ မိနစ်ကနေ ၃ မိနစ်လောက် (mp3 / wav / m4a၊ ဖိုင်တစ်ခု 12MB အောက်) ပိုကောင်းပါတယ်။ ElevenLabs API key လိုပါတယ်။ Clone voice ကို ရွေးရင် ElevenLabs နဲ့ပဲ အသံထုတ်ပါမယ်။</p>
-    <p class="vmsg" id="cloneMsg" role="status"></p>
+    <p class="hint">အသံကို အလိုအလျောက် ရှင်းလင်းအောင် ပြင်ပေးပါတယ် — အသံအတိုးအကျယ် ညီအောင်၊ ဆူညံသံ/click မကြားအောင်။ Scene ထဲ မဆန့်ရင် အမြန်နှုန်းကို အလိုအလျောက် ချိန်ပေးပါတယ်။</p>
   </div>
 </section>
 
@@ -490,6 +499,63 @@ textarea:focus{border-color:var(--ring)}
   </section>
 </div>
 
+
+<section class="card c12" id="thumbCard">
+  <div class="head"><span class="num"><svg class="i"><use href="#i-film"/></svg></span><div><h2>Thumbnail Maker</h2><p>Movie ထဲက ကြိုက်တဲ့ frame ကို ရွေးပြီး ခေါင်းစဉ်ထည့်၊ PNG Download လုပ်ပါ။</p></div></div>
+  <div class="tools">
+    <div>
+      <canvas class="thumbCv" id="thumbCv" width="1280" height="720" aria-label="Thumbnail preview"></canvas>
+      <input class="seek" id="thumbSeek" type="range" min="0" max="1000" value="150" aria-label="Frame ရွေးရန်" style="margin-top:12px">
+      <p class="hint" id="thumbHint">အပေါ်က "1. Upload Movie" မှာ Movie ရွေးပြီးရင် ဒီမှာ frame တွေ ပေါ်လာပါမယ်။</p>
+      <video id="thumbVideo" muted playsinline preload="auto" style="display:none"></video>
+    </div>
+    <div class="tcol">
+      <div class="opt"><label class="fl" for="thumbTitle">ခေါင်းစဉ်</label><textarea id="thumbTitle" class="txt" rows="2" maxlength="80" placeholder="ဥပမာ - ကမ္ဘာပျက်မယ့်နေ့">ကမ္ဘာပျက်မယ့်နေ့</textarea></div>
+      <div class="opt"><label class="fl" for="thumbSub">စာတန်းငယ် (မလိုရင် ဖျက်ထားပါ)</label><input id="thumbSub" class="txt" maxlength="50" value="Movie Recap မြန်မာ"></div>
+      <div class="opt"><span class="fl">စာလုံးပုံစံ</span>
+        <div class="chips" id="thumbStyle" role="radiogroup" aria-label="စာလုံးပုံစံ">
+          <button type="button" class="chip on" role="radio" aria-checked="true" data-v="gold">🟡 Gold</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="neon">💜 Neon</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="red">🟥 Red Banner</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="clean">⚪ Clean</button>
+        </div></div>
+      <div class="opt"><span class="fl">အချိုးအစား</span>
+        <div class="ratio" id="thumbRatio" role="radiogroup" aria-label="Thumbnail အချိုးအစား">
+          <button type="button" class="chip on" role="radio" aria-checked="true" data-v="16:9">16:9 · YouTube</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="9:16">9:16 · TikTok</button>
+        </div></div>
+      <div class="opt"><span class="fl">စာတည်နေရာ</span>
+        <div class="ratio" id="thumbPos" role="radiogroup" aria-label="စာတည်နေရာ">
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="top">အပေါ်</button>
+          <button type="button" class="chip on" role="radio" aria-checked="true" data-v="bottom">အောက်</button>
+        </div></div>
+      <div class="opt"><label class="sw"><span>ပုံကို ပိုလင်း/ပိုရောင်စေမယ်</span><input type="checkbox" id="thumbPop" checked><i></i></label></div>
+      <div class="opt"><button type="button" class="btn2 pri" id="thumbDl" style="width:100%" disabled>⬇️ Thumbnail PNG Download</button><p class="vmsg ok" id="thumbMsg" role="status"></p></div>
+    </div>
+  </div>
+</section>
+
+<section class="card c12 srtTool" id="srtToolCard">
+  <div class="head"><span class="num"><svg class="i"><use href="#i-text"/></svg></span><div><h2>SRT Tool</h2><p>တခြား Video တစ်ခုခု တင်ပါ — စကားပြောကို နားထောင်ပြီး SRT စာတန်းထိုး ထုတ်ပေးပါမယ်။</p></div></div>
+  <div class="tools">
+    <div>
+      <div class="drop" id="srtDrop"><span class="dropIcon"><svg class="i"><use href="#i-cloud"/></svg></span><strong id="srtDropTitle">Video ကို ဒီမှာရွေးပါ</strong><small>MP4, MOV, MKV, WEBM • အများဆုံး 500MB</small><span class="choose"><svg class="i"><use href="#i-folder"/></svg>Choose File</span><input id="srtMovie" type="file" accept="video/*,.mp4,.mov,.mkv,.webm,.avi" hidden></div>
+      <div class="two" style="margin-top:14px">
+        <div><label class="fl" for="srtLang">Video ထဲက စကားပြောဘာသာ</label>
+          <select class="selectBox" id="srtLang"><option value="auto">အလိုအလျောက် သိမယ်</option><option value="en">English</option><option value="th">ไทย Thai</option><option value="zh">中文 Chinese</option><option value="ja">日本語 Japanese</option><option value="ko">한국어 Korean</option><option value="hi">हिन्दी Hindi</option><option value="id">Indonesian</option><option value="vi">Tiếng Việt</option><option value="my">မြန်မာ</option></select></div>
+        <div style="display:flex;align-items:flex-end"><label class="sw" style="width:100%"><span>မြန်မာလို ဘာသာပြန်မယ်</span><input type="checkbox" id="srtTr" checked><i></i></label></div>
+      </div>
+      <button type="button" class="btn2 pri" id="srtGo" style="width:100%;margin-top:14px" disabled>📝 SRT ထုတ်မယ်</button>
+      <div class="prog" id="srtProg" style="display:none"><i id="srtBar"></i></div>
+      <p class="vmsg" id="srtToolMsg" role="status"></p>
+    </div>
+    <div>
+      <div class="srtHead"><b>📝 SRT ရလဒ်</b><span id="srtToolInfo"></span></div>
+      <textarea id="srtToolText" readonly spellcheck="false" aria-label="SRT ရလဒ်" style="min-height:230px;font-family:ui-monospace,'Noto Sans Myanmar',monospace;font-size:12.5px;white-space:pre" placeholder="SRT ဒီမှာ ပေါ်လာပါမယ်..."></textarea>
+      <div class="srtBtns"><button type="button" class="btn2 pri" id="srtToolCopy" disabled>📋 SRT Copy</button><a class="btn2" id="srtToolDl" href="#" download style="pointer-events:none;opacity:.55">⬇️ .srt Download</a></div>
+    </div>
+  </div>
+</section>
 </div>
 </main>
 
@@ -519,7 +585,7 @@ function showFile(){
   if(!selectedFile)return;
   $('dropTitle').textContent='✅ Movie ရွေးပြီးပါပြီ';$('fileInfo').style.display='block';
   $('fileInfo').textContent=`🎥 ${selectedFile.name} • ${(selectedFile.size/1024/1024).toFixed(1)} MB`;
-  const u=URL.createObjectURL(selectedFile);$('preview').style.display='block';$('preview').src=u;window.onMovieSelected&&window.onMovieSelected(u);
+  const u=URL.createObjectURL(selectedFile);$('preview').style.display='block';$('preview').src=u;window.onMovieSelected&&window.onMovieSelected(u);window.onThumbMovie&&window.onThumbMovie(u);
 }
 
 /* ---------- subtitle + blur options ---------- */
@@ -592,42 +658,19 @@ function burnPayload(){
   };
 }
 applyBlur();
-let clones=[];
 const voiceCard=(n,g,d,i)=>`<div class="vc"><input type="radio" name="vsel" id="v_${n}" value="${n}"${n===voiceName?' checked':''}><label for="v_${n}"><em class="av ${g==='Female'?'f':'m'}">${n[0]}</em><span class="vt"><b>${n}</b><span>${g} · ${d}</span></span><span class="eq"><s></s><s></s><s></s></span></label><button type="button" class="play" data-v="${n}" aria-label="${n} အသံနားထောင်">▶</button></div>`;
-const cloneCard=c=>`<div class="vc"><input type="radio" name="vsel" id="v_${esc(c.id)}" value="${esc(c.id)}"${c.id===voiceName?' checked':''}><label for="v_${esc(c.id)}"><em class="av c">🧬</em><span class="vt"><b>${esc(c.name)}</b><span>Clone · ElevenLabs</span></span><span class="eq"><s></s><s></s><s></s></span></label><button type="button" class="play" data-v="${esc(c.id)}" aria-label="${esc(c.name)} အသံနားထောင်">▶</button><button type="button" class="del" data-del="${esc(c.id)}" aria-label="${esc(c.name)} ဖျက်မယ်" title="ဖျက်မယ်">×</button></div>`;
 function renderVoices(){
-  if(voiceName.startsWith('clone:')&&!clones.some(c=>c.id===voiceName))voiceName='Kore';
-  $('voices').innerHTML=VOICES.map(([n,g,d],i)=>voiceCard(n,g,d,i)).join('')+clones.map(cloneCard).join('');
+  $('voices').innerHTML=VOICES.map(([n,g,d],i)=>voiceCard(n,g,d,i)).join('');
 }
 renderVoices();
 $('voices').addEventListener('change',e=>{
   const r=e.target.closest('input[name="vsel"]');if(!r)return;
   voiceName=r.value;
-  if(voiceName.startsWith('clone:')){$('ttsEngine').value='elevenlabs';$('voiceMsg').classList.remove('ok');$('voiceMsg').textContent='🧬 Clone voice ကို ElevenLabs နဲ့ပဲ အသံထုတ်ပါမယ်။'}
-  else if($('voiceMsg').textContent.startsWith('🧬'))$('voiceMsg').textContent='';
 });
-$('voices').addEventListener('click',async e=>{
+$('voices').addEventListener('click',e=>{
   const pb=e.target.closest('.play');
-  if(pb){preview(SAMPLE[$('language').value]||SAMPLE.my,pb,pb.dataset.v);return}
-  const db=e.target.closest('.del');
-  if(db){
-    const c=clones.find(x=>x.id===db.dataset.del);
-    if(!c||!confirm('"'+c.name+'" clone voice ကို ဖျက်မလား? ElevenLabs ထဲကပါ ပျက်သွားပါမယ်။'))return;
-    db.disabled=true;
-    try{
-      const r=await fetch('/api/voice-clone/'+encodeURIComponent(c.id),{method:'DELETE'});const d=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(d.error||'မဖျက်နိုင်ပါ');
-      await loadClones();
-    }catch(err){db.disabled=false;$('voiceMsg').classList.remove('ok');$('voiceMsg').textContent='❌ '+err.message}
-  }
+  if(pb)preview(SAMPLE[$('language').value]||SAMPLE.my,pb,pb.dataset.v);
 });
-async function loadClones(){
-  try{
-    const r=await fetch('/api/voice-clones',{cache:'no-store'});if(!r.ok)return;
-    const d=await r.json();clones=Array.isArray(d.voices)?d.voices:[];renderVoices();
-  }catch{}
-}
-loadClones();
 async function preview(text,btn,voice){
   if(audio){audio.pause();audio=null}
   const old=btn.textContent;btn.textContent='⏳';btn.disabled=true;$('voiceMsg').textContent='';$('voiceMsg').classList.remove('ok');
@@ -639,27 +682,6 @@ async function preview(text,btn,voice){
   }catch(e){$('voiceMsg').textContent='❌ '+e.message}
   btn.textContent=old;btn.disabled=false;
 }
-$('clonePick').onclick=()=>$('cloneFile').click();
-$('cloneFile').onchange=()=>{const f=$('cloneFile').files?.[0];$('cloneFileName').textContent=f?f.name+' • '+(f.size/1024/1024).toFixed(1)+' MB':'အသံနမူနာ ရွေးမယ်'};
-function cloneMsg(t,ok){const m=$('cloneMsg');m.textContent=t;m.classList.toggle('ok',!!ok)}
-$('cloneBtn').onclick=async()=>{
-  const f=$('cloneFile').files?.[0],name=$('cloneName').value.trim();
-  if(!f)return cloneMsg('❌ အသံနမူနာ ဖိုင် ရွေးပါ');
-  if(f.size>12*1024*1024)return cloneMsg('❌ ဖိုင်က 12MB ထက် မကျော်ရပါ');
-  if(!name)return cloneMsg('❌ Voice နာမည် ထည့်ပါ');
-  if(!$('cloneConsent').checked)return cloneMsg('❌ ကိုယ့်အသံ ဒါမှမဟုတ် ခွင့်ပြုထားတဲ့ အသံ ဖြစ်ကြောင်း အတည်ပြုပါ');
-  $('cloneBtn').disabled=true;cloneMsg('⏳ Clone လုပ်နေပါတယ်... (စက္ကန့်အနည်းငယ် ကြာနိုင်ပါတယ်)');
-  const fd=new FormData();fd.append('samples',f);fd.append('name',name);fd.append('consent','1');
-  try{
-    const r=await fetch('/api/voice-clone',{method:'POST',body:fd});const d=await r.json().catch(()=>({}));
-    if(!r.ok)throw new Error(d.error||'Clone မလုပ်နိုင်ပါ');
-    voiceName=d.voice.id;$('ttsEngine').value='elevenlabs';
-    await loadClones();
-    $('cloneFile').value='';$('cloneFileName').textContent='အသံနမူနာ ရွေးမယ်';$('cloneName').value='';$('cloneConsent').checked=false;
-    cloneMsg('✅ "'+d.voice.name+'" clone ပြီးပါပြီ။ အပေါ်က Voice စာရင်းမှာ ရွေးပြီးသားပါ၊ ▶ နဲ့ နားထောင်ကြည့်ပါ။',true);
-  }catch(e){cloneMsg('❌ '+e.message)}
-  $('cloneBtn').disabled=false;
-};
 function showErr(m){$('progressCard').style.display='block';$('error').style.display='block';$('error').textContent='❌ '+friendly(m)}
 function stepIndex(p){return p>=100?5:p<12?0:p<56?1:p<64?2:p<68?3:4}
 function elapsed(){if(!t0)return'';const s=Math.floor((Date.now()-t0)/1000);return` ⏱ ${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`}
@@ -735,7 +757,7 @@ $('generate').onclick=async()=>{
   if(selectedFile.size>500*1024*1024){showErr('Video က 500MB ထက် မကျော်ရပါ');return}
   busy=true;$('generate').disabled=true;$('result').style.display='none';$('scriptCard').style.display='none';t0=Date.now();
   renderStatus({stage:'Upload',progress:3,status:'processing',message:'Movie upload စတင်နေပါတယ်...'});
-  const fd=new FormData();fd.append('movie',selectedFile);fd.append('language',$('language').value);fd.append('style',$('recapStyle').value||STYLE_DEFAULT);fd.append('voice',voiceName);fd.append('ttsEngine',$('ttsEngine').value);fd.append('burn',JSON.stringify(burnPayload()));fd.append('reviewScript',$('reviewChk').checked?'1':'');
+  const fd=new FormData();fd.append('movie',selectedFile);fd.append('language',$('language').value);fd.append('style',$('recapStyle').value||STYLE_DEFAULT);fd.append('voice',voiceName);fd.append('ttsEngine',$('ttsEngine').value);fd.append('voiceSpeed',$('voiceSpeed').value);fd.append('burn',JSON.stringify(burnPayload()));fd.append('reviewScript',$('reviewChk').checked?'1':'');
   try{
     const r=await fetch('/api/one-clip',{method:'POST',body:fd});const d=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(d?.error||'Movie processing မစနိုင်ပါ');
@@ -755,7 +777,7 @@ $('renderBtn').onclick=async()=>{
   renderStatus({stage:'Voice',progress:63,status:'processing',message:'Script အတည်ပြုပြီး၊ အသံထုတ်ပါမယ်...'});
   $('progressCard').scrollIntoView({behavior:'smooth',block:'start'});
   try{
-    const r=await fetch('/api/render/'+encodeURIComponent(jobId),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes:items,style:$('recapStyle').value||STYLE_DEFAULT,voice:voiceName,ttsEngine:$('ttsEngine').value,burn:burnPayload()})});
+    const r=await fetch('/api/render/'+encodeURIComponent(jobId),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scenes:items,style:$('recapStyle').value||STYLE_DEFAULT,voice:voiceName,ttsEngine:$('ttsEngine').value,voiceSpeed:$('voiceSpeed').value,burn:burnPayload()})});
     const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d?.error||'Render မစနိုင်ပါ');startPoll();
   }catch(e){
     const msg = (e && (e.name === 'TypeError' || /failed to fetch|networkerror|load failed/i.test(String(e.message||''))))
@@ -804,6 +826,176 @@ chipGroup('styleChips','recapStyle');chipGroup('ratioChips','outputRatio');
   const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
   const io=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){links.forEach(l=>l.classList.remove('on'));map.get(en.target.id)?.classList.add('on')}})},{rootMargin:'-30% 0px -60% 0px'});
   map.forEach((_,id)=>{const el=document.getElementById(id);el&&io.observe(el)});
+})();
+
+
+/* ---------- voice speed chip ---------- */
+chipGroup('speedChips','voiceSpeed');
+
+/* ---------- Thumbnail maker (all in the browser) ---------- */
+(function(){
+  const cv=$('thumbCv'),cx=cv.getContext('2d'),tv=$('thumbVideo');
+  let ready=false,style='gold',ratio='16:9',pos='bottom',raf=0;
+  const group=(id,set)=>$(id).addEventListener('click',e=>{
+    const b=e.target.closest('.chip');if(!b)return;
+    $(id).querySelectorAll('.chip').forEach(c=>{const on=c===b;c.classList.toggle('on',on);c.setAttribute('aria-checked',on)});
+    set(b.dataset.v);draw();
+  });
+  group('thumbStyle',v=>style=v);
+  group('thumbPos',v=>pos=v);
+  group('thumbRatio',v=>{ratio=v;cv.width=v==='9:16'?720:1280;cv.height=v==='9:16'?1280:720;cv.classList.toggle('tall',v==='9:16')});
+  ['thumbTitle','thumbSub','thumbPop'].forEach(id=>$(id).addEventListener('input',draw));
+  const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#8b5cf6';
+  function lines(text,font,maxW){
+    cx.font=font;
+    const out=[];
+    for(const para of String(text).split(/\n/)){
+      const seg=typeof Intl!=='undefined'&&Intl.Segmenter?[...new Intl.Segmenter('my',{granularity:'word'}).segment(para)].map(x=>x.segment):[...para];
+      let line='';
+      for(const w of seg){
+        if(cx.measureText(line+w).width>maxW&&line.trim()){out.push(line.trim());line=w.trimStart()}else line+=w;
+      }
+      if(line.trim())out.push(line.trim());
+    }
+    return out;
+  }
+  function fit(text,W,maxH,fam,weight){
+    let size=Math.round(W*(ratio==='9:16'?.15:.098));
+    for(;size>28;size-=4){
+      const font=weight+' '+size+'px '+fam;
+      const ls=lines(text,font,W*.86);
+      if(ls.length<=3&&ls.length*size*1.32<=maxH)return{size,font,ls};
+    }
+    const font=weight+' 28px '+fam;return{size:28,font,ls:lines(text,font,W*.86)};
+  }
+  function draw(){
+    cancelAnimationFrame(raf);raf=requestAnimationFrame(render);
+  }
+  function render(){
+    const W=cv.width,H=cv.height;
+    cx.clearRect(0,0,W,H);
+    if(ready&&tv.videoWidth){
+      const vr=tv.videoWidth/tv.videoHeight,cr=W/H;let sw,sh,sx,sy;
+      if(vr>cr){sh=tv.videoHeight;sw=sh*cr;sx=(tv.videoWidth-sw)/2;sy=0}else{sw=tv.videoWidth;sh=sw/cr;sx=0;sy=(tv.videoHeight-sh)/2}
+      cx.filter=$('thumbPop').checked?'saturate(1.35) contrast(1.12) brightness(1.06)':'none';
+      cx.drawImage(tv,sx,sy,sw,sh,0,0,W,H);cx.filter='none';
+    }else{
+      const g=cx.createLinearGradient(0,0,W,H);g.addColorStop(0,cssv('--a1'));g.addColorStop(1,cssv('--a2'));cx.fillStyle=g;cx.fillRect(0,0,W,H);
+    }
+    // shade the side the text sits on so it stays readable on any frame
+    const top=pos==='top',sg=cx.createLinearGradient(0,top?0:H,0,top?H*.65:H*.35);
+    sg.addColorStop(0,'rgba(0,0,0,.82)');sg.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=sg;cx.fillRect(0,0,W,H);
+    const vg=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*.45,W/2,H/2,Math.max(W,H)*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.45)');cx.fillStyle=vg;cx.fillRect(0,0,W,H);
+
+    const fam='"Noto Sans Myanmar","Plus Jakarta Sans",sans-serif';
+    const title=$('thumbTitle').value.trim(),sub=$('thumbSub').value.trim();
+    const f=fit(title||' ',W,H*.5,fam,'800');
+    const lh=f.size*1.32,subSize=Math.round(f.size*.42),gap=sub?subSize*1.9:0;
+    const blockH=f.ls.length*lh+gap;
+    let y=top?H*.07:H*.93-blockH;
+    cx.textAlign='center';cx.textBaseline='middle';cx.lineJoin='round';
+    if(sub){
+      cx.font='700 '+subSize+'px '+fam;
+      const sw=cx.measureText(sub).width+subSize*1.4,sh=subSize*1.6;
+      cx.fillStyle=style==='red'?'#fff':cssv('--a1');cx.beginPath();
+      (cx.roundRect?cx.roundRect(W/2-sw/2,y,sw,sh,sh/2):cx.rect(W/2-sw/2,y,sw,sh));cx.fill();
+      cx.fillStyle=style==='red'?'#c81e1e':'#fff';cx.fillText(sub,W/2,y+sh/2+1);
+      y+=gap;
+    }
+    f.ls.forEach((ln,i)=>{
+      const cy=y+lh*i+lh/2;cx.font=f.font;
+      if(style==='red'){
+        const w=cx.measureText(ln).width+f.size*.7;cx.fillStyle='#e11d1d';cx.fillRect(W/2-w/2,cy-lh*.46,w,lh*.92);
+        cx.fillStyle='#fff';cx.fillText(ln,W/2,cy);
+      }else if(style==='gold'){
+        cx.lineWidth=f.size*.16;cx.strokeStyle='#000';cx.strokeText(ln,W/2,cy);
+        const g=cx.createLinearGradient(0,cy-lh/2,0,cy+lh/2);g.addColorStop(0,'#fff4b0');g.addColorStop(.5,'#ffc21a');g.addColorStop(1,'#ff8a00');
+        cx.fillStyle=g;cx.fillText(ln,W/2,cy);
+      }else if(style==='neon'){
+        cx.shadowColor=cssv('--a1');cx.shadowBlur=f.size*.5;cx.fillStyle='#fff';cx.fillText(ln,W/2,cy);cx.fillText(ln,W/2,cy);cx.shadowBlur=0;
+      }else{
+        cx.shadowColor='rgba(0,0,0,.7)';cx.shadowBlur=f.size*.25;cx.shadowOffsetY=f.size*.05;cx.fillStyle='#fff';cx.fillText(ln,W/2,cy);cx.shadowBlur=0;cx.shadowOffsetY=0;
+      }
+    });
+  }
+  window.onThumbMovie=u=>{
+    ready=false;$('thumbDl').disabled=true;$('thumbHint').textContent='Frame ကို ဖတ်နေပါတယ်...';
+    tv.src=u;tv.load();
+  };
+  tv.addEventListener('loadedmetadata',()=>{tv.currentTime=Math.max(.1,(tv.duration||1)*Number($('thumbSeek').value)/1000)});
+  tv.addEventListener('seeked',()=>{ready=true;$('thumbDl').disabled=false;$('thumbHint').textContent='Slider ကို ရွှေ့ပြီး ကြိုက်တဲ့ frame ကို ရွေးပါ။';draw()});
+  $('thumbSeek').addEventListener('input',()=>{if(tv.duration)tv.currentTime=Math.min(tv.duration-.05,tv.duration*Number($('thumbSeek').value)/1000)});
+  $('thumbDl').onclick=()=>{
+    render();
+    cv.toBlob(b=>{
+      if(!b){$('thumbMsg').textContent='❌ ပုံ မထုတ်နိုင်ပါ';return}
+      const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='YNT-Thumbnail-'+ratio.replace(':','x')+'.png';document.body.appendChild(a);a.click();a.remove();
+      $('thumbMsg').textContent='✅ Download လုပ်ပြီးပါပြီ';setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+    },'image/png');
+  };
+  (document.fonts&&document.fonts.load?document.fonts.load('800 40px "Noto Sans Myanmar"','မြန်မာ').catch(()=>{}):Promise.resolve()).then(draw);
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw);
+  draw();
+})();
+
+/* ---------- SRT tool ---------- */
+(function(){
+  let file=null,busy=false,timer=null,sid=null;
+  const msg=(t,ok)=>{const m=$('srtToolMsg');m.textContent=t;m.classList.toggle('ok',!!ok)};
+  const pick=f=>{
+    file=f||null;$('srtGo').disabled=!file;
+    $('srtDropTitle').textContent=file?'✅ '+file.name:'Video ကို ဒီမှာရွေးပါ';
+    if(file)msg(`🎥 ${(file.size/1024/1024).toFixed(1)} MB`);
+  };
+  $('srtMovie').onchange=()=>pick($('srtMovie').files?.[0]);
+  const drop=$('srtDrop');
+  ['dragover','dragenter'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault()}));
+  drop.addEventListener('drop',e=>{e.preventDefault();const f=e.dataTransfer.files?.[0];if(f)pick(f)});
+  drop.addEventListener('click',e=>{if(e.target.id!=='srtMovie')$('srtMovie').click()});
+  $('srtLang').onchange=()=>{const my=$('srtLang').value==='my';$('srtTr').disabled=my;if(my)$('srtTr').checked=false};
+  const finish=()=>{busy=false;clearTimeout(timer);$('srtGo').disabled=!file};
+  async function poll(){
+    try{
+      const r=await fetch('/api/status/'+encodeURIComponent(sid),{cache:'no-store'});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(j.error||'Status မဖတ်နိုင်ပါ');
+      $('srtBar').style.width=Math.max(4,j.progress||0)+'%';
+      if(j.status==='failed'){finish();msg('❌ '+(j.error||j.message||'မအောင်မြင်ပါ'));return}
+      if(j.status==='completed'){
+        const t=await fetch('/api/srt/'+encodeURIComponent(sid),{cache:'no-store'});
+        if(!t.ok)throw new Error('SRT မဖတ်နိုင်ပါ');
+        $('srtToolText').value=await t.text();
+        $('srtToolInfo').textContent=(j.output?.srt?.cues||0)+' cues';
+        $('srtToolCopy').disabled=false;
+        const a=$('srtToolDl');a.href='/api/srt/'+encodeURIComponent(sid)+'?download=1';a.style.pointerEvents='';a.style.opacity='';
+        $('srtBar').style.width='100%';finish();msg('✅ SRT ပြီးပါပြီ။ Copy ကူးပါ ဒါမှမဟုတ် Download လုပ်ပါ။',true);return;
+      }
+      msg('⏳ '+(j.message||'လုပ်နေပါတယ်...'));
+      timer=setTimeout(poll,2000);
+    }catch(e){
+      if(++pollFails>8){finish();msg('❌ '+e.message)}else timer=setTimeout(poll,3000);
+    }
+  }
+  let pollFails=0;
+  $('srtGo').onclick=async()=>{
+    if(busy||!file)return;
+    busy=true;pollFails=0;$('srtGo').disabled=true;$('srtProg').style.display='block';$('srtBar').style.width='4%';
+    $('srtToolText').value='';$('srtToolCopy').disabled=true;$('srtToolInfo').textContent='';
+    const a=$('srtToolDl');a.removeAttribute('href');a.style.pointerEvents='none';a.style.opacity='.55';
+    msg('⏳ Video ကို တင်နေပါတယ်...');
+    const fd=new FormData();fd.append('movie',file);fd.append('language',$('srtLang').value);fd.append('translate',$('srtTr').checked?'1':'');
+    try{
+      const r=await fetch('/api/srt-tool',{method:'POST',body:fd});
+      const j=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(j.error||'မတင်နိုင်ပါ');
+      sid=j.jobId;poll();
+    }catch(e){finish();msg('❌ '+e.message)}
+  };
+  $('srtToolCopy').onclick=async()=>{
+    const t=$('srtToolText').value;if(!t)return;
+    try{await navigator.clipboard.writeText(t)}catch{$('srtToolText').select();document.execCommand('copy')}
+    msg('✅ Copy ကူးပြီးပါပြီ',true);
+  };
 })();
 
 /* ---------- palette switcher ---------- */
