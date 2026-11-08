@@ -3459,6 +3459,143 @@ app.post(
 );
 
 /* =========================================================
+   THUMBNAIL STUDIO (AI frame picking + AI poster polish)
+========================================================= */
+
+const GEMINI_IMAGE_MODELS = (process.env.GEMINI_IMAGE_MODELS || process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image")
+  .split(",").map(name => name.trim()).filter(Boolean);
+
+function parseDataUrl(value, maxBytes = 6 * 1024 * 1024) {
+  const m = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(value || ""));
+  if (!m) return null;
+  if (m[2].length * 0.75 > maxBytes) return null;
+  return { mimeType: m[1], data: m[2] };
+}
+
+function extractJson(text) {
+  const raw = String(text || "").trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+  try { return JSON.parse(raw); } catch {}
+  const a = raw.indexOf("{"), b = raw.lastIndexOf("}");
+  if (a >= 0 && b > a) { try { return JSON.parse(raw.slice(a, b + 1)); } catch {} }
+  return null;
+}
+
+// Looks at candidate frames and returns the 3 best "main character / key moment"
+// frames plus ready-made Burmese title ideas.
+app.post("/api/thumbnail/analyze", async (req, res) => {
+  try {
+    const frames = (Array.isArray(req.body?.frames) ? req.body.frames : [])
+      .slice(0, 16).map(parseDataUrl);
+    if (frames.length < 1 || frames.some(f => !f)) {
+      return res.status(400).json({ error: "Frame ပုံများ မမှန်ပါ။" });
+    }
+    const context = String(req.body?.context || "").replace(/\s+/g, " ").slice(0, 1800);
+    const hint = String(req.body?.titleHint || "").slice(0, 80);
+    const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
+
+    const prompt = `You are a viral YouTube/TikTok movie-recap thumbnail editor.
+You get ${frames.length} candidate frames from one movie, numbered 0 to ${frames.length - 1} in the order given.
+${context ? `Story context (may be Burmese): ${context}\n` : ""}${hint ? `Current working title: ${hint}\n` : ""}
+Tasks:
+1. Identify the main characters/locations that matter most to the story.
+2. Choose exactly ${Math.min(3, frames.length)} DIFFERENT frames that would make the strongest thumbnail: clear sharp faces or a striking key place/moment, strong emotion or action, good lighting, not blurry, not black, not a credits/logo frame. Prefer variety (e.g. hero, villain, key location).
+3. For each pick give a SHORT Burmese label (max 24 characters) naming the character or place, and a short Burmese reason.
+4. Write 6 catchy Burmese thumbnail titles (each max 28 Burmese characters, curiosity or drama driven, no quotes, no emojis).
+Return ONLY JSON:
+{"movie":"<guess in English or empty>","picks":[{"frame":0,"label":"","reason":""}],"titles":["",""],"subtitles":["",""]}`;
+
+    const parts = [{ text: prompt }];
+    frames.forEach((f, i) => {
+      parts.push({ text: `Frame ${i}:` });
+      parts.push({ inlineData: { mimeType: f.mimeType, data: f.data } });
+    });
+
+    const response = await callWithModelFallback("thumbnail analyze", model =>
+      ai.models.generateContent({
+        model,
+        contents: [{ role: "user", parts }],
+        config: { responseMimeType: "application/json", temperature: 0.8 }
+      })
+    );
+    const data = extractJson(response?.text || response?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join(""));
+    if (!data) throw new Error("AI အဖြေကို နားမလည်နိုင်ပါ။ ပြန်စမ်းပါ။");
+
+    const seen = new Set();
+    const picks = (Array.isArray(data.picks) ? data.picks : [])
+      .map(p => ({
+        frame: Number.parseInt(p?.frame, 10),
+        label: String(p?.label || "").slice(0, 40),
+        reason: String(p?.reason || "").slice(0, 120)
+      }))
+      .filter(p => Number.isInteger(p.frame) && p.frame >= 0 && p.frame < frames.length && !seen.has(p.frame) && seen.add(p.frame))
+      .slice(0, 3);
+    const clean = list => (Array.isArray(list) ? list : []).map(t => String(t || "").trim().slice(0, 60)).filter(Boolean).slice(0, 8);
+    return res.json({ success: true, movie: String(data.movie || "").slice(0, 80), picks, titles: clean(data.titles), subtitles: clean(data.subtitles) });
+  } catch (error) {
+    return res.status(502).json({ error: String(error?.message || error).slice(0, 300) });
+  }
+});
+
+const THUMB_MOODS = {
+  cinematic: "epic cinematic blockbuster look, teal and orange grading, dramatic rim light, volumetric haze",
+  fire: "explosive action look, fiery orange and red glow, sparks and embers, intense contrast",
+  neon: "vivid neon cyberpunk look, magenta and cyan glow, glossy reflections, night city energy",
+  dark: "dark thriller / horror look, deep shadows, cold desaturated blue-green grading, eerie fog",
+  gold: "luxurious golden-hour look, warm glowing highlights, rich premium color grading",
+  fantasy: "magical fantasy look, glowing particles, rich purple and gold light, dreamy depth"
+};
+
+// Takes the composed thumbnail background (no text) and returns a polished poster-quality version.
+app.post("/api/thumbnail/ai", async (req, res) => {
+  try {
+    const img = parseDataUrl(req.body?.image, 8 * 1024 * 1024);
+    if (!img) return res.status(400).json({ error: "ပုံ မမှန်ပါ။" });
+    const ratio = req.body?.ratio === "9:16" ? "9:16" : "16:9";
+    const mood = THUMB_MOODS[String(req.body?.mood || "")] || THUMB_MOODS.cinematic;
+    const textPos = ["top", "middle", "bottom"].includes(req.body?.textPos) ? req.body.textPos : "bottom";
+    const title = String(req.body?.title || "").slice(0, 80);
+    const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
+
+    const prompt = `Turn the provided image into a stunning, click-worthy ${ratio === "9:16" ? "9:16 vertical" : "16:9 landscape"} movie-recap thumbnail background.
+Style: ${mood}.
+Rules:
+- Keep every person/character EXACTLY recognizable: same faces, hair, clothes, count and positions. If the image is a collage, keep every panel's subject and blend the seams into one seamless, dramatic composition.
+- Make the main subjects pop: bigger contrast, rim lighting, rich saturated color, sharp detail, cinematic depth of field, subtle glow.
+- Improve the background and atmosphere (light rays, smoke, sparks, bokeh) to match the story${title ? ` titled "${title}"` : ""}.
+- Keep the ${textPos} area of the image a bit darker and less busy so a big title can be overlaid there.
+- Output exactly ${ratio} aspect ratio.
+- ABSOLUTELY NO text, letters, captions, subtitles, logos, watermarks or UI.`;
+
+    const response = await callWithModelFallbackImage("thumbnail ai", model =>
+      ai.models.generateContent({
+        model,
+        contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: img.mimeType, data: img.data } }] }],
+        config: { responseModalities: ["IMAGE", "TEXT"], imageConfig: { aspectRatio: ratio } }
+      })
+    );
+    const parts = response?.candidates?.[0]?.content?.parts || [];
+    const out = parts.find(p => p.inlineData?.data);
+    if (!out) throw new Error("AI က ပုံမထုတ်ပေးနိုင်ပါ။ နောက်တစ်ကြိမ် ပြန်နှိပ်ကြည့်ပါ။");
+    return res.json({ success: true, image: `data:${out.inlineData.mimeType || "image/png"};base64,${out.inlineData.data}` });
+  } catch (error) {
+    return res.status(502).json({ error: String(error?.message || error).slice(0, 300) });
+  }
+});
+
+async function callWithModelFallbackImage(operationName, makeCall) {
+  let lastError = null;
+  for (const model of GEMINI_IMAGE_MODELS) {
+    try {
+      return await callGeminiWithRetry(`${operationName} [${model}]`, () => makeCall(model));
+    } catch (error) {
+      lastError = error;
+      if (!/429|quota|404|not found|not supported|503|UNAVAILABLE|overloaded/i.test(String(error?.message || error))) throw error;
+    }
+  }
+  throw lastError || new Error("Image model မရနိုင်ပါ။");
+}
+
+/* =========================================================
    FRONTEND
 ========================================================= */
 
