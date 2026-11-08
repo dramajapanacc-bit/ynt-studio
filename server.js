@@ -15,7 +15,8 @@ import {
   burnActive,
   probeVideoSize,
   buildBurnFilter,
-  checkSubtitleFont
+  checkSubtitleFont,
+  splitNarration
 } from "./burn.js";
 import {
   planSceneTiming,
@@ -24,15 +25,6 @@ import {
   makeSceneCues,
   buildSrt
 } from "./sync.js";
-import {
-  CLONE_PREFIX,
-  isCloneVoice,
-  cloneIdOf,
-  createCloneStore,
-  elevenLabsAddVoice,
-  elevenLabsDeleteVoice
-} from "./clone.js";
-
 const { Pool } = pg;
 
 dotenv.config();
@@ -90,8 +82,6 @@ const DATA_DIR = process.env.DATA_DIR
 const PUBLIC_DIR = path.join(ROOT, "public");
 const UPLOAD_DIR = path.join(DATA_DIR, "uploads");
 const JOB_DIR = path.join(DATA_DIR, "jobs");
-// Cloned voices (ElevenLabs ids) created through the UI.
-const cloneStore = createCloneStore(path.join(DATA_DIR, "voice-clones.json"));
 
 for (const dir of [
   PUBLIC_DIR,
@@ -784,7 +774,8 @@ async function splitAudio(
 async function transcribeChunk(
   groq,
   audioPath,
-  chunkIndex
+  chunkIndex,
+  language = ""
 ) {
   const file =
     fs.createReadStream(audioPath);
@@ -797,6 +788,7 @@ async function transcribeChunk(
       timestamp_granularities: [
         "segment"
       ],
+      ...(language ? { language } : {}),
       temperature: 0
     });
 
@@ -830,7 +822,8 @@ async function transcribeChunk(
 
 async function transcribeMovie(
   jobId,
-  audioChunks
+  audioChunks,
+  language = ""
 ) {
   const groq = new Groq({
     apiKey: requireEnv(
@@ -868,7 +861,8 @@ async function transcribeMovie(
       await transcribeChunk(
         groq,
         audioChunks[i],
-        i
+        i,
+        language
       );
 
     if (result.text) {
@@ -1809,14 +1803,7 @@ async function elevenLabsTts(text, outputPath, voice) {
   const key = (process.env.ELEVENLABS_API_KEY || "").trim();
   const male = (process.env.ELEVENLABS_VOICE_ID_MALE || "").trim();
   const female = (process.env.ELEVENLABS_VOICE_ID_FEMALE || "").trim();
-  // A cloned voice ("clone:<id>") is only accepted if we created it ourselves,
-  // so nobody can point this server's API key at an arbitrary voice id.
-  if (String(voice).startsWith(CLONE_PREFIX) && !(isCloneVoice(voice) && cloneStore.has(cloneIdOf(voice)))) {
-    throw new Error("Clone voice မတွေ့ပါ။ ပြန်ရွေးပါ၊ မရှိရင် Clone အသစ်လုပ်ပါ။");
-  }
-  const voiceId = (isCloneVoice(voice)
-    ? cloneIdOf(voice)
-    : ((isMaleVoice(voice) ? male : female) || process.env.ELEVENLABS_VOICE_ID || "")).trim();
+  const voiceId = ((isMaleVoice(voice) ? male : female) || process.env.ELEVENLABS_VOICE_ID || "").trim();
   if (!key || !voiceId) throw new Error("ELEVENLABS_API_KEY / ELEVENLABS_VOICE_ID မထည့်ရသေးပါ");
   const model = (process.env.ELEVENLABS_MODEL || "eleven_v3").trim();
   // eleven_v3 only accepts stability 0.0 (Creative) / 0.5 (Natural) / 1.0 (Robust).
@@ -2002,13 +1989,9 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto", r
   if (!fullText) throw new Error("No narration text was available for TTS.");
 
   const nativeBurmese = voice === "Thiha" || voice === "Nilar";
-  // A cloned voice only exists in ElevenLabs, so no other engine can speak it
-  // (falling back would silently use somebody else's voice).
-  const order = String(voice).startsWith(CLONE_PREFIX)
-    ? ["elevenlabs"]
-    : engine === "auto"
-      ? (nativeBurmese ? ["edge", "azure", "gemini", "google"] : ["gemini", "edge", "azure", "google"])
-      : [engine];
+  const order = engine === "auto"
+    ? (nativeBurmese ? ["edge", "azure", "gemini", "google"] : ["gemini", "edge", "azure", "google"])
+    : [engine];
   const errors = [];
 
   for (const name of order) {
@@ -2169,6 +2152,10 @@ const recapVoiceSettings = {
 };
 
 const styleByJob = new Map();
+// Voice speed picked in the UI: multiplies the style speed (slow / normal / fast).
+const voiceSpeedByJob = new Map();
+const VOICE_SPEEDS = { slow: 0.92, normal: 1, fast: 1.12 };
+const voiceSpeedOf = jobId => VOICE_SPEEDS[voiceSpeedByJob.get(jobId)] || 1;
 
 // Speed (ffmpeg atempo) per recap style. Default recap speed is 1.1x.
 function getRecapSpeed(recapStyle) {
@@ -2265,11 +2252,16 @@ const TIMING_OPTS = {
   maxVideoSlow: Number(process.env.MAX_VIDEO_SLOW || 1.2)
 };
 
+// highpass removes low rumble, acompressor evens out loud/quiet words, fades stop clicks at scene joins.
+const VOICE_POLISH_FILTER = "highpass=f=70,acompressor=threshold=-20dB:ratio=2.5:attack=8:release=120:makeup=2,afade=t=in:d=0.012";
+
 // Apply the planned tempo to one scene's voice and pad it with silence to the
 // exact length of the scene (plan.outDur) so audio and video end together.
 async function fitAudioToScene(inputAudio, outputAudio, plan) {
   const filters = [
     ...buildAtempoFilters(plan.tempo),
+    // Voice polish: cut rumble/pops, tame loud peaks, soften clip edges (no clicks).
+    VOICE_POLISH_FILTER,
     "apad",
     `atrim=duration=${plan.outDur.toFixed(3)}`
   ];
@@ -2550,7 +2542,7 @@ async function renderSceneSyncVideo(
     console.log(`[BURN] blurBoxes=${burn.blur.enabled ? burn.blur.boxes.length : 0} aspect=${burn.aspectRatio} size=${videoSize.width}x${videoSize.height}`);
   }
 
-  const baseSpeed = getRecapSpeed(styleByJob.get(jobId));
+  const baseSpeed = getRecapSpeed(styleByJob.get(jobId)) * voiceSpeedOf(jobId);
   const renderedScenes = [];
   const cues = [];
   let offset = 0; // seconds from the start of the final video
@@ -2595,12 +2587,35 @@ async function renderSceneSyncVideo(
   const listPath = path.join(jobFolder, "scene-list.txt");
   const outputPath = path.join(jobFolder, "YNT-One-Clips-Recap.mp4");
   await concatScenes(renderedScenes, outputPath, listPath);
+  await normalizeLoudness(outputPath);
 
   const srtPath = path.join(jobFolder, "subtitles.srt");
   fs.writeFileSync(srtPath, buildSrt(cues), "utf8");
   console.log(`[SRT] ${cues.length} cues written`);
 
   return { outputPath, srtPath, cueCount: cues.length };
+}
+
+// One loudness pass over the whole video (-16 LUFS, the usual level for YouTube /
+// TikTok) so every scene sounds equally loud. Video is copied, never re-encoded.
+// If anything goes wrong the un-normalized file is kept.
+async function normalizeLoudness(videoPath) {
+  const tmp = videoPath.replace(/\.mp4$/i, ".loud.mp4");
+  try {
+    await runCommand("ffmpeg", [
+      "-y", "-i", videoPath,
+      "-map", "0:v", "-map", "0:a:0",
+      "-c:v", "copy",
+      "-af", "loudnorm=I=-16:TP=-1.5:LRA=9",
+      "-ar", "44100", "-c:a", "aac", "-b:a", "192k",
+      "-movflags", "+faststart",
+      tmp
+    ]);
+    if (fs.existsSync(tmp) && fs.statSync(tmp).size > 0) fs.renameSync(tmp, videoPath);
+  } catch (error) {
+    console.error("[LOUDNESS] skipped:", String(error?.message || error).slice(0, 200));
+    try { fs.rmSync(tmp, { force: true }); } catch {}
+  }
 }
 
 /* =========================================================
@@ -3055,6 +3070,7 @@ app.post("/api/render/:id", async (req, res) => {
     const engine = String(req.body?.ttsEngine || "auto").toLowerCase();
     ttsEngineByJob.set(job.id, TTS_ENGINES.includes(engine) ? engine : "auto");
     if (req.body?.style) styleByJob.set(job.id, String(req.body.style));
+    voiceSpeedByJob.set(job.id, String(req.body?.voiceSpeed || "normal"));
 
     const movieName = fs.readdirSync(folder).find(name => /^movie\./i.test(name));
     if (!movieName) return res.status(404).json({ error: "Movie file မတွေ့တော့ပါ။ ပြန်တင်ပါ။" });
@@ -3131,66 +3147,129 @@ app.get("/api/srt/:id", (req, res) => {
 });
 
 /* =========================================================
-   VOICE CLONE (ElevenLabs Instant Voice Cloning)
+   SRT TOOL — any video in, SRT out (separate from the recap flow)
 ========================================================= */
 
-const MAX_CLONES = Number(process.env.MAX_CLONE_VOICES || 10);
-const cloneUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 12 * 1024 * 1024, files: 3 }
-});
-const SAMPLE_EXT = /\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|webm|mp4)$/i;
+const SRT_LANGS = { auto: "", en: "en", my: "my", th: "th", zh: "zh", ja: "ja", ko: "ko", hi: "hi", id: "id", vi: "vi" };
 
-app.get("/api/voice-clones", (req, res) => {
-  res.json({
-    enabled: Boolean((process.env.ELEVENLABS_API_KEY || "").trim()),
-    voices: cloneStore.list().map(item => ({ id: CLONE_PREFIX + item.id, name: item.name }))
-  });
-});
-
-app.post("/api/voice-clone", cloneUpload.array("samples", 3), async (req, res) => {
-  try {
-    const key = (process.env.ELEVENLABS_API_KEY || "").trim();
-    if (!key) {
-      return res.status(400).json({ error: "Voice clone အတွက် ELEVENLABS_API_KEY လိုပါတယ်။ Server ရဲ့ environment မှာ ထည့်ပါ။" });
-    }
-    if (String(req.body?.consent) !== "1") {
-      return res.status(400).json({ error: "ကိုယ့်အသံ ဒါမှမဟုတ် ပိုင်ရှင်က ခွင့်ပြုထားတဲ့ အသံ ဖြစ်ကြောင်း အတည်ပြုပေးပါ။" });
-    }
-    const name = String(req.body?.name || "").trim().slice(0, 40);
-    if (!name) return res.status(400).json({ error: "Voice နာမည် ထည့်ပါ။" });
-
-    const files = (req.files || []).filter(file => /^audio\//i.test(file.mimetype || "") || SAMPLE_EXT.test(file.originalname || ""));
-    if (!files.length) return res.status(400).json({ error: "အသံဖိုင် (mp3, wav, m4a ...) ရွေးပါ။" });
-    if (cloneStore.list().length >= MAX_CLONES) {
-      return res.status(400).json({ error: `Clone voice ${MAX_CLONES} ခု ပြည့်နေပါပြီ။ တစ်ခုခု ဖျက်ပြီးမှ ထပ်လုပ်ပါ။` });
-    }
-
-    const id = await elevenLabsAddVoice({
-      key,
-      name,
-      description: "Created with YNT Recap Studio",
-      files: files.map(file => ({ buffer: file.buffer, filename: file.originalname, mimetype: file.mimetype }))
+// Whisper segments can be long; split them into readable subtitle cues.
+function segmentsToCues(segments, maxChars = 42) {
+  const cues = [];
+  for (const seg of segments) {
+    const text = String(seg.text || "").replace(/\s+/g, " ").trim();
+    if (!text) continue;
+    const start = Number(seg.start) || 0;
+    const end = Math.max(start + 0.3, Number(seg.end) || start + 0.3);
+    const parts = text.length > maxChars ? splitNarration(text, maxChars) : [text];
+    const total = parts.reduce((n, part) => n + part.length, 0) || 1;
+    let t = start;
+    parts.forEach((part, i) => {
+      const dur = i === parts.length - 1 ? end - t : (end - start) * part.length / total;
+      cues.push({ start: t, end: t + Math.max(0.2, dur), text: part });
+      t += dur;
     });
-    cloneStore.add({ id, name });
-    console.log(`[CLONE] created "${name}"`);
-    return res.json({ success: true, voice: { id: CLONE_PREFIX + id, name } });
-  } catch (error) {
-    console.error("[CLONE] failed:", String(error?.message || error).slice(0, 200));
-    return res.status(502).json({ error: String(error?.message || error).slice(0, 300) });
   }
-});
+  return cues;
+}
 
-app.delete("/api/voice-clone/:id", async (req, res) => {
+// Translate cue texts to Myanmar in batches; the model must return the same count.
+async function translateCuesToMyanmar(ai, cues, jobId) {
+  const BATCH = 40;
+  const out = cues.map(cue => ({ ...cue }));
+  for (let from = 0; from < cues.length; from += BATCH) {
+    updateJob(jobId, {
+      stage: "Translate",
+      progress: 60 + Math.round((from / cues.length) * 32),
+      message: `မြန်မာလို ဘာသာပြန်နေပါတယ်... ${Math.min(from + BATCH, cues.length)} / ${cues.length}`
+    });
+    const batch = cues.slice(from, from + BATCH).map(cue => cue.text);
+    const prompt =
+      "Translate each subtitle line below into natural, spoken Burmese (Myanmar, Unicode). " +
+      "Keep every line short enough to read on screen, keep names as they sound, do not merge or skip lines. " +
+      `Return ONLY a JSON array of exactly ${batch.length} strings in the same order.\n\n` +
+      JSON.stringify(batch);
+    try {
+      const response = await callWithModelFallback("SRT Translate", model =>
+        ai.models.generateContent({
+          model,
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          config: { responseMimeType: "application/json" }
+        })
+      );
+      const raw = String(response?.text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length === batch.length) {
+        arr.forEach((text, i) => {
+          const clean = String(text || "").trim();
+          if (clean) out[from + i].text = clean;
+        });
+      } else {
+        console.warn("[SRT] translation count mismatch, keeping original for this batch");
+      }
+    } catch (error) {
+      console.warn("[SRT] translate batch failed:", String(error?.message || error).slice(0, 160));
+    }
+  }
+  return out;
+}
+
+async function processSrtJob(jobId, moviePath, language, translate) {
   try {
-    const raw = String(req.params.id || "");
-    const id = raw.startsWith(CLONE_PREFIX) ? raw.slice(CLONE_PREFIX.length) : raw;
-    if (!cloneStore.has(id)) return res.status(404).json({ error: "Clone voice မတွေ့ပါ။" });
-    await elevenLabsDeleteVoice({ key: (process.env.ELEVENLABS_API_KEY || "").trim(), id });
-    cloneStore.remove(id);
-    return res.json({ success: true });
+    const folder = path.dirname(moviePath);
+    updateJob(jobId, { status: "processing", stage: "Audio", progress: 8, message: "Video ထဲက အသံကို ထုတ်နေပါတယ်..." });
+
+    const duration = await getVideoDuration(moviePath);
+    const audioPath = path.join(folder, "audio.mp3");
+    try {
+      await extractAudio(moviePath, audioPath);
+    } catch {
+      throw new Error("ဒီ Video ထဲမှာ အသံ မတွေ့ပါ။");
+    }
+    const chunks = await splitAudio(audioPath, path.join(folder, "chunks"));
+
+    const transcript = await transcribeMovie(jobId, chunks, SRT_LANGS[language] || "");
+    let cues = segmentsToCues(transcript.segments);
+    if (!cues.length) throw new Error("စကားပြောသံ မတွေ့ပါ။ (အသံ မရှင်းလို့ ဖြစ်နိုင်ပါတယ်)");
+
+    if (translate) {
+      const ai = new GoogleGenAI({ apiKey: requireEnv("GEMINI_API_KEY") });
+      cues = await translateCuesToMyanmar(ai, cues, jobId);
+    }
+
+    fs.writeFileSync(path.join(folder, "subtitles.srt"), buildSrt(cues), "utf8");
+    updateJob(jobId, {
+      status: "completed",
+      stage: "Ready",
+      progress: 100,
+      duration,
+      message: "SRT ပြီးပါပြီ။",
+      output: { srt: { cues: cues.length, url: `/api/srt/${jobId}` } }
+    });
+    console.log(`[SRT JOB ${jobId}] ${cues.length} cues`);
   } catch (error) {
-    return res.status(502).json({ error: String(error?.message || error).slice(0, 300) });
+    console.error(`[SRT JOB ${jobId}] FAILED:`, error);
+    updateJob(jobId, { status: "failed", stage: "Failed", message: "SRT မထုတ်နိုင်ပါ။", error: String(error?.message || error).slice(0, 400) });
+  }
+}
+
+app.post("/api/srt-tool", upload.single("movie"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Video ဖိုင် ရွေးပါ။" });
+    const job = await createJob();
+    const folder = path.join(JOB_DIR, job.id);
+    fs.mkdirSync(folder, { recursive: true });
+    const extension = path.extname(req.file.originalname || "") || ".mp4";
+    const moviePath = path.join(folder, `movie${extension}`);
+    fs.renameSync(req.file.path, moviePath);
+
+    const language = String(req.body?.language || "auto").toLowerCase();
+    const translate = String(req.body?.translate || "") === "1" && language !== "my";
+    updateJob(job.id, { originalFilename: req.file.originalname || "video", status: "processing", stage: "Upload", progress: 5, message: "Video လက်ခံပြီးပါပြီ..." });
+
+    processSrtJob(job.id, moviePath, language in SRT_LANGS ? language : "auto", translate);
+    return res.json({ success: true, jobId: job.id });
+  } catch (error) {
+    return res.status(500).json({ error: String(error?.message || error).slice(0, 300) });
   }
 });
 
@@ -3267,6 +3346,7 @@ app.post(
       const requestedEngine = String(req.body?.ttsEngine || "auto").toLowerCase();
       ttsEngineByJob.set(job.id, TTS_ENGINES.includes(requestedEngine) ? requestedEngine : "auto");
       styleByJob.set(job.id, style);
+      voiceSpeedByJob.set(job.id, String(req.body?.voiceSpeed || "normal"));
 
 
       updateJob(job.id, {
@@ -3401,10 +3481,9 @@ app.use(
 
     if (err instanceof multer.MulterError) {
       const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
-      const isSample = String(req.originalUrl || "").startsWith("/api/voice-clone");
       return res.status(status).json({
         error: err.code === "LIMIT_FILE_SIZE"
-          ? (isSample ? "အသံနမူနာ ဖိုင်တစ်ခုချင်း 12MB ထက် မကျော်ရပါ။" : "Video ဖိုင်အရွယ်အစား 500MB ထက် မကျော်ရပါ။")
+          ? "Video ဖိုင်အရွယ်အစား 500MB ထက် မကျော်ရပါ။"
           : err.message
       });
     }
