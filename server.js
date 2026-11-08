@@ -3595,6 +3595,7 @@ Rules:
 - Improve the background and atmosphere (light rays, smoke, sparks, bokeh) to match the story${title ? ` titled "${title}"` : ""}.
 - Keep the ${textPos} area of the image a bit darker and less busy so a big title can be overlaid there.
 - Output exactly ${ratio} aspect ratio.
+- REMOVE any burned-in subtitles, captions, watermarks or text overlays that are in the source image and rebuild that area naturally.
 - ABSOLUTELY NO text, letters, captions, subtitles, logos, watermarks or UI.`;
 
     const response = await thumbCall(GEMINI_IMAGE_MODELS, model =>
