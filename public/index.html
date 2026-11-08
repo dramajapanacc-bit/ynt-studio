@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>YNT Recap Tool</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,500;0,700;0,800;1,800&family=Noto+Sans+Myanmar:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bangers&family=Bebas+Neue&family=Pacifico&family=Padauk:wght@400;700&family=Permanent+Marker&family=Noto+Serif+Myanmar:wght@600;800&display=swap">
 <style>
 /* ===== palettes (accent + tinted dark surfaces) ===== */
 :root,:root[data-pal="violet"]{--bg:#01031a;--side:#0a0c22;--c1:#171a44;--c2:#11143a;--in:#0c1237;--line:#2c3376;--a1:#8b08f2;--a2:#5550f9;--a3:#d62bc4;--on:#fff;--ring:#9aa6ff;--grad:linear-gradient(135deg,#8b08f2,#5550f9);--gen:linear-gradient(90deg,#fb8a64,#d62bc4 26%,#8302f8 50%,#3502fc 78%,#1e6bfb);--title:linear-gradient(180deg,#fff7b0,#fbbf24 55%,#f97316);--ban1:#8302f8;--ban2:#1d3fd8;--ban3:#d62bc4}
@@ -262,6 +263,71 @@ textarea:focus{border-color:var(--ring)}
 .prog{height:8px;border-radius:99px;background:var(--in);overflow:hidden;border:1px solid var(--line);margin-top:12px}
 .prog i{display:block;height:100%;width:0;background:var(--grad);transition:width .4s}
 
+/* thumbnail studio */
+#thumbCard .tStep{margin-bottom:20px}
+#thumbCard .tStep.inner{padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--c2);margin-bottom:14px}
+#thumbCard .tHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+#thumbCard .tHead b{display:flex;align-items:center;gap:9px;font-size:14.5px;font-weight:800}
+#thumbCard .tn{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--grad);color:var(--on);font-size:12px;font-weight:800}
+#thumbCard small{font-weight:600;color:var(--muted);font-size:11px}
+.pickGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media(max-width:640px){.pickGrid{grid-template-columns:1fr}}
+.pickCard{position:relative;border:2px solid var(--line);border-radius:16px;overflow:hidden;background:var(--in);cursor:pointer;padding:0;color:var(--text);text-align:left;font:inherit;transition:.2s}
+.pickCard:hover{border-color:var(--ring);transform:translateY(-2px)}
+.pickCard.on{border-color:var(--a1);box-shadow:0 0 0 2px var(--a1),0 0 28px var(--glow)}
+.pickCard img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#000}
+.pickCard .pc{padding:9px 12px 11px}
+.pickCard .pc b{display:block;font-size:13.5px;font-weight:800;line-height:1.4}
+.pickCard .pc span{display:block;font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:2px}
+.pickCard .rank{position:absolute;left:10px;top:10px;padding:3px 10px;border-radius:99px;background:#000a;color:#fff;font-size:11px;font-weight:800;backdrop-filter:blur(4px)}
+.pickCard .no{position:absolute;right:10px;top:10px;width:30px;height:30px;border-radius:50%;display:none;place-items:center;background:var(--grad);color:var(--on);font-weight:800;font-size:14px;box-shadow:0 4px 14px var(--glow)}
+.pickCard.on .no{display:grid}
+.pickCard.skel{pointer-events:none}
+.pickCard.skel img{animation:pulse 1.2s infinite alternate}
+@keyframes pulse{from{opacity:.35}to{opacity:.8}}
+.allWrap{margin-top:12px}
+.allWrap summary{cursor:pointer;font-size:12.5px;font-weight:700;color:var(--muted);padding:6px 0}
+.allGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:8px;margin-top:8px}
+.allGrid button{position:relative;padding:0;border:2px solid var(--line);border-radius:10px;overflow:hidden;background:#000;cursor:pointer}
+.allGrid button.on{border-color:var(--a1);box-shadow:0 0 0 1px var(--a1)}
+.allGrid img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+.allGrid i{position:absolute;right:4px;top:4px;min-width:20px;height:20px;border-radius:10px;padding:0 5px;display:none;place-items:center;background:var(--grad);color:var(--on);font:800 11px/20px "Plus Jakarta Sans";font-style:normal;text-align:center}
+.allGrid button.on i{display:block}
+#thumbCard .chips.lay{grid-template-columns:repeat(5,1fr);gap:6px}
+#thumbCard .chips.lay .chip{min-height:42px;padding:6px 4px;font-size:11.5px}
+#thumbCard .chip:disabled{opacity:.35;cursor:not-allowed;transform:none}
+#thumbCard .chips.fonts,#thumbCard .chips.sty{grid-template-columns:repeat(2,1fr);gap:7px}
+#thumbCard .chips.moods{grid-template-columns:repeat(3,1fr);gap:7px}
+#thumbCard .chips.moods .chip{min-height:40px;padding:6px 4px;font-size:11.5px}
+#thumbCard .chips.fonts .chip{min-height:50px;flex-direction:column;align-items:flex-start;gap:0;line-height:1.35;padding:6px 10px}
+#thumbCard .chips.fonts .chip b{font-size:18px;font-weight:700}
+#thumbCard .chips.fonts .chip span{font:600 10.5px "Plus Jakarta Sans";color:var(--muted)}
+#thumbCard .chips.sty .chip{min-height:40px;padding:6px 8px;font-size:12px}
+.ratio.three{grid-template-columns:repeat(3,1fr)!important;gap:6px}
+.ratio.three .chip{padding:6px 2px;min-height:40px}
+.titleChips{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px}
+.titleChips:empty{display:none}
+.titleChips button{padding:6px 12px;border-radius:99px;border:1px solid var(--line);background:var(--in);color:var(--text);font:700 12.5px/1.4 "Plus Jakarta Sans","Noto Sans Myanmar";cursor:pointer;transition:.2s;text-align:left}
+.titleChips button:hover{border-color:var(--ring)}
+.titleChips button.on{border-color:var(--a1);background:var(--soft);box-shadow:0 0 0 1px var(--a1)}
+.swatches{display:flex;flex-wrap:wrap;gap:9px}
+.swatches button{width:34px;height:34px;border-radius:50%;border:3px solid transparent;padding:0;cursor:pointer;background:var(--g);box-shadow:0 0 0 1px #ffffff30 inset,0 3px 10px #0006;transition:.2s}
+.swatches button:hover{transform:scale(1.14)}
+.swatches button.on{border-color:var(--text);box-shadow:0 0 0 2px var(--bg),0 0 14px var(--glow)}
+.colorRow{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+.colorRow label{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;color:var(--muted)}
+.colorRow input{width:100%;height:36px;padding:2px;border-radius:10px;border:1px solid var(--line);background:var(--in);cursor:pointer}
+.verStrip{display:flex;gap:9px;overflow-x:auto;padding:2px 2px 8px}
+.verStrip button{flex:0 0 auto;position:relative;padding:0;border:2px solid var(--line);border-radius:10px;overflow:hidden;background:#000;cursor:pointer;color:#fff}
+.verStrip button.on{border-color:var(--a1);box-shadow:0 0 0 1px var(--a1),0 0 16px var(--soft)}
+.verStrip canvas,.verStrip img{display:block;height:64px;width:auto}
+.verStrip span{position:absolute;left:0;right:0;bottom:0;padding:2px 4px;background:#000b;font:700 10px/1.4 "Plus Jakarta Sans","Noto Sans Myanmar";text-align:center}
+.aiBox{border-color:color-mix(in srgb,var(--a1) 55%,var(--line))!important;background:linear-gradient(160deg,var(--soft),var(--c2))!important}
+.aiGo{background:var(--gen)!important;color:#fff!important;font-size:14.5px!important;min-height:50px!important}
+.aiGo:disabled{opacity:.55}
+.vmsg.err{color:var(--err);white-space:pre-line}
+@media(min-width:901px){#thumbCard .tools>div:first-child{position:sticky;top:72px}}
+
 /* footer */
 .foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:auto;padding:14px 24px;border-top:1px solid var(--line);background:var(--side);font-size:13px;font-weight:700}
 .foot span:last-child{font-style:italic;font-weight:800;background:var(--title);-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -501,36 +567,93 @@ textarea:focus{border-color:var(--ring)}
 
 
 <section class="card c12" id="thumbCard">
-  <div class="head"><span class="num"><svg class="i"><use href="#i-film"/></svg></span><div><h2>Thumbnail Maker</h2><p>Movie ထဲက ကြိုက်တဲ့ frame ကို ရွေးပြီး ခေါင်းစဉ်ထည့်၊ PNG Download လုပ်ပါ။</p></div></div>
+  <div class="head"><span class="num"><svg class="i"><use href="#i-film"/></svg></span><div><h2>Thumbnail Studio</h2><p>AI က Movie ထဲက အဓိကဇာတ်ကောင်/နေရာ ၃ ပုံ ရွေးပေးပြီး ခေါင်းစဉ်ပါ အကြံပေးပါမယ်။ ကြိုက်တာ ရွေးမယ်၊ ပေါင်းမယ်၊ ဖောင့်/အရောင် ပြောင်းမယ်၊ AI နဲ့ အလန်းစား ထုတ်မယ်။</p></div></div>
+
+  <div class="tStep">
+    <div class="tHead"><b><span class="tn">1</span>အဓိက ပုံ ၃ ပုံ</b><button type="button" class="btn2" id="thumbAnalyze" disabled>🔍 AI နဲ့ ပြန်ရွေးခိုင်းမယ်</button></div>
+    <div class="pickGrid" id="thumbPicks" aria-live="polite"></div>
+    <p class="hint" id="thumbHint">အပေါ်က "1. Upload Movie" မှာ Movie ရွေးလိုက်ရင် AI က အဓိကပုံတွေ ရွေးပေးပါမယ်။</p>
+    <details class="allWrap"><summary>🎞️ Frame အားလုံးကြည့်ပြီး ကိုယ်တိုင်ရွေးမယ်</summary><div class="allGrid" id="thumbAll"></div></details>
+  </div>
+
   <div class="tools">
     <div>
       <canvas class="thumbCv" id="thumbCv" width="1280" height="720" aria-label="Thumbnail preview"></canvas>
-      <input class="seek" id="thumbSeek" type="range" min="0" max="1000" value="150" aria-label="Frame ရွေးရန်" style="margin-top:12px">
-      <p class="hint" id="thumbHint">အပေါ်က "1. Upload Movie" မှာ Movie ရွေးပြီးရင် ဒီမှာ frame တွေ ပေါ်လာပါမယ်။</p>
+      <div class="opt"><span class="fl">ပုံပေါင်းပုံစံ <small id="thumbSelInfo"></small></span>
+        <div class="chips lay" id="thumbLayout" role="radiogroup" aria-label="ပုံပေါင်းပုံစံ">
+          <button type="button" class="chip on" role="radio" aria-checked="true" data-v="single">🖼️ တစ်ပုံ</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="split">◩ ခွဲ ၂ပုံ</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="blend">🌫️ ရောစပ်</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="triple">▥ ၁+၂</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="trio">▮▮▮ ၃ပိုင်း</button>
+        </div>
+        <label class="fl" for="thumbZoom" style="margin-top:12px">ပုံ Zoom <small id="thumbZoomV">100%</small></label>
+        <input class="seek" id="thumbZoom" type="range" min="100" max="170" value="100" style="margin-top:0">
+      </div>
+      <div class="opt"><span class="fl">ပုံမူကွဲများ <small>(နှိပ်ပြီး ရွေးပါ)</small></span>
+        <div class="verStrip" id="thumbVers"></div></div>
       <video id="thumbVideo" muted playsinline preload="auto" style="display:none"></video>
     </div>
+
     <div class="tcol">
-      <div class="opt"><label class="fl" for="thumbTitle">ခေါင်းစဉ်</label><textarea id="thumbTitle" class="txt" rows="2" maxlength="80" placeholder="ဥပမာ - ကမ္ဘာပျက်မယ့်နေ့">ကမ္ဘာပျက်မယ့်နေ့</textarea></div>
-      <div class="opt"><label class="fl" for="thumbSub">စာတန်းငယ် (မလိုရင် ဖျက်ထားပါ)</label><input id="thumbSub" class="txt" maxlength="50" value="Movie Recap မြန်မာ"></div>
-      <div class="opt"><span class="fl">စာလုံးပုံစံ</span>
-        <div class="chips" id="thumbStyle" role="radiogroup" aria-label="စာလုံးပုံစံ">
-          <button type="button" class="chip on" role="radio" aria-checked="true" data-v="gold">🟡 Gold</button>
-          <button type="button" class="chip" role="radio" aria-checked="false" data-v="neon">💜 Neon</button>
-          <button type="button" class="chip" role="radio" aria-checked="false" data-v="red">🟥 Red Banner</button>
-          <button type="button" class="chip" role="radio" aria-checked="false" data-v="clean">⚪ Clean</button>
-        </div></div>
-      <div class="opt"><span class="fl">အချိုးအစား</span>
+      <div class="tStep inner">
+        <div class="tHead"><b><span class="tn">2</span>ခေါင်းစဉ်</b></div>
+        <div class="titleChips" id="thumbTitles"></div>
+        <textarea id="thumbTitle" class="txt" rows="2" maxlength="80" placeholder="ဥပမာ - ကမ္ဘာပျက်မယ့်နေ့" aria-label="ခေါင်းစဉ်">ကမ္ဘာပျက်မယ့်နေ့</textarea>
+        <label class="fl" for="thumbSub" style="margin-top:10px">စာတန်းငယ် (မလိုရင် ဖျက်ထားပါ)</label>
+        <div class="titleChips" id="thumbSubs"></div>
+        <input id="thumbSub" class="txt" maxlength="50" value="Movie Recap မြန်မာ">
+      </div>
+
+      <div class="tStep inner">
+        <div class="tHead"><b><span class="tn">3</span>ဖောင့် · စတိုင် · အရောင်</b></div>
+        <span class="fl">ဖောင့်</span>
+        <div class="chips fonts" id="thumbFont" role="radiogroup" aria-label="ဖောင့်"></div>
+        <span class="fl" style="margin-top:12px">စာလုံးစတိုင်</span>
+        <div class="chips sty" id="thumbStyle" role="radiogroup" aria-label="စာလုံးစတိုင်"></div>
+        <span class="fl" style="margin-top:12px">အရောင်အစုံ <small>(နှိပ်ရုံပဲ)</small></span>
+        <div class="swatches" id="thumbPal"></div>
+        <div class="colorRow">
+          <label>အပေါ်<input type="color" id="cFill1" value="#fff4b0"></label>
+          <label>အောက်<input type="color" id="cFill2" value="#ff8a00"></label>
+          <label>ဘောင်<input type="color" id="cStroke" value="#000000"></label>
+          <label>Glow/နောက်ခံ<input type="color" id="cGlow" value="#ffb300"></label>
+        </div>
+        <div class="two" style="margin-top:12px">
+          <div><label class="fl" for="thumbSize">စာအရွယ် <small id="thumbSizeV">100%</small></label><input class="seek" id="thumbSize" type="range" min="60" max="130" value="100" style="margin-top:0"></div>
+          <div><span class="fl">စာတည်နေရာ</span>
+            <div class="ratio three" id="thumbPos" role="radiogroup" aria-label="စာတည်နေရာ">
+              <button type="button" class="chip" role="radio" aria-checked="false" data-v="top">အပေါ်</button>
+              <button type="button" class="chip" role="radio" aria-checked="false" data-v="middle">အလယ်</button>
+              <button type="button" class="chip on" role="radio" aria-checked="true" data-v="bottom">အောက်</button>
+            </div></div>
+        </div>
+      </div>
+
+      <div class="tStep inner aiBox">
+        <div class="tHead"><b><span class="tn">4</span>✨ AI အလန်းစား ထုတ်ပေးမယ်</b></div>
+        <p class="hint" style="margin:0 0 10px">ရွေးထားတဲ့ ပုံ(ပေါင်းထားတာပါ) ကို AI က Movie Poster အဆင့် လှအောင် ပြန်ဆွဲပေးပါမယ်။ စာကိုတော့ ဒီမှာ ကိုယ်တိုင်ထည့်လို့ မြန်မာစာ မှန်ပါတယ်။</p>
+        <div class="chips moods" id="thumbMood" role="radiogroup" aria-label="AI အရောင်ခံစားချက်">
+          <button type="button" class="chip on" role="radio" aria-checked="true" data-v="cinematic">🎬 Cinematic</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="fire">🔥 Action</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="neon">🌆 Neon</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="dark">🌑 Dark</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="gold">👑 Gold</button>
+          <button type="button" class="chip" role="radio" aria-checked="false" data-v="fantasy">🔮 Fantasy</button>
+        </div>
+        <button type="button" class="btn2 pri aiGo" id="thumbAiGen" style="width:100%;margin-top:12px" disabled>✨ AI နဲ့ ပုံလှ ထုတ်မယ်</button>
+        <p class="vmsg" id="thumbAiMsg" role="status"></p>
+      </div>
+
+      <div class="tStep inner">
+        <div class="tHead"><b><span class="tn">5</span>ပြီးစီး</b></div>
         <div class="ratio" id="thumbRatio" role="radiogroup" aria-label="Thumbnail အချိုးအစား">
           <button type="button" class="chip on" role="radio" aria-checked="true" data-v="16:9">16:9 · YouTube</button>
           <button type="button" class="chip" role="radio" aria-checked="false" data-v="9:16">9:16 · TikTok</button>
-        </div></div>
-      <div class="opt"><span class="fl">စာတည်နေရာ</span>
-        <div class="ratio" id="thumbPos" role="radiogroup" aria-label="စာတည်နေရာ">
-          <button type="button" class="chip" role="radio" aria-checked="false" data-v="top">အပေါ်</button>
-          <button type="button" class="chip on" role="radio" aria-checked="true" data-v="bottom">အောက်</button>
-        </div></div>
-      <div class="opt"><label class="sw"><span>ပုံကို ပိုလင်း/ပိုရောင်စေမယ်</span><input type="checkbox" id="thumbPop" checked><i></i></label></div>
-      <div class="opt"><button type="button" class="btn2 pri" id="thumbDl" style="width:100%" disabled>⬇️ Thumbnail PNG Download</button><p class="vmsg ok" id="thumbMsg" role="status"></p></div>
+        </div>
+        <div class="opt" style="margin-top:12px;padding-top:12px"><label class="sw"><span>ပုံကို ပိုလင်း/ပိုရောင်စေမယ်</span><input type="checkbox" id="thumbPop" checked><i></i></label></div>
+        <button type="button" class="btn2 pri" id="thumbDl" style="width:100%;margin-top:12px" disabled>⬇️ Thumbnail PNG Download</button><p class="vmsg ok" id="thumbMsg" role="status"></p>
+      </div>
     </div>
   </div>
 </section>
@@ -832,110 +955,393 @@ chipGroup('styleChips','recapStyle');chipGroup('ratioChips','outputRatio');
 /* ---------- voice speed chip ---------- */
 chipGroup('speedChips','voiceSpeed');
 
-/* ---------- Thumbnail maker (all in the browser) ---------- */
+/* ---------- Thumbnail Studio ---------- */
 (function(){
   const cv=$('thumbCv'),cx=cv.getContext('2d'),tv=$('thumbVideo');
-  let ready=false,style='gold',ratio='16:9',pos='bottom',raf=0;
-  const group=(id,set)=>$(id).addEventListener('click',e=>{
-    const b=e.target.closest('.chip');if(!b)return;
-    $(id).querySelectorAll('.chip').forEach(c=>{const on=c===b;c.classList.toggle('on',on);c.setAttribute('aria-checked',on)});
-    set(b.dataset.v);draw();
-  });
-  group('thumbStyle',v=>style=v);
-  group('thumbPos',v=>pos=v);
-  group('thumbRatio',v=>{ratio=v;cv.width=v==='9:16'?720:1280;cv.height=v==='9:16'?1280:720;cv.classList.toggle('tall',v==='9:16')});
-  ['thumbTitle','thumbSub','thumbPop'].forEach(id=>$(id).addEventListener('input',draw));
+  const FONTS={
+    noto:{n:'Noto Sans Myanmar',w:800,l:'Noto Sans',d:'မြန်မာ Aa'},
+    serif:{n:'Noto Serif Myanmar',w:800,l:'Noto Serif · ဂန္ထဝင်',d:'မြန်မာ Aa'},
+    padauk:{n:'Padauk',w:700,l:'Padauk · ရိုးရှင်း',d:'မြန်မာ Aa'},
+    anton:{n:'Anton',w:700,l:'Anton · English',d:'BIG TITLE'},
+    bebas:{n:'Bebas Neue',w:700,l:'Bebas · English',d:'BIG TITLE'},
+    bangers:{n:'Bangers',w:700,l:'Bangers · Comic',d:'POW! မြန်မာ'},
+    marker:{n:'Permanent Marker',w:700,l:'Marker · လက်ရေး',d:'Marker မြန်မာ'},
+    pacifico:{n:'Pacifico',w:700,l:'Pacifico · Script',d:'Script မြန်မာ'}
+  };
+  // colours: [fill top, fill bottom, stroke, glow/banner]
+  const STYLES={
+    gold:{l:'🟡 Gold',c:['#fff4b0','#ff8a00','#000000','#ffb300']},
+    fire:{l:'🔥 Fire',c:['#fff1a8','#ff3b00','#3a0500','#ff6a00']},
+    ice:{l:'🧊 Ice',c:['#ffffff','#38bdf8','#04283f','#22d3ee']},
+    neon:{l:'💜 Neon',c:['#ffffff','#ffffff','#d62bc4','#d62bc4']},
+    comic:{l:'💥 Comic',c:['#ffe600','#ff9d00','#000000','#ffffff']},
+    d3:{l:'🧱 3D',c:['#ffffff','#ffd0f4','#7a1fd1','#000000']},
+    outline:{l:'⭕ Outline',c:['#ffffff','#ffffff','#ffffff','#00e5ff']},
+    glitch:{l:'📺 Glitch',c:['#ffffff','#ffffff','#00f0ff','#ff2a6d']},
+    red:{l:'🟥 Red Banner',c:['#ffffff','#ffffff','#000000','#e11d1d']},
+    clean:{l:'⚪ Clean',c:['#ffffff','#ffffff','#000000','#000000']}
+  };
+  const PALS=[
+    ['Gold',['#fff4b0','#ff8a00','#000000','#ffb300']],['Fire',['#fff1a8','#ff3b00','#3a0500','#ff6a00']],
+    ['Ice',['#ffffff','#38bdf8','#04283f','#22d3ee']],['Pink',['#ffffff','#ff5ec4','#4a0a3a','#ff2ea6']],
+    ['Purple',['#ffffff','#b86bff','#25085a','#8b08f2']],['Lime',['#faffb0','#34d399','#022c22','#a3e635']],
+    ['Neon Cyan',['#ffffff','#ffffff','#00e5ff','#00e5ff']],['Red',['#ffffff','#ff4d4d','#3b0000','#ff1a1a']],
+    ['Orange',['#ffffff','#ff9100','#2b1300','#ff7a00']],['Mint',['#ecfeff','#5eead4','#042f2e','#2dd4bf']],
+    ['White',['#ffffff','#ffffff','#000000','#000000']],['Yellow Banner',['#111111','#111111','#ffe600','#ffe600']],
+    ['Rainbow',['#ff4d4d','#7c5cff','#000000','#ffffff'],1]
+  ];
+  const NEED={single:1,split:2,blend:2,triple:3,trio:3},DEF={1:'single',2:'split',3:'triple'};
+  const S={frames:[],picks:[],sel:[],layout:'single',font:'noto',style:'gold',col:STYLES.gold.c.slice(),rainbow:false,
+    pos:'bottom',ratio:'16:9',mood:'cinematic',ai:[],aiOn:-1,titleEdited:false,token:0,busy:false,aiBusy:false};
   const cssv=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim()||'#8b5cf6';
-  function lines(text,font,maxW){
-    cx.font=font;
-    const out=[];
+  const setHint=t=>{$('thumbHint').textContent=t};
+  const setMsg=(id,t,err)=>{const e=$(id);e.textContent=t||'';e.classList.toggle('err',!!err);e.classList.toggle('ok',!err)};
+
+  /* ---------- generic chip groups ---------- */
+  function group(id,set){
+    $(id).addEventListener('click',e=>{
+      const b=e.target.closest('.chip');if(!b||b.disabled)return;
+      mark(id,b.dataset.v);set(b.dataset.v);
+    });
+  }
+  function mark(id,v){$(id).querySelectorAll('.chip').forEach(c=>{const on=c.dataset.v===v;c.classList.toggle('on',on);c.setAttribute('aria-checked',on)})}
+
+  /* ---------- fonts / styles / palettes UI ---------- */
+  $('thumbFont').innerHTML=Object.entries(FONTS).map(([k,f])=>`<button type="button" class="chip${k===S.font?' on':''}" role="radio" aria-checked="${k===S.font}" data-v="${k}"><b style="font-family:'${f.n}','Noto Sans Myanmar',sans-serif">${f.d}</b><span>${f.l}</span></button>`).join('');
+  $('thumbStyle').innerHTML=Object.entries(STYLES).map(([k,s])=>`<button type="button" class="chip${k===S.style?' on':''}" role="radio" aria-checked="${k===S.style}" data-v="${k}">${s.l}</button>`).join('');
+  $('thumbPal').innerHTML=PALS.map((p,i)=>{
+    const c=p[1],bg=p[2]?'linear-gradient(90deg,#ff4d4d,#ffb300,#facc15,#34d399,#22d3ee,#6366f1,#d946ef)':`linear-gradient(160deg,${c[0]},${c[1]})`;
+    return `<button type="button" data-i="${i}" style="--g:${bg}" title="${p[0]}" aria-label="${p[0]}"></button>`;
+  }).join('');
+  const colIds=['cFill1','cFill2','cStroke','cGlow'];
+  const syncCols=()=>colIds.forEach((id,i)=>{$(id).value=S.col[i]});
+  function clearPal(){$('thumbPal').querySelectorAll('button').forEach(b=>b.classList.remove('on'))}
+  function loadFont(k){
+    const f=FONTS[k];
+    return document.fonts&&document.fonts.load?Promise.all([document.fonts.load(`${f.w} 48px "${f.n}"`,'Aa မြန်မာ'),document.fonts.load('800 48px "Noto Sans Myanmar"','မြန်မာ')]).catch(()=>{}):Promise.resolve();
+  }
+  group('thumbFont',v=>{S.font=v;loadFont(v).then(draw);draw()});
+  group('thumbStyle',v=>{S.style=v;S.col=STYLES[v].c.slice();S.rainbow=false;syncCols();clearPal();draw()});
+  $('thumbPal').addEventListener('click',e=>{
+    const b=e.target.closest('button');if(!b)return;
+    const p=PALS[b.dataset.i];S.col=p[1].slice();S.rainbow=!!p[2];syncCols();clearPal();b.classList.add('on');draw();
+  });
+  colIds.forEach((id,i)=>$(id).addEventListener('input',()=>{S.col[i]=$(id).value;S.rainbow=false;clearPal();draw()}));
+  group('thumbPos',v=>{S.pos=v;draw()});
+  group('thumbMood',v=>{S.mood=v});
+  group('thumbRatio',v=>{S.ratio=v;cv.width=v==='9:16'?720:1280;cv.height=v==='9:16'?1280:720;cv.classList.toggle('tall',v==='9:16');
+    document.querySelectorAll('.pickCard img,#thumbAll img').forEach(i=>i.style.aspectRatio='');draw()});
+  group('thumbLayout',v=>{S.layout=v;draw()});
+  ['thumbTitle','thumbSub','thumbPop'].forEach(id=>$(id).addEventListener('input',()=>{if(id==='thumbTitle'){S.titleEdited=true;markChips()}draw()}));
+  $('thumbZoom').addEventListener('input',()=>{$('thumbZoomV').textContent=$('thumbZoom').value+'%';draw()});
+  $('thumbSize').addEventListener('input',()=>{$('thumbSizeV').textContent=$('thumbSize').value+'%';draw()});
+
+  /* ---------- title suggestion chips ---------- */
+  function chips(box,list,target,flag){
+    $(box).innerHTML=list.map(t=>`<button type="button" data-t="${esc(t)}">${esc(t)}</button>`).join('');
+    $(box).onclick=e=>{const b=e.target.closest('button');if(!b)return;$(target).value=b.dataset.t;if(flag)S.titleEdited=true;markChips();draw()};
+    markChips();
+  }
+  function markChips(){
+    [['thumbTitles','thumbTitle'],['thumbSubs','thumbSub']].forEach(([b,t])=>$(b).querySelectorAll('button').forEach(x=>x.classList.toggle('on',x.dataset.t===$(t).value.trim())));
+  }
+
+  /* ---------- frame extraction ---------- */
+  const N=16;
+  function seek(t){
+    return new Promise(r=>{
+      const done=()=>{tv.removeEventListener('seeked',done);clearTimeout(to);r()};
+      const to=setTimeout(done,6000);tv.addEventListener('seeked',done);
+      tv.currentTime=Math.max(.05,Math.min(t,(tv.duration||t)-.05));
+    });
+  }
+  function scoreOf(c){
+    const w=64,h=Math.max(8,Math.round(64*c.height/c.width)),t=document.createElement('canvas');t.width=w;t.height=h;
+    const g=t.getContext('2d',{willReadFrequently:true});g.drawImage(c,0,0,w,h);
+    const d=g.getImageData(0,0,w,h).data,L=new Float32Array(w*h);let sum=0,sat=0;
+    for(let i=0;i<w*h;i++){const r=d[i*4],gg=d[i*4+1],b=d[i*4+2];L[i]=.299*r+.587*gg+.114*b;sum+=L[i];sat+=Math.max(r,gg,b)-Math.min(r,gg,b)}
+    const mean=sum/(w*h);let grad=0;
+    for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;grad+=Math.abs(4*L[i]-L[i-1]-L[i+1]-L[i-w]-L[i+w])}
+    let s=(grad/(w*h))*(1+sat/(w*h)/90);
+    if(mean<30)s*=.15;else if(mean<55)s*=.6;if(mean>225)s*=.35;
+    return s;
+  }
+  function shrink(c,max,q){
+    const k=Math.min(1,max/Math.max(c.width,c.height)),t=document.createElement('canvas');t.width=Math.round(c.width*k);t.height=Math.round(c.height*k);
+    t.getContext('2d').drawImage(c,0,0,t.width,t.height);return t.toDataURL('image/jpeg',q);
+  }
+  function localPicks(){
+    const order=S.frames.map((f,i)=>i).sort((a,b)=>S.frames[b].score-S.frames[a].score),out=[];
+    for(const i of order){if(out.every(o=>Math.abs(o.i-i)>=2))out.push({i,label:'',reason:''});if(out.length===3)break}
+    for(const i of order){if(out.length>=3)break;if(!out.some(o=>o.i===i))out.push({i,label:'',reason:''})}
+    return out;
+  }
+  async function extract(tok){
+    S.frames=[];S.picks=[];S.sel=[];renderPicks(true);
+    const d=tv.duration||1;
+    for(let k=0;k<N;k++){
+      if(tok!==S.token)return false;
+      setHint(`🎞️ Movie ထဲက frame ဖတ်နေပါတယ်... ${k+1}/${N}`);
+      await seek(d*(.04+.92*k/(N-1)));
+      const vw=tv.videoWidth,vh=tv.videoHeight;if(!vw||!vh)continue;
+      const sc=Math.min(1,1280/Math.max(vw,vh)),c=document.createElement('canvas');c.width=Math.round(vw*sc);c.height=Math.round(vh*sc);
+      c.getContext('2d').drawImage(tv,0,0,c.width,c.height);
+      S.frames.push({t:tv.currentTime,cv:c,score:scoreOf(c),thumb:shrink(c,420,.72),label:'',reason:''});
+    }
+    return tok===S.token&&S.frames.length>0;
+  }
+
+  /* ---------- picks UI ---------- */
+  function toggleSel(i){
+    const at=S.sel.indexOf(i),old=S.sel.length;
+    if(at>=0){if(S.sel.length===1)return;S.sel.splice(at,1)}
+    else{S.sel.push(i);if(S.sel.length>3)S.sel.shift()}
+    const n=S.sel.length;
+    if(n>old||NEED[S.layout]>n){S.layout=DEF[n];mark('thumbLayout',S.layout)}
+    refreshSel();draw();
+  }
+  function renderPicks(loading){
+    const box=$('thumbPicks');
+    if(loading){box.innerHTML=[0,1,2].map(()=>'<div class="pickCard skel"><img alt="" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="><div class="pc"><b>…</b><span>&nbsp;</span></div></div>').join('');return}
+    box.innerHTML=S.picks.map((p,k)=>{
+      const f=S.frames[p.i];
+      return `<button type="button" class="pickCard" data-i="${p.i}"><img alt="" src="${f.thumb}"><span class="rank">${k===0?'⭐ အကောင်းဆုံး':'ရွေးချယ်ချက် '+(k+1)}</span><span class="no"></span><div class="pc"><b>${esc(p.label||('Frame '+(p.i+1)))}</b><span>${esc(p.reason||('⏱ '+mmss(f.t)))}</span></div></button>`;
+    }).join('');
+    box.querySelectorAll('.pickCard').forEach(b=>b.onclick=()=>toggleSel(+b.dataset.i));
+    $('thumbAll').innerHTML=S.frames.map((f,i)=>`<button type="button" data-i="${i}" title="${mmss(f.t)}"><img alt="" src="${f.thumb}"><i></i></button>`).join('');
+    $('thumbAll').querySelectorAll('button').forEach(b=>b.onclick=()=>toggleSel(+b.dataset.i));
+    refreshSel();
+  }
+  function refreshSel(){
+    document.querySelectorAll('.pickCard[data-i],#thumbAll button').forEach(b=>{
+      const at=S.sel.indexOf(+b.dataset.i);b.classList.toggle('on',at>=0);
+      const n=b.querySelector('.no,i');if(n)n.textContent=at>=0?at+1:'';
+    });
+    $('thumbLayout').querySelectorAll('.chip').forEach(c=>{c.disabled=NEED[c.dataset.v]>S.sel.length});
+    mark('thumbLayout',S.layout);
+    $('thumbSelInfo').textContent=S.sel.length>1?`· ပုံ ${S.sel.length} ပုံ ပေါင်းထားတယ်`:'· ပုံ ၁ ပုံ (အပေါ်က ပုံတွေကို နှိပ်ရင် ပေါင်းလို့ရ)';
+  }
+
+  /* ---------- drawing ---------- */
+  function cover(c,src,x,y,w,h,z){
+    const W0=src.width||src.naturalWidth,H0=src.height||src.naturalHeight;if(!W0||!H0)return;
+    const sr=W0/H0,r=w/h;let sw,sh;
+    if(sr>r){sh=H0/z;sw=sh*r}else{sw=W0/z;sh=sw/r}
+    c.drawImage(src,(W0-sw)/2,(H0-sh)*.4,sw,sh,x,y,w,h);
+  }
+  const poly=(c,p)=>{c.beginPath();p.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));c.closePath()};
+  function composeFrames(c,W,H){
+    c.fillStyle='#000';c.fillRect(0,0,W,H);
+    const F=S.sel.map(i=>S.frames[i]&&S.frames[i].cv).filter(Boolean);
+    if(!F.length){const g=c.createLinearGradient(0,0,W,H);g.addColorStop(0,cssv('--a1'));g.addColorStop(1,cssv('--a2'));c.fillStyle=g;c.fillRect(0,0,W,H);return}
+    const A=F[0],B=F[1]||A,C=F[2]||A,z=Number($('thumbZoom').value)/100,wide=W>=H,L=F.length<NEED[S.layout]?'single':S.layout;
+    c.save();c.filter=$('thumbPop').checked?'saturate(1.35) contrast(1.12) brightness(1.06)':'none';
+    const clipCover=(p,img,x,y,w,h)=>{c.save();poly(c,p);c.clip();cover(c,img,x,y,w,h,z);c.restore()};
+    const lines=[];
+    if(L==='single')cover(c,A,0,0,W,H,z);
+    else if(L==='split'){
+      if(wide){clipCover([[0,0],[W*.56,0],[W*.44,H],[0,H]],A,0,0,W*.56,H);clipCover([[W*.56,0],[W,0],[W,H],[W*.44,H]],B,W*.44,0,W*.56,H);lines.push([W*.56,0,W*.44,H])}
+      else{clipCover([[0,0],[W,0],[W,H*.46],[0,H*.54]],A,0,0,W,H*.54);clipCover([[0,H*.54],[W,H*.46],[W,H],[0,H]],B,0,H*.46,W,H*.54);lines.push([0,H*.54,W,H*.46])}
+    }else if(L==='blend'){
+      const t=document.createElement('canvas');t.width=W;t.height=H;const g=t.getContext('2d');
+      if(wide){cover(c,A,0,0,W*.62,H,z);cover(g,B,W*.38,0,W*.62,H,z);const m=g.createLinearGradient(W*.38,0,W*.64,0);m.addColorStop(0,'rgba(0,0,0,0)');m.addColorStop(1,'#000');g.globalCompositeOperation='destination-in';g.fillStyle=m;g.fillRect(0,0,W,H)}
+      else{cover(c,A,0,0,W,H*.62,z);cover(g,B,0,H*.38,W,H*.62,z);const m=g.createLinearGradient(0,H*.38,0,H*.64);m.addColorStop(0,'rgba(0,0,0,0)');m.addColorStop(1,'#000');g.globalCompositeOperation='destination-in';g.fillStyle=m;g.fillRect(0,0,W,H)}
+      c.filter='none';c.drawImage(t,0,0);
+    }else if(L==='triple'){
+      if(wide){cover(c,A,0,0,W*.6,H,z);cover(c,B,W*.6,0,W*.4,H/2,z);cover(c,C,W*.6,H/2,W*.4,H/2,z);lines.push([W*.6,0,W*.6,H],[W*.6,H/2,W,H/2])}
+      else{cover(c,A,0,0,W,H*.58,z);cover(c,B,0,H*.58,W/2,H*.42,z);cover(c,C,W/2,H*.58,W/2,H*.42,z);lines.push([0,H*.58,W,H*.58],[W/2,H*.58,W/2,H])}
+    }else if(L==='trio'){
+      if(wide){const s=W*.05,a=W/3,b=2*W/3;
+        clipCover([[0,0],[a+s,0],[a-s,H],[0,H]],A,0,0,a+s,H);
+        clipCover([[a+s,0],[b+s,0],[b-s,H],[a-s,H]],B,a-s,0,a+2*s,H);
+        clipCover([[b+s,0],[W,0],[W,H],[b-s,H]],C,b-s,0,a+s,H);
+        lines.push([a+s,0,a-s,H],[b+s,0,b-s,H]);
+      }else{const s=H*.035,a=H/3,b=2*H/3;
+        clipCover([[0,0],[W,0],[W,a-s],[0,a+s]],A,0,0,W,a+s);
+        clipCover([[0,a+s],[W,a-s],[W,b-s],[0,b+s]],B,0,a-s,W,a+2*s);
+        clipCover([[0,b+s],[W,b-s],[W,H],[0,H]],C,0,b-s,W,a+s);
+        lines.push([0,a+s,W,a-s],[0,b+s,W,b-s]);
+      }
+    }
+    c.restore();
+    lines.forEach(l=>{c.save();c.strokeStyle='#fff';c.lineWidth=Math.max(3,W*.004);c.shadowColor=cssv('--a1');c.shadowBlur=W*.02;c.beginPath();c.moveTo(l[0],l[1]);c.lineTo(l[2],l[3]);c.stroke();c.restore()});
+  }
+  function drawBg(c,W,H,allowAi){
+    if(allowAi&&S.aiOn>=0&&S.ai[S.aiOn]){c.fillStyle='#000';c.fillRect(0,0,W,H);cover(c,S.ai[S.aiOn].img,0,0,W,H,1)}
+    else composeFrames(c,W,H);
+  }
+  const stack=()=>`"${FONTS[S.font].n}","Noto Sans Myanmar","Padauk",sans-serif`;
+  function wrap(text,font,maxW){
+    cx.font=font;const out=[];
     for(const para of String(text).split(/\n/)){
       const seg=typeof Intl!=='undefined'&&Intl.Segmenter?[...new Intl.Segmenter('my',{granularity:'word'}).segment(para)].map(x=>x.segment):[...para];
       let line='';
-      for(const w of seg){
-        if(cx.measureText(line+w).width>maxW&&line.trim()){out.push(line.trim());line=w.trimStart()}else line+=w;
-      }
+      for(const w of seg){if(cx.measureText(line+w).width>maxW&&line.trim()){out.push(line.trim());line=w.trimStart()}else line+=w}
       if(line.trim())out.push(line.trim());
     }
     return out;
   }
-  function fit(text,W,maxH,fam,weight){
-    let size=Math.round(W*(ratio==='9:16'?.15:.098));
-    for(;size>28;size-=4){
-      const font=weight+' '+size+'px '+fam;
-      const ls=lines(text,font,W*.86);
-      if(ls.length<=3&&ls.length*size*1.32<=maxH)return{size,font,ls};
+  function fit(text,W,maxH){
+    const mul=Number($('thumbSize').value)/100,fw=FONTS[S.font].w;
+    let size=Math.round(W*(S.ratio==='9:16'?.15:.098)*mul);
+    for(;size>26;size-=4){
+      const font=fw+' '+size+'px '+stack(),ls=wrap(text,font,W*.88);
+      if(ls.length<=4&&ls.length*size*1.32<=maxH)return{size,font,ls};
     }
-    const font=weight+' 28px '+fam;return{size:28,font,ls:lines(text,font,W*.86)};
+    const font=fw+' 26px '+stack();return{size:26,font,ls:wrap(text,font,W*.88)};
   }
-  function draw(){
-    cancelAnimationFrame(raf);raf=requestAnimationFrame(render);
+  function fillStyleFor(x,cy,lh,w){
+    const [c1,c2]=S.col;
+    if(S.rainbow){const g=cx.createLinearGradient(x-w/2,0,x+w/2,0);['#ff4d4d','#ff9d00','#ffe600','#34d399','#22d3ee','#6366f1','#d946ef'].forEach((h,i,a)=>g.addColorStop(i/(a.length-1),h));return g}
+    const g=cx.createLinearGradient(0,cy-lh/2,0,cy+lh/2);g.addColorStop(.1,c1);g.addColorStop(.9,c2);return g;
   }
+  function drawLine(ln,x,cy,f,lh){
+    const [c1,c2,st,gl]=S.col,sz=f.size,w=cx.measureText(ln).width,fill=()=>fillStyleFor(x,cy,lh,w);
+    cx.font=f.font;cx.lineJoin='round';cx.miterLimit=2;
+    switch(S.style){
+      case 'red':{const bw=w+sz*.7;cx.fillStyle=gl;cx.fillRect(x-bw/2,cy-lh*.46,bw,lh*.92);cx.fillStyle=S.rainbow?fill():c1;cx.fillText(ln,x,cy);break}
+      case 'gold':case 'comic':{
+        if(S.style==='comic'){cx.lineWidth=sz*.3;cx.strokeStyle=gl;cx.strokeText(ln,x,cy)}
+        cx.lineWidth=sz*(S.style==='comic'?.16:.16);cx.strokeStyle=st;cx.strokeText(ln,x,cy);
+        cx.shadowColor='rgba(0,0,0,.55)';cx.shadowBlur=sz*.1;cx.shadowOffsetY=sz*.04;cx.fillStyle=fill();cx.fillText(ln,x,cy);break}
+      case 'fire':case 'ice':{
+        cx.shadowColor=gl;cx.shadowBlur=sz*.5;cx.lineWidth=sz*.14;cx.strokeStyle=st;cx.strokeText(ln,x,cy);cx.shadowBlur=0;cx.fillStyle=fill();cx.fillText(ln,x,cy);break}
+      case 'neon':{
+        cx.shadowColor=gl;cx.shadowBlur=sz*.55;cx.lineWidth=sz*.05;cx.strokeStyle=st;cx.strokeText(ln,x,cy);cx.strokeText(ln,x,cy);cx.shadowBlur=sz*.2;cx.fillStyle=S.rainbow?fill():c1;cx.fillText(ln,x,cy);cx.shadowBlur=0;cx.fillText(ln,x,cy);break}
+      case 'd3':{
+        const dp=Math.max(4,Math.round(sz*.1));cx.fillStyle=gl;cx.strokeStyle=gl;cx.lineWidth=sz*.08;
+        for(let i=dp;i>0;i--){cx.strokeStyle=i>dp*.6?gl:st;cx.strokeText(ln,x+i*.7,cy+i);}
+        cx.lineWidth=sz*.07;cx.strokeStyle=st;cx.strokeText(ln,x,cy);cx.fillStyle=fill();cx.fillText(ln,x,cy);break}
+      case 'outline':{
+        cx.shadowColor=gl;cx.shadowBlur=sz*.35;cx.lineWidth=sz*.045;cx.strokeStyle=S.rainbow?fill():c1;cx.strokeText(ln,x,cy);cx.shadowBlur=0;cx.fillStyle='rgba(0,0,0,.28)';cx.fillText(ln,x,cy);cx.strokeText(ln,x,cy);break}
+      case 'glitch':{
+        const o=sz*.045;cx.globalAlpha=.9;cx.fillStyle=st;cx.fillText(ln,x-o,cy);cx.fillStyle=gl;cx.fillText(ln,x+o,cy+o*.3);cx.globalAlpha=1;
+        cx.shadowColor='rgba(0,0,0,.6)';cx.shadowBlur=sz*.1;cx.fillStyle=fill();cx.fillText(ln,x,cy);break}
+      default:{
+        cx.shadowColor='rgba(0,0,0,.75)';cx.shadowBlur=sz*.25;cx.shadowOffsetY=sz*.05;cx.fillStyle=fill();cx.fillText(ln,x,cy);
+      }
+    }
+    cx.shadowBlur=0;cx.shadowOffsetY=0;cx.shadowColor='transparent';
+  }
+  let raf=0;const draw=()=>{cancelAnimationFrame(raf);raf=requestAnimationFrame(render)};
   function render(){
-    const W=cv.width,H=cv.height;
-    cx.clearRect(0,0,W,H);
-    if(ready&&tv.videoWidth){
-      const vr=tv.videoWidth/tv.videoHeight,cr=W/H;let sw,sh,sx,sy;
-      if(vr>cr){sh=tv.videoHeight;sw=sh*cr;sx=(tv.videoWidth-sw)/2;sy=0}else{sw=tv.videoWidth;sh=sw/cr;sx=0;sy=(tv.videoHeight-sh)/2}
-      cx.filter=$('thumbPop').checked?'saturate(1.35) contrast(1.12) brightness(1.06)':'none';
-      cx.drawImage(tv,sx,sy,sw,sh,0,0,W,H);cx.filter='none';
-    }else{
-      const g=cx.createLinearGradient(0,0,W,H);g.addColorStop(0,cssv('--a1'));g.addColorStop(1,cssv('--a2'));cx.fillStyle=g;cx.fillRect(0,0,W,H);
-    }
-    // shade the side the text sits on so it stays readable on any frame
-    const top=pos==='top',sg=cx.createLinearGradient(0,top?0:H,0,top?H*.65:H*.35);
-    sg.addColorStop(0,'rgba(0,0,0,.82)');sg.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=sg;cx.fillRect(0,0,W,H);
-    const vg=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*.45,W/2,H/2,Math.max(W,H)*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.45)');cx.fillStyle=vg;cx.fillRect(0,0,W,H);
+    const W=cv.width,H=cv.height;cx.clearRect(0,0,W,H);
+    drawBg(cx,W,H,true);
+    const ai=S.aiOn>=0,pos=S.pos,k=ai?.6:1;
+    let sg;
+    if(pos==='middle'){sg=cx.createLinearGradient(0,H*.15,0,H*.85);sg.addColorStop(0,'rgba(0,0,0,0)');sg.addColorStop(.5,`rgba(0,0,0,${.6*k})`);sg.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=sg;cx.fillRect(0,0,W,H)}
+    else{const top=pos==='top';sg=cx.createLinearGradient(0,top?0:H,0,top?H*.65:H*.35);sg.addColorStop(0,`rgba(0,0,0,${.82*k})`);sg.addColorStop(1,'rgba(0,0,0,0)');cx.fillStyle=sg;cx.fillRect(0,0,W,H)}
+    const vg=cx.createRadialGradient(W/2,H/2,Math.min(W,H)*.45,W/2,H/2,Math.max(W,H)*.75);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.4)');cx.fillStyle=vg;cx.fillRect(0,0,W,H);
 
-    const fam='"Noto Sans Myanmar","Plus Jakarta Sans",sans-serif';
     const title=$('thumbTitle').value.trim(),sub=$('thumbSub').value.trim();
-    const f=fit(title||' ',W,H*.5,fam,'800');
-    const lh=f.size*1.32,subSize=Math.round(f.size*.42),gap=sub?subSize*1.9:0;
-    const blockH=f.ls.length*lh+gap;
-    let y=top?H*.07:H*.93-blockH;
-    cx.textAlign='center';cx.textBaseline='middle';cx.lineJoin='round';
+    const f=fit(title||' ',W,H*.55),lh=f.size*1.32,subSize=Math.round(f.size*.42),gap=sub?subSize*1.9:0,blockH=f.ls.length*lh+gap;
+    let y=pos==='top'?H*.06:pos==='middle'?(H-blockH)/2:H*.94-blockH;
+    cx.textAlign='center';cx.textBaseline='middle';
     if(sub){
-      cx.font='700 '+subSize+'px '+fam;
-      const sw=cx.measureText(sub).width+subSize*1.4,sh=subSize*1.6;
-      cx.fillStyle=style==='red'?'#fff':cssv('--a1');cx.beginPath();
-      (cx.roundRect?cx.roundRect(W/2-sw/2,y,sw,sh,sh/2):cx.rect(W/2-sw/2,y,sw,sh));cx.fill();
-      cx.fillStyle=style==='red'?'#c81e1e':'#fff';cx.fillText(sub,W/2,y+sh/2+1);
+      const sf=`700 ${subSize}px ${stack()}`;cx.font=sf;
+      const sw=cx.measureText(sub).width+subSize*1.4,sh=subSize*1.6,banner=S.style==='red';
+      cx.fillStyle=banner?'#fff':S.col[3];cx.beginPath();cx.roundRect?cx.roundRect(W/2-sw/2,y,sw,sh,sh/2):cx.rect(W/2-sw/2,y,sw,sh);cx.fill();
+      const lum=h=>{const n=parseInt(h.slice(1),16);return ((n>>16)*.299+((n>>8)&255)*.587+(n&255)*.114)};
+      cx.fillStyle=banner?S.col[3]:(lum(S.col[3])>170?'#111':'#fff');cx.fillText(sub,W/2,y+sh/2+1);
       y+=gap;
     }
-    f.ls.forEach((ln,i)=>{
-      const cy=y+lh*i+lh/2;cx.font=f.font;
-      if(style==='red'){
-        const w=cx.measureText(ln).width+f.size*.7;cx.fillStyle='#e11d1d';cx.fillRect(W/2-w/2,cy-lh*.46,w,lh*.92);
-        cx.fillStyle='#fff';cx.fillText(ln,W/2,cy);
-      }else if(style==='gold'){
-        cx.lineWidth=f.size*.16;cx.strokeStyle='#000';cx.strokeText(ln,W/2,cy);
-        const g=cx.createLinearGradient(0,cy-lh/2,0,cy+lh/2);g.addColorStop(0,'#fff4b0');g.addColorStop(.5,'#ffc21a');g.addColorStop(1,'#ff8a00');
-        cx.fillStyle=g;cx.fillText(ln,W/2,cy);
-      }else if(style==='neon'){
-        cx.shadowColor=cssv('--a1');cx.shadowBlur=f.size*.5;cx.fillStyle='#fff';cx.fillText(ln,W/2,cy);cx.fillText(ln,W/2,cy);cx.shadowBlur=0;
-      }else{
-        cx.shadowColor='rgba(0,0,0,.7)';cx.shadowBlur=f.size*.25;cx.shadowOffsetY=f.size*.05;cx.fillStyle='#fff';cx.fillText(ln,W/2,cy);cx.shadowBlur=0;cx.shadowOffsetY=0;
-      }
-    });
+    f.ls.forEach((ln,i)=>{cx.font=f.font;drawLine(ln,W/2,y+lh*i+lh/2,f,lh)});
+    drawVersions();
   }
+
+  /* ---------- versions strip (original + AI results) ---------- */
+  function drawVersions(){
+    const box=$('thumbVers'),wide=cv.width>=cv.height;
+    if(!S.frames.length){box.innerHTML='';return}
+    let o=box.querySelector('canvas');
+    if(!o||box.dataset.n!==String(S.ai.length)||box.dataset.r!==S.ratio){
+      box.dataset.n=S.ai.length;box.dataset.r=S.ratio;
+      box.innerHTML=`<button type="button" data-k="-1"><canvas width="${wide?114:36}" height="${wide?64:64}"></canvas><span>ပုံမူရင်း</span></button>`+S.ai.map((a,i)=>`<button type="button" data-k="${i}"><img alt="" src="${a.url}"><span>✨ AI ${i+1}</span></button>`).join('');
+      box.querySelectorAll('button').forEach(b=>b.onclick=()=>{S.aiOn=+b.dataset.k;draw()});
+      o=box.querySelector('canvas');
+    }
+    if(!wide){o.width=36;o.height=64}else{o.width=114;o.height=64}
+    drawBg(o.getContext('2d'),o.width,o.height,false);
+    box.querySelectorAll('button').forEach(b=>b.classList.toggle('on',+b.dataset.k===S.aiOn));
+  }
+
+  /* ---------- AI calls ---------- */
+  async function postJson(url,body){
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||d.error)throw new Error(d.error||('Server error '+r.status));
+    return d;
+  }
+  async function analyze(tok){
+    $('thumbAnalyze').disabled=true;setHint('🤖 AI က ဇာတ်ကောင်/အဓိကနေရာတွေ ရွေးနေပါတယ်...');
+    try{
+      const ctx=(typeof scenes!=='undefined'&&Array.isArray(scenes)?scenes:[]).map(s=>s.narration||s.text||'').join(' ').slice(0,1800);
+      const d=await postJson('/api/thumbnail/analyze',{frames:S.frames.map(f=>shrink(f.cv,512,.72)),context:ctx,titleHint:S.titleEdited?$('thumbTitle').value.trim():''});
+      if(tok!==S.token)return;
+      const used=new Set(),picks=[];
+      for(const p of d.picks||[]){if(S.frames[p.frame]&&!used.has(p.frame)){used.add(p.frame);picks.push({i:p.frame,label:p.label,reason:p.reason})}}
+      for(const p of localPicks()){if(picks.length>=3)break;if(!used.has(p.i)){used.add(p.i);picks.push(p)}}
+      S.picks=picks.slice(0,3);S.sel=[S.picks[0].i];S.layout='single';mark('thumbLayout','single');
+      renderPicks();
+      if(d.titles?.length){chips('thumbTitles',d.titles,'thumbTitle',true);if(!S.titleEdited){$('thumbTitle').value=d.titles[0];markChips()}}
+      if(d.subtitles?.length)chips('thumbSubs',d.subtitles.slice(0,5),'thumbSub',false);
+      setHint('✅ AI ရွေးပေးပြီးပါပြီ။ ပုံကို နှိပ်ပြီး ရွေးမယ်၊ ၂-၃ ပုံ နှိပ်ရင် ပေါင်းပေးပါမယ်။');
+    }catch(e){
+      if(tok!==S.token)return;
+      setHint('⚠️ AI မရလို့ ပုံအရည်အသွေးကြည့်ပြီး အလိုအလျောက် ရွေးထားပါတယ်။ '+friendly(e.message).split('\n')[0]);
+    }finally{if(tok===S.token)$('thumbAnalyze').disabled=false;draw()}
+  }
+  $('thumbAnalyze').onclick=()=>{if(S.frames.length)analyze(S.token)};
+
+  $('thumbAiGen').onclick=async()=>{
+    if(S.aiBusy||!S.frames.length)return;
+    const tok=S.token,btn=$('thumbAiGen');S.aiBusy=true;btn.disabled=true;btn.textContent='✨ AI က ဆွဲနေပါတယ်... (၂၀-၆၀ စက္ကန့်)';setMsg('thumbAiMsg','');
+    try{
+      const W=cv.width,H=cv.height,t=document.createElement('canvas');t.width=W;t.height=H;
+      drawBg(t.getContext('2d'),W,H,false);
+      const d=await postJson('/api/thumbnail/ai',{image:t.toDataURL('image/jpeg',.9),ratio:S.ratio,mood:S.mood,textPos:S.pos,title:$('thumbTitle').value.trim()});
+      if(tok!==S.token)return;
+      const img=new Image();await new Promise((res,rej)=>{img.onload=res;img.onerror=()=>rej(new Error('AI ပုံ ဖွင့်မရပါ'));img.src=d.image});
+      S.ai.push({url:d.image,img});S.aiOn=S.ai.length-1;
+      setMsg('thumbAiMsg','✅ AI ပုံ ရပါပြီ! ကြိုက်ရင် စာကိုပြင်ပြီး Download လုပ်ပါ၊ မကြိုက်ရင် ထပ်နှိပ်ပါ။');
+    }catch(e){setMsg('thumbAiMsg','❌ '+friendly(e.message),true)}
+    finally{S.aiBusy=false;btn.disabled=!S.frames.length;btn.textContent='✨ AI နဲ့ ပုံလှ ထုတ်မယ်';draw()}
+  };
+
+  /* ---------- movie loaded ---------- */
   window.onThumbMovie=u=>{
-    ready=false;$('thumbDl').disabled=true;$('thumbHint').textContent='Frame ကို ဖတ်နေပါတယ်...';
+    const tok=++S.token;
+    S.frames=[];S.picks=[];S.sel=[];S.ai=[];S.aiOn=-1;S.layout='single';S.titleEdited=false;
+    mark('thumbLayout','single');
+    ['thumbDl','thumbAnalyze','thumbAiGen'].forEach(id=>$(id).disabled=true);
+    $('thumbTitles').innerHTML='';$('thumbSubs').innerHTML='';setMsg('thumbAiMsg','');
+    setHint('Movie ကို ဖတ်နေပါတယ်...');renderPicks(true);draw();
+    tv.onloadedmetadata=async()=>{
+      const ok=await extract(tok);
+      if(tok!==S.token)return;
+      if(!ok){setHint('❌ Frame မဖတ်နိုင်ပါ။ ဒီ video format ကို browser က မဖွင့်နိုင်ပါ (MP4 နဲ့ ပြန်စမ်းပါ)။');$('thumbPicks').innerHTML='';return}
+      S.picks=localPicks();S.sel=[S.picks[0].i];
+      renderPicks();$('thumbDl').disabled=false;$('thumbAiGen').disabled=false;draw();
+      analyze(tok);
+    };
+    tv.onerror=()=>{if(tok===S.token){setHint('❌ Video ကို browser က မဖွင့်နိုင်ပါ။');$('thumbPicks').innerHTML=''}};
     tv.src=u;tv.load();
   };
-  tv.addEventListener('loadedmetadata',()=>{tv.currentTime=Math.max(.1,(tv.duration||1)*Number($('thumbSeek').value)/1000)});
-  tv.addEventListener('seeked',()=>{ready=true;$('thumbDl').disabled=false;$('thumbHint').textContent='Slider ကို ရွှေ့ပြီး ကြိုက်တဲ့ frame ကို ရွေးပါ။';draw()});
-  $('thumbSeek').addEventListener('input',()=>{if(tv.duration)tv.currentTime=Math.min(tv.duration-.05,tv.duration*Number($('thumbSeek').value)/1000)});
+
   $('thumbDl').onclick=()=>{
     render();
     cv.toBlob(b=>{
       if(!b){$('thumbMsg').textContent='❌ ပုံ မထုတ်နိုင်ပါ';return}
-      const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='YNT-Thumbnail-'+ratio.replace(':','x')+'.png';document.body.appendChild(a);a.click();a.remove();
+      const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='YNT-Thumbnail-'+S.ratio.replace(':','x')+'.png';document.body.appendChild(a);a.click();a.remove();
       $('thumbMsg').textContent='✅ Download လုပ်ပြီးပါပြီ';setTimeout(()=>URL.revokeObjectURL(a.href),4000);
     },'image/png');
   };
-  (document.fonts&&document.fonts.load?document.fonts.load('800 40px "Noto Sans Myanmar"','မြန်မာ').catch(()=>{}):Promise.resolve()).then(draw);
+  refreshSel();
+  const fontsReady=()=>Promise.all(Object.keys(FONTS).map(loadFont));
+  fontsReady().then(draw);
   if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw);
   draw();
+  window.__thumb={S,draw,toggleSel};
 })();
 
 /* ---------- SRT tool ---------- */
