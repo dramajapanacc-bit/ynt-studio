@@ -578,7 +578,7 @@ textarea:focus{border-color:var(--ring)}
 
   <div class="tools">
     <div>
-      <canvas class="thumbCv" id="thumbCv" width="1280" height="720" aria-label="Thumbnail preview"></canvas>
+      <canvas class="thumbCv" id="thumbCv" width="1920" height="1080" aria-label="Thumbnail preview"></canvas>
       <div class="opt"><span class="fl">ပုံပေါင်းပုံစံ <small id="thumbSelInfo"></small></span>
         <div class="chips lay" id="thumbLayout" role="radiogroup" aria-label="ပုံပေါင်းပုံစံ">
           <button type="button" class="chip on" role="radio" aria-checked="true" data-v="single">🖼️ တစ်ပုံ</button>
@@ -598,6 +598,10 @@ textarea:focus{border-color:var(--ring)}
     <div class="tcol">
       <div class="tStep inner">
         <div class="tHead"><b><span class="tn">2</span>ခေါင်းစဉ်</b></div>
+        <label class="fl" for="thumbStory">ဇာတ်လမ်းအကျဉ်း <small>(မရေးလည်းရ — Recap script ရှိရင် အလိုအလျောက်ယူမယ်)</small></label>
+        <textarea id="thumbStory" class="txt" rows="3" maxlength="3000" placeholder="ဥပမာ - မိန်းကလေးတစ်ယောက် အလုပ်လျှောက်ရန်လာပြီး ကုမ္ပဏီရဲ့ လျှို့ဝှက်ချက်ကို တွေ့သွားတယ်..."></textarea>
+        <button type="button" class="btn2 pri" id="thumbTitleGen" style="width:100%;margin:8px 0 6px" disabled>✍️ ဇာတ်လမ်းနဲ့ လိုက်တဲ့ ခေါင်းစဉ် ရေးပေးမယ်</button>
+        <p class="vmsg" id="thumbTitleMsg" role="status" style="margin:0 0 8px"></p>
         <div class="titleChips" id="thumbTitles"></div>
         <textarea id="thumbTitle" class="txt" rows="2" maxlength="80" placeholder="ဥပမာ - ကမ္ဘာပျက်မယ့်နေ့" aria-label="ခေါင်းစဉ်">ကမ္ဘာပျက်မယ့်နေ့</textarea>
         <label class="fl" for="thumbSub" style="margin-top:10px">စာတန်းငယ် (မလိုရင် ဖျက်ထားပါ)</label>
@@ -1029,7 +1033,7 @@ chipGroup('speedChips','voiceSpeed');
   colIds.forEach((id,i)=>$(id).addEventListener('input',()=>{S.col[i]=$(id).value;S.rainbow=false;clearPal();draw()}));
   group('thumbPos',v=>{S.pos=v;draw()});
   group('thumbMood',v=>{S.mood=v});
-  group('thumbRatio',v=>{S.ratio=v;cv.width=v==='9:16'?720:1280;cv.height=v==='9:16'?1280:720;cv.classList.toggle('tall',v==='9:16');
+  group('thumbRatio',v=>{S.ratio=v;cv.width=v==='9:16'?1080:1920;cv.height=v==='9:16'?1920:1080;cv.classList.toggle('tall',v==='9:16');
     document.querySelectorAll('.pickCard img,#thumbAll img').forEach(i=>i.style.aspectRatio='');draw()});
   group('thumbLayout',v=>{S.layout=v;draw()});
   ['thumbTitle','thumbSub','thumbPop'].forEach(id=>$(id).addEventListener('input',()=>{if(id==='thumbTitle'){S.titleEdited=true;markChips()}draw()}));
@@ -1047,7 +1051,7 @@ chipGroup('speedChips','voiceSpeed');
   }
 
   /* ---------- frame extraction ---------- */
-  const N=16;
+  const N=14;
   function seek(t){
     return new Promise(r=>{
       const done=()=>{tv.removeEventListener('seeked',done);clearTimeout(to);r()};
@@ -1076,17 +1080,44 @@ chipGroup('speedChips','voiceSpeed');
     for(const i of order){if(out.length>=3)break;if(!out.some(o=>o.i===i))out.push({i,label:'',reason:''})}
     return out;
   }
+  function sharpen(c,amt){
+    const w=c.width,h=c.height,g=c.getContext('2d'),im=g.getImageData(0,0,w,h),s=im.data,o=new Uint8ClampedArray(s);
+    for(let y=1;y<h-1;y++){
+      for(let x=1;x<w-1;x++){
+        const i=(y*w+x)*4;
+        for(let k=0;k<3;k++){
+          const v=s[i+k],n=s[i-4+k]+s[i+4+k]+s[i-w*4+k]+s[i+w*4+k];
+          o[i+k]=v+amt*(4*v-n);
+        }
+      }
+    }
+    im.data.set(o);g.putImageData(im,0,0);
+  }
+  function grab(){
+    const vw=tv.videoWidth,vh=tv.videoHeight,sc=Math.min(1,1920/Math.max(vw,vh)),c=document.createElement('canvas');
+    c.width=Math.round(vw*sc);c.height=Math.round(vh*sc);
+    const g=c.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(tv,0,0,c.width,c.height);
+    return c;
+  }
   async function extract(tok){
     S.frames=[];S.picks=[];S.sel=[];renderPicks(true);
     const d=tv.duration||1;
     for(let k=0;k<N;k++){
       if(tok!==S.token)return false;
-      setHint(`🎞️ Movie ထဲက frame ဖတ်နေပါတယ်... ${k+1}/${N}`);
-      await seek(d*(.04+.92*k/(N-1)));
-      const vw=tv.videoWidth,vh=tv.videoHeight;if(!vw||!vh)continue;
-      const sc=Math.min(1,1280/Math.max(vw,vh)),c=document.createElement('canvas');c.width=Math.round(vw*sc);c.height=Math.round(vh*sc);
-      c.getContext('2d').drawImage(tv,0,0,c.width,c.height);
-      S.frames.push({t:tv.currentTime,cv:c,score:scoreOf(c),thumb:shrink(c,420,.72),label:'',reason:''});
+      setHint(`🎞️ Movie ထဲက အကြည်ဆုံး frame တွေ ရှာနေပါတယ်... ${k+1}/${N}`);
+      const t0=d*(.04+.92*k/(N-1));
+      let best=null,bs=-1;
+      // look at 3 moments close together and keep the sharpest one (avoids motion blur)
+      for(const off of [0,.12,-.12]){
+        if(tok!==S.token)return false;
+        await seek(t0+off);
+        if(!tv.videoWidth||!tv.videoHeight)continue;
+        const c=grab(),s=scoreOf(c);
+        if(s>bs){bs=s;best=c}
+      }
+      if(!best)continue;
+      sharpen(best,.45);
+      S.frames.push({t:t0,cv:best,score:bs,thumb:shrink(best,420,.72),label:'',reason:''});
     }
     return tok===S.token&&S.frames.length>0;
   }
@@ -1131,6 +1162,7 @@ chipGroup('speedChips','voiceSpeed');
   }
   const poly=(c,p)=>{c.beginPath();p.forEach((q,i)=>i?c.lineTo(q[0],q[1]):c.moveTo(q[0],q[1]));c.closePath()};
   function composeFrames(c,W,H){
+    c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';
     c.fillStyle='#000';c.fillRect(0,0,W,H);
     const F=S.sel.map(i=>S.frames[i]&&S.frames[i].cv).filter(Boolean);
     if(!F.length){const g=c.createLinearGradient(0,0,W,H);g.addColorStop(0,cssv('--a1'));g.addColorStop(1,cssv('--a2'));c.fillStyle=g;c.fillRect(0,0,W,H);return}
@@ -1269,14 +1301,16 @@ chipGroup('speedChips','voiceSpeed');
   async function postJson(url,body){
     const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json().catch(()=>({}));
-    if(!r.ok||d.error)throw new Error(d.error||('Server error '+r.status));
+    if(!r.ok||d.error){const e=new Error(d.error||('Server error '+r.status));if(d.quota||r.status===429){e.quota=true;try{localStorage.setItem('ynt_thumb_quota',String(Date.now()))}catch{}}throw e}
     return d;
   }
+  const quotaHit=()=>{try{return Date.now()-Number(localStorage.getItem('ynt_thumb_quota')||0)<3*3600*1000}catch{return false}};
   async function analyze(tok){
     $('thumbAnalyze').disabled=true;setHint('🤖 AI က ဇာတ်ကောင်/အဓိကနေရာတွေ ရွေးနေပါတယ်...');
     try{
-      const ctx=(typeof scenes!=='undefined'&&Array.isArray(scenes)?scenes:[]).map(s=>s.narration||s.text||'').join(' ').slice(0,1800);
+      const ctx=getStory().t.slice(0,1800);
       const d=await postJson('/api/thumbnail/analyze',{frames:S.frames.map(f=>shrink(f.cv,512,.72)),context:ctx,titleHint:S.titleEdited?$('thumbTitle').value.trim():''});
+      try{localStorage.removeItem('ynt_thumb_quota')}catch{}
       if(tok!==S.token)return;
       const used=new Set(),picks=[];
       for(const p of d.picks||[]){if(S.frames[p.frame]&&!used.has(p.frame)){used.add(p.frame);picks.push({i:p.frame,label:p.label,reason:p.reason})}}
@@ -1288,9 +1322,31 @@ chipGroup('speedChips','voiceSpeed');
       setHint('✅ AI ရွေးပေးပြီးပါပြီ။ ပုံကို နှိပ်ပြီး ရွေးမယ်၊ ၂-၃ ပုံ နှိပ်ရင် ပေါင်းပေးပါမယ်။');
     }catch(e){
       if(tok!==S.token)return;
-      setHint('⚠️ AI မရလို့ ပုံအရည်အသွေးကြည့်ပြီး အလိုအလျောက် ရွေးထားပါတယ်။ '+friendly(e.message).split('\n')[0]);
+      setHint(e.quota?'⚠️ Gemini quota ပြည့်နေလို့ AI ကို မခေါ်တော့ဘဲ ပုံအရည်အသွေးကြည့်ပြီး ရွေးထားပါတယ်။ နာရီအနည်းငယ်နေရင် "AI နဲ့ ပြန်ရွေးခိုင်းမယ်" ကို နှိပ်ပါ။':'⚠️ AI မရလို့ ပုံအရည်အသွေးကြည့်ပြီး အလိုအလျောက် ရွေးထားပါတယ်။ '+friendly(e.message).split('\n')[0]);
     }finally{if(tok===S.token)$('thumbAnalyze').disabled=false;draw()}
   }
+  function getStory(){
+    const mine=$('thumbStory').value.trim();if(mine)return{t:mine,src:'ရေးထည့်ထားတဲ့ ဇာတ်လမ်းအကျဉ်း'};
+    const sc=(typeof scenes!=='undefined'&&Array.isArray(scenes)?scenes:[]).map(s=>s.narration||s.text||'').filter(Boolean).join(' ');
+    if(sc.trim())return{t:sc.slice(0,6000),src:'Recap script'};
+    const srt=($('srtText')&&$('srtText').value||'').replace(/\d+\r?\n[\d:,\- >]+\r?\n/g,' ').trim();
+    if(srt)return{t:srt.slice(0,6000),src:'စကားပြော SRT'};
+    return{t:'',src:''};
+  }
+  $('thumbTitleGen').onclick=async()=>{
+    const btn=$('thumbTitleGen'),st=getStory(),tok=S.token;
+    if(!st.t&&!S.frames.length){setMsg('thumbTitleMsg','ဇာတ်လမ်းအကျဉ်း ရေးထည့်ပါ၊ ဒါမှမဟုတ် Movie ရွေးပါ။',true);return}
+    btn.disabled=true;btn.textContent='✍️ ရေးနေပါတယ်...';setMsg('thumbTitleMsg','');
+    try{
+      const d=await postJson('/api/thumbnail/titles',{story:st.t,frames:st.t?[]:S.frames.filter((f,i)=>i%2===0).slice(0,7).map(f=>shrink(f.cv,512,.72))});
+      if(tok!==S.token)return;
+      if(d.titles?.length){chips('thumbTitles',d.titles,'thumbTitle',true);$('thumbTitle').value=d.titles[0];S.titleEdited=true;markChips()}
+      if(d.subtitles?.length)chips('thumbSubs',d.subtitles.slice(0,5),'thumbSub',false);
+      setMsg('thumbTitleMsg','✅ '+(st.src?st.src+' ကနေ':'ပုံတွေကနေ')+' ခေါင်းစဉ် '+(d.titles?.length||0)+' ခု ရေးပေးပါပြီ။ နှိပ်ပြီး ရွေးပါ။');
+      draw();
+    }catch(e){setMsg('thumbTitleMsg','❌ '+(e.quota?'Gemini quota ပြည့်နေပါတယ်။ နာရီအနည်းငယ်နေမှ ပြန်စမ်းပါ။':friendly(e.message)),true)}
+    finally{btn.disabled=false;btn.textContent='✍️ ဇာတ်လမ်းနဲ့ လိုက်တဲ့ ခေါင်းစဉ် ရေးပေးမယ်'}
+  };
   $('thumbAnalyze').onclick=()=>{if(S.frames.length)analyze(S.token)};
 
   $('thumbAiGen').onclick=async()=>{
@@ -1299,7 +1355,7 @@ chipGroup('speedChips','voiceSpeed');
     try{
       const W=cv.width,H=cv.height,t=document.createElement('canvas');t.width=W;t.height=H;
       drawBg(t.getContext('2d'),W,H,false);
-      const d=await postJson('/api/thumbnail/ai',{image:t.toDataURL('image/jpeg',.9),ratio:S.ratio,mood:S.mood,textPos:S.pos,title:$('thumbTitle').value.trim()});
+      const d=await postJson('/api/thumbnail/ai',{image:shrink(t,1280,.92),ratio:S.ratio,mood:S.mood,textPos:S.pos,title:$('thumbTitle').value.trim()});
       if(tok!==S.token)return;
       const img=new Image();await new Promise((res,rej)=>{img.onload=res;img.onerror=()=>rej(new Error('AI ပုံ ဖွင့်မရပါ'));img.src=d.image});
       S.ai.push({url:d.image,img});S.aiOn=S.ai.length-1;
@@ -1313,7 +1369,7 @@ chipGroup('speedChips','voiceSpeed');
     const tok=++S.token;
     S.frames=[];S.picks=[];S.sel=[];S.ai=[];S.aiOn=-1;S.layout='single';S.titleEdited=false;
     mark('thumbLayout','single');
-    ['thumbDl','thumbAnalyze','thumbAiGen'].forEach(id=>$(id).disabled=true);
+    ['thumbDl','thumbAnalyze','thumbAiGen','thumbTitleGen'].forEach(id=>$(id).disabled=true);
     $('thumbTitles').innerHTML='';$('thumbSubs').innerHTML='';setMsg('thumbAiMsg','');
     setHint('Movie ကို ဖတ်နေပါတယ်...');renderPicks(true);draw();
     tv.onloadedmetadata=async()=>{
@@ -1321,8 +1377,10 @@ chipGroup('speedChips','voiceSpeed');
       if(tok!==S.token)return;
       if(!ok){setHint('❌ Frame မဖတ်နိုင်ပါ။ ဒီ video format ကို browser က မဖွင့်နိုင်ပါ (MP4 နဲ့ ပြန်စမ်းပါ)။');$('thumbPicks').innerHTML='';return}
       S.picks=localPicks();S.sel=[S.picks[0].i];
-      renderPicks();$('thumbDl').disabled=false;$('thumbAiGen').disabled=false;draw();
-      analyze(tok);
+      renderPicks();$('thumbTitleGen').disabled=false;$('thumbDl').disabled=false;$('thumbAiGen').disabled=false;draw();
+      if(quotaHit())setHint('ℹ️ Gemini quota ပြည့်ထားတာ မကြာသေးလို့ AI ကို အလိုအလျောက် မခေါ်ပါဘူး။ ပုံအရည်အသွေးနဲ့ ရွေးထားပါတယ်။ ကြိုက်ရင် "AI နဲ့ ပြန်ရွေးခိုင်းမယ်" ကို နှိပ်ပါ။');
+      else analyze(tok);
+      $('thumbAnalyze').disabled=false;
     };
     tv.onerror=()=>{if(tok===S.token){setHint('❌ Video ကို browser က မဖွင့်နိုင်ပါ။');$('thumbPicks').innerHTML=''}};
     tv.src=u;tv.load();
