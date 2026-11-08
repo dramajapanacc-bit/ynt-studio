@@ -3510,7 +3510,7 @@ Return ONLY JSON:
       parts.push({ inlineData: { mimeType: f.mimeType, data: f.data } });
     });
 
-    const response = await callWithModelFallback("thumbnail analyze", model =>
+    const response = await thumbCall([GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS.filter(m => m !== GEMINI_MODEL)].slice(0, 3), model =>
       ai.models.generateContent({
         model,
         contents: [{ role: "user", parts }],
@@ -3532,7 +3532,7 @@ Return ONLY JSON:
     const clean = list => (Array.isArray(list) ? list : []).map(t => String(t || "").trim().slice(0, 60)).filter(Boolean).slice(0, 8);
     return res.json({ success: true, movie: String(data.movie || "").slice(0, 80), picks, titles: clean(data.titles), subtitles: clean(data.subtitles) });
   } catch (error) {
-    return res.status(502).json({ error: String(error?.message || error).slice(0, 300) });
+    return thumbFail(res, error);
   }
 });
 
@@ -3566,7 +3566,7 @@ Rules:
 - Output exactly ${ratio} aspect ratio.
 - ABSOLUTELY NO text, letters, captions, subtitles, logos, watermarks or UI.`;
 
-    const response = await callWithModelFallbackImage("thumbnail ai", model =>
+    const response = await thumbCall(GEMINI_IMAGE_MODELS, model =>
       ai.models.generateContent({
         model,
         contents: [{ role: "user", parts: [{ text: prompt }, { inlineData: { mimeType: img.mimeType, data: img.data } }] }],
@@ -3578,22 +3578,30 @@ Rules:
     if (!out) throw new Error("AI က ပုံမထုတ်ပေးနိုင်ပါ။ နောက်တစ်ကြိမ် ပြန်နှိပ်ကြည့်ပါ။");
     return res.json({ success: true, image: `data:${out.inlineData.mimeType || "image/png"};base64,${out.inlineData.data}` });
   } catch (error) {
-    return res.status(502).json({ error: String(error?.message || error).slice(0, 300) });
+    return thumbFail(res, error);
   }
 });
 
-async function callWithModelFallbackImage(operationName, makeCall) {
+const isQuotaError = e => /429|quota|rate limit|RESOURCE_EXHAUSTED/i.test(String(e?.message || e));
+
+// One request per model, never retried on quota errors (so a full quota is not hammered).
+async function thumbCall(models, makeCall) {
   let lastError = null;
-  for (const model of GEMINI_IMAGE_MODELS) {
+  for (const model of models) {
     try {
-      return await callGeminiWithRetry(`${operationName} [${model}]`, () => makeCall(model));
+      return await makeCall(model);
     } catch (error) {
       lastError = error;
-      if (!/429|quota|404|not found|not supported|503|UNAVAILABLE|overloaded/i.test(String(error?.message || error))) throw error;
+      if (!/429|quota|rate limit|RESOURCE_EXHAUSTED|404|not found|not supported|503|UNAVAILABLE|overloaded/i.test(String(error?.message || error))) break;
     }
   }
-  throw lastError || new Error("Image model မရနိုင်ပါ။");
+  const err = new Error(isQuotaError(lastError) ? "QUOTA: Gemini quota ပြည့်နေပါတယ်။" : String(lastError?.message || lastError || "Gemini error"));
+  err.quota = isQuotaError(lastError);
+  throw err;
 }
+
+const thumbFail = (res, error) =>
+  res.status(error?.quota ? 429 : 502).json({ error: String(error?.message || error).slice(0, 300), quota: !!error?.quota });
 
 /* =========================================================
    FRONTEND
