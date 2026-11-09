@@ -108,14 +108,16 @@ const GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts";
 ========================================================= */
 
 const AUDIO_CHUNK_SECONDS = 90;
-const SCENE_FPS = 2;
+// Video tokens scale linearly with fps. 1 fps is Gemini's default and halves scene-analysis token use.
+const SCENE_FPS = Number(process.env.SCENE_FPS || 1);
 const MAX_SCENES = 18;
 // "sync" style (faithful dialogue + events) needs many more, shorter scenes.
 const SYNC_MAX_SCENES = Number(process.env.SYNC_MAX_SCENES || 40);
 const MIN_SCENE_SECONDS = 3;
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024;
 
-const GEMINI_MAX_RETRIES = 4;
+// Only transient 5xx errors are retried. 429 (quota) is never retried on the same model.
+const GEMINI_MAX_RETRIES = Number(process.env.GEMINI_MAX_RETRIES || 2);
 const GEMINI_INITIAL_RETRY_DELAY = 2000;
 
 /* =========================================================
@@ -528,8 +530,8 @@ function getGeminiErrorStatus(error) {
 function isRetryableGeminiError(error) {
   const status = getGeminiErrorStatus(error);
 
+  // 429 is intentionally NOT retried: repeating a quota-limited call only burns more quota.
   return [
-    429,
     500,
     502,
     503,
@@ -539,12 +541,28 @@ function isRetryableGeminiError(error) {
 
 const exhaustedModels = new Map();
 
+function isQuotaMessage(message) {
+  return /429|quota|rate limit|RESOURCE_EXHAUSTED/i.test(String(message || ""));
+}
+
+// Daily quota -> rest the model for 3h. Per-minute limit -> rest it for 70s.
+function markModelCooldown(model, message) {
+  const daily = /per ?day|daily/i.test(String(message || ""));
+  exhaustedModels.set(model, Date.now() + (daily ? 3 * 60 * 60 * 1000 : 70 * 1000));
+}
+
+function isModelCoolingDown(model) {
+  return (exhaustedModels.get(model) || 0) > Date.now();
+}
+
 async function callWithModelFallback(operationName, makeCall) {
   const models = [GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS.filter(name => name !== GEMINI_MODEL)];
   let lastError = null;
+  let tried = 0;
 
   for (const model of models) {
-    if ((exhaustedModels.get(model) || 0) > Date.now()) continue;
+    if (isModelCoolingDown(model)) continue;
+    tried++;
 
     try {
       const result = await callGeminiWithRetry(`${operationName} [${model}]`, () => makeCall(model));
@@ -553,10 +571,8 @@ async function callWithModelFallback(operationName, makeCall) {
     } catch (error) {
       lastError = error;
       const message = String(error?.message || error);
-      if (/429|quota|rate limit|per day|404|not found|not supported|NOT_FOUND|503|UNAVAILABLE|high demand|overloaded/i.test(message)) {
-        if (/per day|perday|daily/i.test(message)) {
-          exhaustedModels.set(model, Date.now() + 3 * 60 * 60 * 1000);
-        }
+      if (isQuotaMessage(message)) markModelCooldown(model, message);
+      if (/429|quota|rate limit|RESOURCE_EXHAUSTED|404|not found|not supported|NOT_FOUND|503|UNAVAILABLE|high demand|overloaded/i.test(message)) {
         console.warn(`[GEMINI] ${model} မရပါ၊ နောက် model ကို စမ်းပါမယ်။`);
         continue;
       }
@@ -565,8 +581,8 @@ async function callWithModelFallback(operationName, makeCall) {
   }
 
   if (lastError) throw lastError;
-  exhaustedModels.clear();
-  throw new Error("Gemini model အားလုံး quota ကုန်နေပါတယ်။ နာရီအနည်းငယ် စောင့်ပြီး ပြန်စမ်းပါ။");
+  // Every model is cooling down: fail fast without sending any request.
+  throw new Error("QUOTA: Gemini model အားလုံး quota ကုန်နေပါတယ်။ ခဏစောင့်ပြီး (သို့) နောက်ရက် ပြန်စမ်းပါ။");
 }
 
 async function callGeminiWithRetry(
@@ -620,13 +636,6 @@ async function callGeminiWithRetry(
         status || "",
         error?.message || error
       );
-
-      if (
-        status === 429 &&
-        /per day|perday|daily/i.test(String(error?.message || ""))
-      ) {
-        throw error;
-      }
 
       if (!isRetryableGeminiError(error)) {
         throw error;
@@ -1566,7 +1575,9 @@ WHISPER TIMELINE:
 ${timeline}
 `;
 
-  const response =
+  let response;
+  try {
+  response =
     await callWithModelFallback(
       "Scene-Synchronized Movie Analysis",
       (model) =>
@@ -1603,6 +1614,15 @@ ${timeline}
           }
         })
     );
+  } catch (err) {
+    try { await ai.files.delete({ name: videoFile.name }); } catch {}
+    throw err;
+  }
+
+  // Free the uploaded video from Gemini file storage (it is no longer needed).
+  try {
+    await ai.files.delete({ name: videoFile.name });
+  } catch {}
 
   const outputText =
     response?.output_text ||
@@ -1996,6 +2016,7 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto", r
 
   for (const name of order) {
     try {
+      if (name === "gemini" && isModelCoolingDown(GEMINI_TTS_MODEL)) throw new Error("Gemini TTS quota cooldown — skipped");
       if (name === "gemini") await generateGeminiTTS(ai, scenes, outputPath, voice, recapStyle);
       else if (name === "edge") await edgeTts(fullText, outputPath, voice);
       else if (name === "elevenlabs") await elevenLabsTts(fullText, outputPath, voice);
@@ -2008,6 +2029,7 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto", r
       return outputPath;
     } catch (error) {
       const message = String(error?.message || error).slice(0, 200);
+      if (name === "gemini" && isQuotaMessage(message)) markModelCooldown(GEMINI_TTS_MODEL, String(error?.message || error));
       errors.push(`${name}: ${message}`);
       console.error(`[TTS] ${name} failed: ${message}`);
     }
@@ -3208,6 +3230,8 @@ async function translateCuesToMyanmar(ai, cues, jobId) {
       }
     } catch (error) {
       console.warn("[SRT] translate batch failed:", String(error?.message || error).slice(0, 160));
+      // Quota is gone: stop sending the remaining batches, keep original text for them.
+      if (isQuotaMessage(error?.message || error)) break;
     }
   }
   return out;
@@ -3620,13 +3644,16 @@ const isQuotaError = e => /429|quota|rate limit|RESOURCE_EXHAUSTED/i.test(String
 async function thumbCall(models, makeCall) {
   let lastError = null;
   for (const model of models) {
+    if (isModelCoolingDown(model)) continue;
     try {
       return await makeCall(model);
     } catch (error) {
       lastError = error;
+      if (isQuotaError(error)) markModelCooldown(model, String(error?.message || error));
       if (!/429|quota|rate limit|RESOURCE_EXHAUSTED|404|not found|not supported|503|UNAVAILABLE|overloaded/i.test(String(error?.message || error))) break;
     }
   }
+  if (!lastError) lastError = new Error("429 quota cooldown");
   const err = new Error(isQuotaError(lastError) ? "QUOTA: Gemini quota ပြည့်နေပါတယ်။" : String(lastError?.message || lastError || "Gemini error"));
   err.quota = isQuotaError(lastError);
   throw err;
