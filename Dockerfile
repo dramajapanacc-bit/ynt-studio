@@ -8,5 +8,6 @@ COPY package*.json ./
 RUN npm install --omit=dev
 COPY . .
 ENV PORT=10000
+ENV NODE_OPTIONS=--max-old-space-size=200
 EXPOSE 10000
 CMD ["node", "server.js"]
