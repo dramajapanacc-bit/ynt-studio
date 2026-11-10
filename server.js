@@ -108,7 +108,7 @@ const GEMINI_TTS_MODEL = "gemini-3.8-flash-lite-tts";
 ========================================================= */
 
 const AUDIO_CHUNK_SECONDS = 90;
-const SCENE_FPS = 2;
+const SCENE_FPS = Number(process.env.SCENE_FPS || 1); // 1 fps = half the video tokens of 2 fps
 const MAX_SCENES = 18;
 // "sync" style (faithful dialogue + events) needs many more, shorter scenes.
 const SYNC_MAX_SCENES = Number(process.env.SYNC_MAX_SCENES || 40);
@@ -658,7 +658,11 @@ async function callGeminiWithRetry(
         return await Promise.race([
           operation(),
           new Promise((_, reject) => {
-            timer = setTimeout(() => reject(new Error("Gemini request timed out 503")), timeoutMs);
+            timer = setTimeout(() => {
+              const e = new Error("Gemini request timed out 503");
+              e.isTimeout = true;
+              reject(e);
+            }, timeoutMs);
           })
         ]);
       } finally {
@@ -689,6 +693,12 @@ async function callGeminiWithRetry(
       }
 
       if (attempt >= GEMINI_MAX_RETRIES) {
+        break;
+      }
+
+      // A call that already hung for the full timeout: try once more, then let the
+      // caller switch to the next model instead of waiting 4 min x 5 on the same one.
+      if (error?.isTimeout && attempt >= 1) {
         break;
       }
     }
@@ -995,19 +1005,39 @@ async function uploadVideoToGemini(
     `[GEMINI VIDEO] Uploading ${videoPath}`
   );
 
+  const withTimeout = (promise, ms, label) => {
+    let timer;
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms);
+      })
+    ]).finally(() => clearTimeout(timer));
+  };
+
   const file =
-    await ai.files.upload({
-      file: videoPath,
-      config: {
-        mimeType
-      }
-    });
+    await withTimeout(
+      ai.files.upload({
+        file: videoPath,
+        config: {
+          mimeType
+        }
+      }),
+      Number(process.env.GEMINI_UPLOAD_TIMEOUT_MS || 600000),
+      "Gemini video upload"
+    );
+
+  console.log("[GEMINI VIDEO] Upload done");
 
   let current = file;
+  const processingStarted = Date.now();
 
   while (
     current?.state === "PROCESSING"
   ) {
+    if (Date.now() - processingStarted > Number(process.env.GEMINI_PROCESS_TIMEOUT_MS || 600000)) {
+      throw new Error("Gemini video processing timed out");
+    }
     console.log(
       "[GEMINI VIDEO] Processing..."
     );
