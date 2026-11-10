@@ -571,9 +571,16 @@ const exhaustedModels = new Map();
 async function callWithModelFallback(operationName, makeCall) {
   const models = [GEMINI_MODEL, ...GEMINI_FALLBACK_MODELS.filter(name => name !== GEMINI_MODEL)];
   let lastError = null;
+  let quotaWaitMs = 0;
+  let skipped = 0;
 
   for (const model of models) {
-    if ((exhaustedModels.get(model) || 0) > Date.now()) continue;
+    const until = exhaustedModels.get(model) || 0;
+    if (until > Date.now()) {
+      skipped++;
+      quotaWaitMs = Math.min(quotaWaitMs || (until - Date.now()), until - Date.now());
+      continue;
+    }
 
     try {
       const result = await callGeminiWithRetry(`${operationName} [${model}]`, () => makeCall(model));
@@ -584,7 +591,12 @@ async function callWithModelFallback(operationName, makeCall) {
       const message = String(error?.message || error);
       if (/429|quota|rate limit|per day|404|not found|not supported|NOT_FOUND|503|UNAVAILABLE|high demand|overloaded/i.test(message)) {
         if (/per day|perday|daily/i.test(message)) {
-          exhaustedModels.set(model, Date.now() + 3 * 60 * 60 * 1000);
+          // Use the real reset time Google reports ("retry in 15h11m25s"), else 3h.
+          const m = message.match(/retry in\s*(?:(\d+)h)?\s*(?:(\d+)m)?\s*(?:(\d+(?:\.\d+)?)s)?/i);
+          let ms = 3 * 60 * 60 * 1000;
+          if (m && (m[1] || m[2] || m[3])) ms = ((+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0)) * 1000;
+          exhaustedModels.set(model, Date.now() + ms);
+          quotaWaitMs = Math.min(quotaWaitMs || ms, ms);
         }
         console.warn(`[GEMINI] ${model} မရပါ၊ နောက် model ကို စမ်းပါမယ်။`);
         continue;
@@ -593,9 +605,13 @@ async function callWithModelFallback(operationName, makeCall) {
     }
   }
 
+  if (quotaWaitMs > 0) {
+    const h = Math.floor(quotaWaitMs / 3600000);
+    const mi = Math.ceil((quotaWaitMs % 3600000) / 60000);
+    throw new Error(`Gemini free quota (တစ်ရက် request အကန့်အသတ်) ကုန်နေပါတယ်။ ${h ? h + " နာရီ " : ""}${mi} မိနစ်ခန့် စောင့်ပါ၊ ဒါမှမဟုတ် API key အသစ် / billing ဖွင့်ပါ။`);
+  }
   if (lastError) throw lastError;
-  exhaustedModels.clear();
-  throw new Error("Gemini model အားလုံး quota ကုန်နေပါတယ်။ နာရီအနည်းငယ် စောင့်ပြီး ပြန်စမ်းပါ။");
+  throw new Error("Gemini model အားလုံး မရနိုင်ပါ။ နောက်မှ ပြန်စမ်းပါ။");
 }
 
 async function callGeminiWithRetry(
@@ -636,7 +652,18 @@ async function callGeminiWithRetry(
         }/${GEMINI_MAX_RETRIES + 1}`
       );
 
-      return await operation();
+      const timeoutMs = Number(process.env.GEMINI_TIMEOUT_MS || 240000);
+      let timer;
+      try {
+        return await Promise.race([
+          operation(),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error("Gemini request timed out 503")), timeoutMs);
+          })
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
 
     } catch (error) {
       lastError = error;
@@ -2019,7 +2046,7 @@ async function generateFullTTS(ai, scenes, outputPath, voice, engine = "auto", r
 
   const nativeBurmese = voice === "Thiha" || voice === "Nilar";
   const order = engine === "auto"
-    ? (nativeBurmese ? ["edge", "azure", "gemini", "google"] : ["gemini", "edge", "azure", "google"])
+    ? ["edge", "azure", "google", "gemini"] // Edge first (free, no quota); Gemini TTS only as last resort
     : [engine];
   const errors = [];
 
