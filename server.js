@@ -886,70 +886,181 @@ async function transcribeChunk(
   };
 }
 
+/* =========================================================
+   ASSEMBLYAI (fallback when Groq Whisper fails)
+   Needs ASSEMBLYAI_API_KEY. No SDK: plain REST via fetch.
+========================================================= */
+
+const ASSEMBLYAI_BASE = "https://api.assemblyai.com";
+
+function assemblyAiKey() {
+  return String(process.env.ASSEMBLYAI_API_KEY || "").trim();
+}
+
+async function assemblyAiJson(res, what) {
+  const body = await res.text();
+  let data = {};
+  try { data = body ? JSON.parse(body) : {}; } catch {}
+  if (!res.ok) {
+    throw new Error(
+      `AssemblyAI ${what} HTTP ${res.status}: ${String(data?.error || body).slice(0, 160)}`
+    );
+  }
+  return data;
+}
+
+async function assemblyAiTranscribeChunk(audioPath, chunkIndex, language = "") {
+  const key = assemblyAiKey();
+  if (!key) throw new Error("ASSEMBLYAI_API_KEY is not configured.");
+  const headers = { authorization: key };
+
+  // 1) upload the audio chunk
+  const up = await assemblyAiJson(
+    await fetch(`${ASSEMBLYAI_BASE}/v2/upload`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/octet-stream" },
+      body: fs.readFileSync(audioPath)
+    }),
+    "upload"
+  );
+
+  // 2) start the transcript (known language -> language_code, else auto-detect)
+  const submit = await assemblyAiJson(
+    await fetch(`${ASSEMBLYAI_BASE}/v2/transcript`, {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        audio_url: up.upload_url,
+        ...(language ? { language_code: language } : { language_detection: true })
+      })
+    }),
+    "submit"
+  );
+
+  // 3) poll until done (max ~8 minutes per chunk)
+  let result = null;
+  for (let i = 0; i < 160; i++) {
+    const poll = await assemblyAiJson(
+      await fetch(`${ASSEMBLYAI_BASE}/v2/transcript/${submit.id}`, { headers }),
+      "poll"
+    );
+    if (poll.status === "completed") { result = poll; break; }
+    if (poll.status === "error") {
+      throw new Error(`AssemblyAI: ${String(poll.error || "transcription failed").slice(0, 160)}`);
+    }
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  if (!result) throw new Error("AssemblyAI: timeout");
+
+  const offset = chunkIndex * AUDIO_CHUNK_SECONDS;
+  let segments = [];
+
+  // 4) timestamps: sentences endpoint first, then group words, then one block
+  try {
+    const sent = await assemblyAiJson(
+      await fetch(`${ASSEMBLYAI_BASE}/v2/transcript/${submit.id}/sentences`, { headers }),
+      "sentences"
+    );
+    segments = (sent.sentences || [])
+      .map(x => ({
+        start: Number(x.start || 0) / 1000 + offset,
+        end: Number(x.end || 0) / 1000 + offset,
+        text: String(x.text || "").trim()
+      }))
+      .filter(x => x.text);
+  } catch (error) {
+    console.warn("[ASSEMBLYAI] sentences failed:", String(error?.message || error).slice(0, 120));
+  }
+
+  if (!segments.length && Array.isArray(result.words) && result.words.length) {
+    for (let i = 0; i < result.words.length; i += 12) {
+      const group = result.words.slice(i, i + 12);
+      segments.push({
+        start: Number(group[0].start || 0) / 1000 + offset,
+        end: Number(group[group.length - 1].end || 0) / 1000 + offset,
+        text: group.map(w => w.text).join(" ")
+      });
+    }
+  }
+
+  if (!segments.length && result.text) {
+    segments = [{
+      start: offset,
+      end: offset + AUDIO_CHUNK_SECONDS,
+      text: String(result.text).trim()
+    }];
+  }
+
+  return { text: String(result.text || ""), segments };
+}
+
 async function transcribeMovie(
   jobId,
   audioChunks,
   language = ""
 ) {
-  const groq = new Groq({
-    apiKey: requireEnv(
-      "GROQ_API_KEY"
-    )
-  });
+  const hasAssembly = Boolean(assemblyAiKey());
+
+  let groq = null;
+  let groqOff = false;
+  let groqProblem = null;
+  try {
+    groq = new Groq({ apiKey: requireEnv("GROQ_API_KEY") });
+  } catch (error) {
+    groqOff = true;
+    groqProblem = error;
+  }
+
+  if (groqOff && !hasAssembly) throw groqProblem;
 
   const allSegments = [];
   const allTexts = [];
 
-  for (
-    let i = 0;
-    i < audioChunks.length;
-    i++
-  ) {
-    const progress =
-      15 +
-      Math.round(
-        (i / audioChunks.length) *
-        35
-      );
+  for (let i = 0; i < audioChunks.length; i++) {
+    const progress = 15 + Math.round((i / audioChunks.length) * 35);
+    let engine = groqOff ? "AssemblyAI" : "Groq Whisper";
 
     updateJob(jobId, {
       stage: "Whisper",
       progress,
-      message:
-        `Groq Whisper: ${
-          i + 1
-        } / ${
-          audioChunks.length
-        }`
+      message: `${engine}: ${i + 1} / ${audioChunks.length}`
     });
 
-    const result =
-      await transcribeChunk(
-        groq,
-        audioChunks[i],
-        i,
-        language
-      );
+    let result = null;
 
-    if (result.text) {
-      allTexts.push(result.text);
+    if (!groqOff) {
+      try {
+        result = await transcribeChunk(groq, audioChunks[i], i, language);
+      } catch (error) {
+        if (!hasAssembly) throw error;
+        const status = Number(error?.status || 0);
+        console.warn(
+          `[TRANSCRIBE] Groq failed (${status || "error"}) -> AssemblyAI:`,
+          String(error?.message || error).slice(0, 160)
+        );
+        // Bad / revoked key: don't waste time retrying Groq for later chunks.
+        if (status === 401 || status === 403) groqOff = true;
+      }
     }
 
-    allSegments.push(
-      ...result.segments
-    );
+    if (!result) {
+      engine = "AssemblyAI";
+      updateJob(jobId, {
+        stage: "Whisper",
+        progress,
+        message: `AssemblyAI: ${i + 1} / ${audioChunks.length}`
+      });
+      result = await assemblyAiTranscribeChunk(audioChunks[i], i, language);
+    }
+
+    if (result.text) allTexts.push(result.text);
+    allSegments.push(...result.segments);
   }
 
-  allSegments.sort(
-    (a, b) =>
-      a.start - b.start
-  );
+  allSegments.sort((a, b) => a.start - b.start);
 
   return {
-    text: allTexts
-      .join(" ")
-      .trim(),
-
+    text: allTexts.join(" ").trim(),
     segments: allSegments
   };
 }
@@ -1740,6 +1851,7 @@ ${timeline}
 ========================================================= */
 
 function resolveVoice(voice) {
+  if (EDGE_EXTRA_VOICES[String(voice)]) return EDGE_EXTRA_VOICES[String(voice)] === "Male" ? "Puck" : "Kore";
   if (voice === "Thiha") return "Puck";
   if (voice === "Nilar") return "Kore";
   if (voice === "male") {
@@ -1847,6 +1959,33 @@ async function generateGeminiTTS(
 const ttsEngineByJob = new Map();
 const MALE_VOICES = new Set(["male","Thiha","Puck","Charon","Fenrir","Orus","Enceladus","Iapetus","Umbriel","Algenib","Rasalgethi","Alnilam","Schedar","Achird","Zubenelgenubi","Sadachbia","Sadaltager"]);
 function isMaleVoice(voice) { return MALE_VOICES.has(String(voice)); }
+
+// Extra Microsoft Edge TTS voices (selectable in the UI). id -> gender.
+const EDGE_EXTRA_VOICES = {
+  "en-AU-WilliamMultilingualNeural": "Male",
+  "de-DE-SeraphinaMultilingualNeural": "Female",
+  "it-IT-GiuseppeMultilingualNeural": "Male",
+  "en-US-AndrewMultilingualNeural": "Male",
+  "en-US-AvaMultilingualNeural": "Female",
+  "en-US-BrianMultilingualNeural": "Male",
+  "en-US-EmmaMultilingualNeural": "Female",
+  "fr-FR-RemyMultilingualNeural": "Male",
+  "fr-FR-VivienneMultilingualNeural": "Female",
+  "de-DE-FlorianMultilingualNeural": "Male",
+  "pt-BR-ThalitaMultilingualNeural": "Female",
+  "ko-KR-HyunsuMultilingualNeural": "Male",
+  "en-US-JennyNeural": "Female",
+  "en-US-AriaNeural": "Female",
+  "en-US-GuyNeural": "Male",
+  "en-GB-RyanNeural": "Male",
+  "en-GB-SoniaNeural": "Female"
+};
+for (const [id, g] of Object.entries(EDGE_EXTRA_VOICES)) if (g === "Male") MALE_VOICES.add(id);
+function edgeVoiceName(voice) {
+  const v = String(voice);
+  if (EDGE_EXTRA_VOICES[v]) return v;
+  return isMaleVoice(v) ? "my-MM-ThihaNeural" : "my-MM-NilarNeural";
+}
 const TTS_ENGINES = ["auto", "gemini", "edge", "azure", "google", "elevenlabs"];
 
 function splitTtsText(text, maxChars) {
@@ -1927,7 +2066,7 @@ async function elevenLabsTts(text, outputPath, voice) {
 
 let edgeInstallTried = false;
 async function edgeTts(text, outputPath, voice) {
-  const voiceName = isMaleVoice(voice) ? "my-MM-ThihaNeural" : "my-MM-NilarNeural";
+  const voiceName = edgeVoiceName(voice);
   const base = `${outputPath}.edge`;
   const textFile = `${base}.txt`;
   const mediaFile = `${base}.mp3`;
